@@ -1,0 +1,58 @@
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { BaseEntityModel } from '../entities/base.entity';
+import { Trip } from './trip.entity';
+import { Child } from './child.entity';
+
+/**
+ * Type d'événement biométrique
+ */
+export enum BiometricEventType {
+  BOARDING = 'boarding',    // Montée dans le car
+  ALIGHTING = 'alighting',  // Descente du car
+}
+
+/**
+ * Entité BiometricEvent – événement de scan biométrique d'un enfant.
+ * Enregistré chaque fois qu'un enfant monte ou descend du car.
+ */
+@Entity('biometric_events')
+export class BiometricEvent extends BaseEntityModel {
+  @ManyToOne(() => Trip, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'trip_id' })
+  trip: Trip;
+
+  @Column({ name: 'trip_id' })
+  tripId: string;
+
+  @ManyToOne(() => Child, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'child_id' })
+  child: Child;
+
+  @Column({ name: 'child_id', nullable: true })
+  childId: string;
+
+  @Column({ type: 'enum', enum: BiometricEventType })
+  type: BiometricEventType;
+
+  @Column({ name: 'occurred_at', type: 'timestamptz' })
+  occurredAt: Date;
+
+  // Position GPS lors du scan
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  latitude: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 7, nullable: true })
+  longitude: number;
+
+  // Nom de l'arrêt associé
+  @Column({ name: 'stop_name', nullable: true })
+  stopName: string;
+
+  // Indique si la notification a été envoyée aux parents
+  @Column({ name: 'notification_sent', default: false })
+  notificationSent: boolean;
+
+  // Confiance de la reconnaissance biométrique (0-100%)
+  @Column({ name: 'confidence_score', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  confidenceScore: number;
+}

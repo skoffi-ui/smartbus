@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-navy-900 text-white font-sans antialiased min-h-screen;
+    background-image: 
+      radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
+      radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15), transparent 25%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-navy-800/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-glass;
+  }
+  
+  .btn-primary {
+    @apply bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-xl font-medium transition-all shadow-[0_4px_14px_0_rgba(99,102,241,0.39)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.23)];
+  }
+
+  .btn-secondary {
+    @apply bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-2 rounded-xl font-medium transition-all;
+  }
+
+  .form-label {
+    @apply block text-sm font-medium text-navy-300 mb-1;
+  }
+
+  .form-input {
+    @apply w-full px-4 py-3 bg-navy-900/60 border border-white/10 rounded-xl text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all;
+  }
+}

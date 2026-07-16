@@ -1,0 +1,23 @@
+/* Specific styles for Parents page (if any) */
+
+.btn-icon-danger {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-icon-danger:hover {
+  background: var(--danger);
+  color: white;
+  transform: scale(1.05);
+}
+
+

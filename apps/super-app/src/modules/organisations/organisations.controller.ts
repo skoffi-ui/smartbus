@@ -1,0 +1,88 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiQuery,
+} from '@nestjs/swagger';
+import { OrganisationsService } from './organisations.service';
+import { CreateOrganisationDto } from './dto/create-organisation.dto';
+import { UpdateOrganisationDto } from './dto/update-organisation.dto';
+import { JwtAuthGuard, RolesGuard, Roles, PaginationDto } from '@app/common';
+import { UserRole } from '@app/common';
+
+@ApiTags('organisations')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Controller('organisations')
+export class OrganisationsController {
+  constructor(private readonly service: OrganisationsService) {}
+
+  @Post()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Créer une organisation' })
+  create(@Body() dto: CreateOrganisationDto) {
+    return this.service.create(dto);
+  }
+
+  @Get()
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Lister toutes les organisations' })
+  @ApiQuery({ name: 'search', required: false })
+  findAll(
+    @Query() pagination: PaginationDto,
+    @Query('search') search?: string,
+  ) {
+    return this.service.findAll(pagination, search);
+  }
+
+  @Get(':id')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: 'Récupérer une organisation par son ID' })
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
+  }
+
+  @Patch(':id')
+  @Roles(UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Mettre à jour une organisation' })
+  update(@Param('id') id: string, @Body() dto: UpdateOrganisationDto) {
+    return this.service.update(id, dto);
+  }
+
+  @Patch(':id/suspend')
+  @Roles(UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Suspendre une organisation' })
+  suspend(@Param('id') id: string) {
+    return this.service.suspend(id);
+  }
+
+  @Patch(':id/activate')
+  @Roles(UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Activer une organisation' })
+  activate(@Param('id') id: string) {
+    return this.service.activate(id);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Supprimer une organisation' })
+  remove(@Param('id') id: string) {
+    return this.service.remove(id);
+  }
+}

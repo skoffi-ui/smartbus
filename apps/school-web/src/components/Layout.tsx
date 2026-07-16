@@ -1,0 +1,126 @@
+import React, { ReactNode, useState, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Bus, Users, LogOut, Settings, Sun, Moon, Map, MapPin, ListOrdered, CheckSquare, History, AlertTriangle } from 'lucide-react';
+
+interface LayoutProps {
+  children: ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
+  const navigate = useNavigate();
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('accessToken');
+    navigate('/login');
+  };
+
+  const navItems = [
+    { name: "Vue d'ensemble", path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Live Tracking', path: '/live', icon: Bus },
+    { name: 'Flotte (Bus)', path: '/cars', icon: Bus },
+    { name: 'Chauffeurs', path: '/drivers', icon: Users },
+    { name: 'Parents', path: '/parents', icon: Users },
+    { name: 'Élèves', path: '/children', icon: Users },
+    // Nouveaux menus Transport Scolaire
+    { name: 'Courses', path: '/courses', icon: Bus },
+    { name: 'Trajets', path: '/trajets', icon: Map },
+    { name: 'Points de récupération', path: '/points', icon: MapPin },
+    { name: 'Affectation des élèves', path: '/affectation', icon: ListOrdered },
+    { name: 'Suivi des montées', path: '/suivi', icon: CheckSquare },
+    { name: 'Historique', path: '/historique', icon: History },
+    { name: 'Alertes', path: '/alertes', icon: AlertTriangle },
+  ];
+
+  return (
+    <div className="flex" style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+      {/* Sidebar */}
+      <aside className="glass-panel" style={{ 
+        width: '260px', 
+        borderRadius: 0, 
+        borderRight: '1px solid var(--glass-border)',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <div style={{ padding: '2rem 1.5rem', borderBottom: '1px solid var(--glass-border)' }}>
+          <h1 className="text-xl text-accent" style={{ fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Bus size={24} />
+            SMARTBUS
+          </h1>
+          <p className="text-sm text-secondary mt-1">Espace École</p>
+        </div>
+
+        <nav style={{ flex: 1, padding: '1.5rem 1rem' }}>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.path}>
+                  <NavLink 
+                    to={item.path}
+                    style={({ isActive }) => ({
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      padding: '0.75rem 1rem',
+                      borderRadius: 'var(--radius-md)',
+                      color: isActive ? 'white' : 'var(--text-secondary)',
+                      background: isActive ? 'var(--accent-primary)' : 'transparent',
+                      textDecoration: 'none',
+                      fontWeight: isActive ? 600 : 400,
+                      transition: 'all 0.2s'
+                    })}
+                  >
+                    <Icon size={20} color={window.location.pathname === item.path ? 'currentColor' : 'currentColor'} />
+                    {item.name}
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div style={{ padding: '1.5rem 1rem', borderTop: '1px solid var(--glass-border)' }}>
+          <button onClick={handleLogout} className="btn w-full" style={{ 
+            background: 'rgba(239, 68, 68, 0.1)', 
+            color: 'var(--danger)', 
+            display: 'flex', 
+            justifyContent: 'flex-start',
+            gap: '0.75rem'
+          }}>
+            <LogOut size={20} />
+            Déconnexion
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main style={{ flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column' }}>
+        <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '2rem', gap: '1rem' }}>
+          <button onClick={toggleTheme} className="glass-panel" style={{ padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', border: 'none', background: 'var(--bg-glass)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Changer le thème">
+            {theme === 'dark' ? <Sun size={20} style={{ color: '#fbbf24' }} /> : <Moon size={20} style={{ color: '#4f46e5' }} />}
+          </button>
+          <div className="glass-panel" style={{ padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Settings size={20} className="text-secondary" />
+          </div>
+        </header>
+        <div style={{ flex: 1 }} className="animate-fade-in">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}

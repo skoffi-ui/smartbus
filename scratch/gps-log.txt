@@ -1,0 +1,42 @@
+[
+  {
+    "carId": "9b9efe08-7d28-4e30-8dac-d294f9206dc6",
+    "plateNumber": "FR-7645-GJ",
+    "brand": "youtong",
+    "model": "claie",
+    "lat": 5.361092204565116,
+    "lng": -4.006055422818882,
+    "speed": 15,
+    "time": "2026-07-16T09:50:55.902Z"
+  },
+  {
+    "carId": "033580bf-ebf4-4fd0-bef4-26620ac442a5",
+    "plateNumber": "1013KA01",
+    "brand": "Inconnu",
+    "model": "Inconnu",
+    "lat": 5.325275,
+    "lng": -4.374718,
+    "speed": 0,
+    "time": "16-07-2026 09:49:05"
+  },
+  {
+    "carId": "a184bf97-a70b-49f6-b584-5f50cbd33f72",
+    "plateNumber": "101LE01",
+    "brand": "Inconnu",
+    "model": "Inconnu",
+    "lat": 6.853735,
+    "lng": -6.446453,
+    "speed": 0,
+    "time": "16-07-2026 09:49:40"
+  },
+  {
+    "carId": "55ff2b30-451b-4530-a7a0-7577bfb6458e",
+    "plateNumber": "1023JF01",
+    "brand": "Inconnu",
+    "model": "Inconnu",
+    "lat": 5.460442,
+    "lng": -4.078783,
+    "speed": 0,
+    "time": "16-07-2026 09:50:31"
+  }
+]

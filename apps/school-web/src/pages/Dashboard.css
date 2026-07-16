@@ -1,0 +1,99 @@
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.dashboard-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 7px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.stat-blue { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); color: #0284c7; }
+.stat-indigo { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); color: #4f46e5; }
+.stat-emerald { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); color: #059669; }
+.stat-amber { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); color: #d97706; }
+
+.dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+}
+
+.welcome-card {
+  background: linear-gradient(135deg, #4f46e5 0%, #1d4ed8 100%);
+  color: white;
+  border: none;
+}
+
+.welcome-card-btn {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+}
+.welcome-card-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.welcome-card-btn-light {
+  background: white;
+  color: #4f46e5;
+}
+.welcome-card-btn-light:hover {
+  background: #f8fafc;
+}
+
+/* --- DARK MODE --- */
+:root.dark .stat-blue { background: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(2, 132, 199, 0.1) 100%); color: #38bdf8; }
+:root.dark .stat-indigo { background: linear-gradient(135deg, rgba(79, 70, 229, 0.2) 0%, rgba(79, 70, 229, 0.1) 100%); color: #818cf8; }
+:root.dark .stat-emerald { background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%); color: #34d399; }
+:root.dark .stat-amber { background: linear-gradient(135deg, rgba(217, 119, 6, 0.2) 0%, rgba(217, 119, 6, 0.1) 100%); color: #fbbf24; }
+
+:root.dark .stat-icon-wrapper {
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+:root.dark .activity-item {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+:root.dark .dashboard-card {
+  border-color: #334155;
+}
