@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn, OneToMany, Relation } from 'typeorm';
-import { BaseEntityModel } from '../entities/base.entity';
+import { SoftDeleteEntityModel } from '../entities/base.entity';
 import { Parent } from './parent.entity';
 
 /**
@@ -15,10 +15,10 @@ export enum ChildGender {
  * Contient les données biométriques (hash de l'empreinte digitale).
  */
 @Entity('children')
-export class Child extends BaseEntityModel {
-  // @ManyToOne('Parent', 'children', { onDelete: 'CASCADE' })
-  // @JoinColumn({ name: 'parent_id' })
-  // parent: any;
+export class Child extends SoftDeleteEntityModel {
+  @ManyToOne(() => Parent, { onDelete: 'CASCADE', nullable: true })
+  @JoinColumn({ name: 'parent_id' })
+  parent: Parent | null;
 
   @Column({ name: 'parent_id', nullable: true })
   parentId: string;

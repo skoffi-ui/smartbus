@@ -8,8 +8,12 @@ import {
   Organisation,
   Child, 
   Car, 
-  Route, 
-  Trip, 
+  Course,
+  Trajet,
+  PointRecuperation,
+  Affectation,
+  Montee,
+  Alerte,
   BiometricEvent, 
   Parent, 
   Driver,
@@ -86,7 +90,7 @@ export class TenantService {
       username: org.dbUser || this.configService.get<string>('SUPER_DB_USER', 'postgres'),
       password: org.dbPassword || this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
       database: org.dbName,
-      entities: [Child, Car, Route, Trip, BiometricEvent, Parent, Driver, Notification], // <-- Entités métiers chargées dynamiquement !
+      entities: [Child, Car, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, BiometricEvent, Parent, Driver, Notification], // <-- Entités métiers chargées dynamiquement !
       synchronize: true, // Activé temporairement pour mettre à jour le schéma (ex: ajouter emp_code)
     };
 

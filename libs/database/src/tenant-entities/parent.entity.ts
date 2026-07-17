@@ -1,9 +1,9 @@
 import { Entity, Column, OneToMany, Relation } from 'typeorm';
-import { BaseEntityModel } from '../entities/base.entity';
+import { SoftDeleteEntityModel } from '../entities/base.entity';
 import { Child } from './child.entity';
 
 @Entity('parents')
-export class Parent extends BaseEntityModel {
+export class Parent extends SoftDeleteEntityModel {
   @Column({ name: 'first_name', length: 100 })
   firstName: string;
 
@@ -22,6 +22,6 @@ export class Parent extends BaseEntityModel {
   @Column({ default: true })
   active: boolean;
 
-  // @OneToMany('Child', 'parent')
-  // children: any[];
+  @OneToMany(() => Child, (child) => child.parent)
+  children: Child[];
 }

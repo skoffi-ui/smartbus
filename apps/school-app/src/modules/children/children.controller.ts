@@ -38,6 +38,12 @@ export class ChildrenController {
     return this.childrenService.getBiotimeDirectory();
   }
 
+  @Post('resync-photos')
+  @ApiOperation({ summary: 'Resynchroniser les photos BioTime des enfants en base' })
+  async resyncPhotos() {
+    return this.childrenService.resyncPhotos();
+  }
+
   @Post('bulk-import')
   @ApiOperation({ summary: 'Importer en masse depuis BioTime' })
   async bulkImport(@Body('empCodes') empCodes: string[]) {

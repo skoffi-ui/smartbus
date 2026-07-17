@@ -47,7 +47,7 @@ export class ChildrenService {
           if (photo.startsWith('http')) {
             child.photoUrl = photo;
           } else if (photo.startsWith('/')) {
-            child.photoUrl = `http://160.120.143.20${photo}`;
+            child.photoUrl = `http://160.120.143.20:8080${photo}`;
           } else {
             child.photoUrl = `data:image/jpeg;base64,${photo}`;
           }
@@ -193,7 +193,7 @@ export class ChildrenService {
             if (photo.startsWith('http')) {
               child.photoUrl = photo;
             } else if (photo.startsWith('/')) {
-              child.photoUrl = `http://160.120.143.20${photo}`;
+              child.photoUrl = `http://160.120.143.20:8080${photo}`;
             } else {
               child.photoUrl = `data:image/jpeg;base64,${photo}`;
             }
@@ -209,5 +209,52 @@ export class ChildrenService {
       console.error(`Erreur lors de l'importation en masse`, error);
       throw new HttpException('Erreur lors de l\'importation en masse', HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  /**
+   * Corrige les photoUrl existantes en base pour y ajouter le port :8080 manquant.
+   * Nécessaire après la migration du BIOTIME_URL vers http://160.120.143.20:8080
+   */
+  async resyncPhotos(): Promise<{ updated: number }> {
+    const repo = await this.getRepo();
+    const allChildren = await repo.find();
+    let updated = 0;
+
+    for (const child of allChildren) {
+      let needsUpdate = false;
+
+      // Corriger les URLs sans port (http://160.120.143.20/...)
+      if (child.photoUrl && child.photoUrl.includes('160.120.143.20') && !child.photoUrl.includes(':8080')) {
+        child.photoUrl = child.photoUrl.replace('http://160.120.143.20', 'http://160.120.143.20:8080');
+        needsUpdate = true;
+      }
+
+      // Si toujours pas de photo et que l'enfant a un empCode, tenter la récupération
+      if (!child.photoUrl && child.empCode) {
+        try {
+          const response = await firstValueFrom(
+            this.httpService.get<any>(`http://localhost:3000/api/v1/biotime/employee/${child.empCode}`)
+          );
+          if (response.data && response.data.photo) {
+            const photo: string = response.data.photo;
+            if (photo.startsWith('http')) {
+              child.photoUrl = photo;
+            } else if (photo.startsWith('/')) {
+              child.photoUrl = `http://160.120.143.20:8080${photo}`;
+            }
+            needsUpdate = true;
+          }
+        } catch (_err) {
+          // Ignorer les erreurs de réseau silencieusement
+        }
+      }
+
+      if (needsUpdate) {
+        await repo.save(child);
+        updated++;
+      }
+    }
+
+    return { updated };
   }
 }

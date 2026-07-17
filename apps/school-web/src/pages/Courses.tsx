@@ -152,7 +152,7 @@ export default function Courses() {
       heureDepart: course.heureDepart || '07:00', 
       heureArrivee: course.heureArrivee || '08:30', 
       jours: course.joursExecution || course.jours || [], 
-      chauffeur: course.chauffeur || '', 
+      chauffeur: course.driverId || course.chauffeur || '', 
       vehicule: course.carId || course.vehicule || '', 
       route: parseMapData(course.route, true), 
       markers: parseMapData(course.markers, false) 
@@ -169,11 +169,20 @@ export default function Courses() {
     setIsSaving(true);
     
     try {
+      const selectedDriver = driversList.find(d => d.id === formData.chauffeur);
       const payload = {
-        ...formData,
+        nom: formData.nom,
+        description: formData.description,
+        statut: formData.statut,
+        couleurCarte: formData.couleurCarte,
+        heureDepart: formData.heureDepart,
+        heureArrivee: formData.heureArrivee,
         joursExecution: formData.jours,
         carId: formData.vehicule || null,
-        // Remove frontend specific keys if necessary, or let backend ignore them
+        driverId: formData.chauffeur || null,
+        chauffeur: selectedDriver ? `${selectedDriver.firstName} ${selectedDriver.lastName}` : formData.chauffeur || null,
+        route: formData.route,
+        markers: formData.markers,
       };
 
       if (selectedCourseId) { 
@@ -219,7 +228,7 @@ export default function Courses() {
     (c.vehicule?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
-  const selectedCar = carsList.find(c => c.plateNumber === formData.vehicule);
+  const selectedCar = carsList.find(c => c.id === formData.vehicule);
   const capacity = selectedCar?.capacity ?? 0;
   const mockStudents = capacity > 0 ? Math.floor(capacity * 0.85) : 0;
   const fillPct = capacity > 0 ? (mockStudents / capacity) * 100 : 0;
@@ -273,6 +282,7 @@ export default function Courses() {
   const distanceText = calculateDistance() > 0 ? `${calculateDistance().toFixed(1)} km` : '0 km';
 
   return (
+    <ErrorBoundary>
     <div className="min-h-[calc(100vh-4rem)] bg-[#F8FAFC] p-6 font-sans text-[#1E293B]">
       
       {/* 3 Columns Layout */}
@@ -325,8 +335,8 @@ export default function Courses() {
                     {course.statut === 'active' && <span className="cir-radio__chip" style={{ backgroundColor: '#22C55E' }}>Active</span>}
                   </div>
                   <div className="cir-radio__d flex items-center gap-3 mt-1">
-                    <span className="flex items-center gap-1"><User size={12}/> <span className="truncate max-w-[80px]">{course.chauffeur || 'N/A'}</span></span>
-                    <span className="flex items-center gap-1"><Bus size={12}/> <span className="truncate max-w-[80px]">{course.vehicule || 'N/A'}</span></span>
+                    <span className="flex items-center gap-1"><User size={12}/> <span className="truncate max-w-[80px]">{course.driver && typeof course.driver === 'object' ? `${course.driver.firstName || ''} ${course.driver.lastName || ''}` : course.chauffeur || 'N/A'}</span></span>
+                    <span className="flex items-center gap-1"><Bus size={12}/> <span className="truncate max-w-[80px]">{course.car && typeof course.car === 'object' ? course.car.plateNumber : course.vehicule || 'N/A'}</span></span>
                   </div>
                 </div>
                 
@@ -385,6 +395,13 @@ export default function Courses() {
                       </div>
                       
                       <div className="flex items-center gap-2">
+                        {selectedCourseId && (
+                          <button onClick={handleDelete} className="uiverse-delete-btn" type="button" disabled={isDeleting}>
+                            <span className="button_top">
+                              <Trash2 size={16} /> {isDeleting ? '...' : 'Supprimer'}
+                            </span>
+                          </button>
+                        )}
                         <button onClick={handleNewCourse} className="uiverse-new-btn" type="button">
                           <span className="button_top">
                             <Plus size={16} /> Nouveau
@@ -478,7 +495,7 @@ export default function Courses() {
                               <select value={formData.vehicule} onChange={e => setFormData({...formData, vehicule: e.target.value})}
                                 className="flex h-10 w-full rounded-md border border-gray-300 bg-transparent pl-9 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:ring-offset-1 appearance-none cursor-pointer">
                                 <option value="">Sélectionner</option>
-                                {carsList.map((c: any) => <option key={c.id} value={c.plateNumber}>{c.plateNumber}</option>)}
+                                {carsList.map((c: any) => <option key={c.id} value={c.id}>{c.plateNumber}</option>)}
                               </select>
                             </div>
                           </div>
@@ -490,7 +507,7 @@ export default function Courses() {
                               <select value={formData.chauffeur} onChange={e => setFormData({...formData, chauffeur: e.target.value})}
                                 className="flex h-10 w-full rounded-md border border-gray-300 bg-transparent pl-9 pr-8 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 focus:ring-offset-1 appearance-none cursor-pointer">
                                 <option value="">Sélectionner</option>
-                                {driversList.map((d: any) => <option key={d.id} value={`${d.firstName} ${d.lastName}`}>{d.firstName} {d.lastName}</option>)}
+                                {driversList.map((d: any) => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}
                               </select>
                             </div>
                           </div>
@@ -578,5 +595,6 @@ export default function Courses() {
 
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

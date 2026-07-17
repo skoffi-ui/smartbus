@@ -1,9 +1,17 @@
 import { Entity, Column, OneToMany } from 'typeorm';
-import { BaseEntityModel } from '../entities/base.entity';
-import { Trip } from './trip.entity';
+import { SoftDeleteEntityModel } from '../entities/base.entity';
 
+export enum DriverStatus {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  SUSPENDED = 'suspended',
+}
+
+/**
+ * Driver – Chauffeur de bus de l'établissement.
+ */
 @Entity('drivers')
-export class Driver extends BaseEntityModel {
+export class Driver extends SoftDeleteEntityModel {
   @Column({ name: 'first_name', length: 100 })
   firstName: string;
 
@@ -22,9 +30,17 @@ export class Driver extends BaseEntityModel {
   @Column({ length: 255, nullable: true })
   email: string;
 
+  @Column({ name: 'photo_url', type: 'varchar', nullable: true })
+  photoUrl: string;
+
+  // PIN hashé (bcrypt) pour authentification sur la tablette
+  @Column({ name: 'pin_code_hash', type: 'varchar', nullable: true, select: false })
+  pinCodeHash: string;
+
+  @Column({ type: 'enum', enum: DriverStatus, default: DriverStatus.ACTIVE })
+  status: DriverStatus;
+
+  // Champ legacy – à conserver pour rétrocompatibilité
   @Column({ default: true })
   active: boolean;
-
-  // Un chauffeur peut avoir plusieurs trajets
-  // On ne met pas de relation forte obligatoire pour l'instant
 }

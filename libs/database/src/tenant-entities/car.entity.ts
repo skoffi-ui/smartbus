@@ -1,12 +1,12 @@
 import { Entity, Column, ManyToMany, JoinTable, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntityModel } from '../entities/base.entity';
+import { SoftDeleteEntityModel } from '../entities/base.entity';
 import { Child } from './child.entity';
 
 /**
  * Entité Car – véhicule du parc automobile d'un établissement.
  */
 @Entity('cars')
-export class Car extends BaseEntityModel {
+export class Car extends SoftDeleteEntityModel {
   @Column({ name: 'plate_number', unique: true, length: 20 })
   plateNumber: string;
 

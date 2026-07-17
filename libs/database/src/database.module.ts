@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, Child, Parent, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, Car } from './index';
+import { Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion, Child, Parent, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, Car, Driver } from './index';
 
 @Module({
   imports: [
@@ -15,7 +15,7 @@ import { Organisation, User, Subscription, BillingRecord, MetaData, Payment, Aud
         password: configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
         database: configService.get<string>('SUPER_DB_NAME', 'smartbus_super'),
         // On déclare explicitement les entités
-        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, Child, Parent, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, Car],
+        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion, Child, Parent, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, Car, Driver],
         // En développement uniquement – à désactiver en production
         synchronize: configService.get<string>('NODE_ENV') === 'development',
         logging: configService.get<string>('NODE_ENV') === 'development',

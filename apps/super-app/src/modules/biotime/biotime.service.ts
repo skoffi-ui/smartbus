@@ -23,7 +23,7 @@ export class BiotimeService {
   ) {}
 
   private get biotimeUrl(): string {
-    return this.configService.get<string>('BIOTIME_URL', 'http://160.120.143.20');
+    return this.configService.get<string>('BIOTIME_URL', 'http://160.120.143.20:8080');
   }
 
   private get biotimeUser(): string {

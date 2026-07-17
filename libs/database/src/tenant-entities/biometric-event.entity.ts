@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntityModel } from '../entities/base.entity';
-import { Trip } from './trip.entity';
+import { Course } from './course.entity';
 import { Child } from './child.entity';
 
 /**
@@ -17,12 +17,12 @@ export enum BiometricEventType {
  */
 @Entity('biometric_events')
 export class BiometricEvent extends BaseEntityModel {
-  @ManyToOne(() => Trip, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'trip_id' })
-  trip: Trip;
+  @ManyToOne(() => Course, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'course_id' })
+  course: Course;
 
-  @Column({ name: 'trip_id' })
-  tripId: string;
+  @Column({ name: 'course_id' })
+  courseId: string;
 
   @ManyToOne(() => Child, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'child_id' })

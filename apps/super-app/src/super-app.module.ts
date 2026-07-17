@@ -15,7 +15,6 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { CronModule } from './modules/cron/cron.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { BiotimeModule } from './modules/biotime/biotime.module';
-import { TransportModule } from './modules/transport/transport.module';
 
 @Module({
   imports: [
@@ -44,7 +43,6 @@ import { TransportModule } from './modules/transport/transport.module';
     CronModule,
     AuditModule,
     BiotimeModule,
-    TransportModule,
   ],
 })
 export class SuperAppModule {}

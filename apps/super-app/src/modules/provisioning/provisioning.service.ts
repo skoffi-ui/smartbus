@@ -11,8 +11,12 @@ import {
   Organisation, 
   Child, 
   Car, 
-  Route, 
-  Trip, 
+  Course,
+  Trajet,
+  PointRecuperation,
+  Affectation,
+  Montee,
+  Alerte,
   BiometricEvent, 
   Parent, 
   Driver 
@@ -153,7 +157,7 @@ export class ProvisioningService {
       username: this.configService.get<string>('SUPER_DB_USER', 'postgres'),
       password: this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
       database: dbName,
-      entities: [Child, Car, Route, Trip, BiometricEvent, Parent, Driver],
+      entities: [Child, Car, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, BiometricEvent, Parent, Driver],
       synchronize: true, // Magie : Crée toutes les tables automatiquement !
     });
 

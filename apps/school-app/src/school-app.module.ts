@@ -11,6 +11,7 @@ import { ParentsModule } from './modules/parents/parents.module';
 import { ChildrenModule } from './modules/children/children.module';
 import { GpsModule } from './modules/gps/gps.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { TransportModule } from './modules/transport/transport.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     ChildrenModule,
     GpsModule,
     NotificationsModule,
+    TransportModule,
   ],
   controllers: [],
   providers: [],

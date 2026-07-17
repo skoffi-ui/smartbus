@@ -1,0 +1,83 @@
+[
+  {
+    "course": {
+      "id": "3c82a409-3ae1-483e-a7f2-1c467f73d306",
+      "created_at": "2026-07-16T10:03:03.106Z",
+      "updated_at": "2026-07-16T10:03:03.106Z",
+      "nom": "Test Course",
+      "description": null,
+      "car_id": null,
+      "chauffeur": null,
+      "ecole": null,
+      "heure_depart": null,
+      "heure_arrivee": null,
+      "joursExecution": [
+        "L"
+      ],
+      "statut": "active",
+      "couleur_carte": null,
+      "route": null,
+      "markers": null
+    },
+    "trajet": null,
+    "points": [],
+    "affectations": [],
+    "montees": [],
+    "alertes": [],
+    "error": "Aucune école correspondante trouvée"
+  },
+  {
+    "course": {
+      "id": "e74a9a5c-f1d7-47d1-8fc0-dcd42aa98d6b",
+      "created_at": "2026-07-16T10:50:18.984Z",
+      "updated_at": "2026-07-16T10:50:18.984Z",
+      "nom": "Test",
+      "description": null,
+      "car_id": null,
+      "chauffeur": null,
+      "ecole": null,
+      "heure_depart": null,
+      "heure_arrivee": null,
+      "joursExecution": [
+        "L"
+      ],
+      "statut": "active",
+      "couleur_carte": null,
+      "route": null,
+      "markers": null
+    },
+    "trajet": null,
+    "points": [],
+    "affectations": [],
+    "montees": [],
+    "alertes": [],
+    "error": "Aucune école correspondante trouvée"
+  },
+  {
+    "course": {
+      "id": "04d08b9b-3367-4768-bb88-53d74f47d5a4",
+      "created_at": "2026-07-16T10:50:47.804Z",
+      "updated_at": "2026-07-16T10:50:47.804Z",
+      "nom": "Test",
+      "description": null,
+      "car_id": null,
+      "chauffeur": null,
+      "ecole": null,
+      "heure_depart": null,
+      "heure_arrivee": null,
+      "joursExecution": [
+        "L"
+      ],
+      "statut": "active",
+      "couleur_carte": null,
+      "route": null,
+      "markers": null
+    },
+    "trajet": null,
+    "points": [],
+    "affectations": [],
+    "montees": [],
+    "alertes": [],
+    "error": "Aucune école correspondante trouvée"
+  }
+]
