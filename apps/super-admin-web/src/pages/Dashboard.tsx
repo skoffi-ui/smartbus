@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deviceAlerts, setDeviceAlerts] = useState<any[]>([]);
 
   const fetchOrganisations = async () => {
     try {
@@ -39,8 +40,28 @@ export default function Dashboard() {
     }
   };
 
+  const fetchDeviceAlerts = async () => {
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await axios.get('http://localhost:3000/api/v1/hardware/alerts', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDeviceAlerts(response.data);
+    } catch (err) {
+      console.error('Erreur de chargement des alertes matériel', err);
+    }
+  };
+
   useEffect(() => {
     fetchOrganisations();
+    fetchDeviceAlerts();
+
+    // Actualisation toutes les 30 secondes pour les alertes
+    const interval = setInterval(() => {
+      fetchDeviceAlerts();
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
@@ -79,6 +100,32 @@ export default function Dashboard() {
   return (
     <div className="animate-fade-in">
       <div className="glass-panel p-6">
+        {deviceAlerts.length > 0 && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-5 rounded-2xl mb-6 shadow-lg shadow-red-500/5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              <strong className="text-white font-extrabold text-sm uppercase tracking-wider">
+                🚨 ALERTE SÉCURITÉ : {deviceAlerts.length} équipement(s) hors-ligne !
+              </strong>
+            </div>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {deviceAlerts.map((alert) => (
+                <div key={alert.id} className="bg-black/20 p-3 rounded-xl border border-white/5 text-xs">
+                  <div className="font-bold text-white uppercase">{alert.type}</div>
+                  <div className="text-navy-300 font-mono mt-0.5">SN: {alert.serialNumber}</div>
+                  {alert.imei && <div className="text-navy-400 font-mono">IMEI: {alert.imei}</div>}
+                  <div className="text-red-400 font-semibold mt-1">
+                    Dernier signal : {alert.lastSeenAt ? new Date(alert.lastSeenAt).toLocaleTimeString('fr-FR') : 'Jamais'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-white">Liste des Écoles Clientes</h2>
           <div className="text-sm text-navy-300 font-medium">

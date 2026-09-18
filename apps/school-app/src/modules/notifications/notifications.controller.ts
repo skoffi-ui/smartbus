@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Body, UseGuards, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Inject, Param } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { NotificationsService } from './notifications.service';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
 import { UserRole } from '@app/database';
 
@@ -19,6 +19,12 @@ export class NotificationsController {
   @Get()
   async getRecentNotifications() {
     return this.notificationsService.getRecentNotifications();
+  }
+
+  @Post('parents/:id/fcm-token')
+  @ApiOperation({ summary: "Enregistrer le jeton FCM d'un parent (Mobile App)" })
+  async updateFcmToken(@Param('id') parentId: string, @Body('token') fcmToken: string) {
+    return this.notificationsService.updateParentToken(parentId, fcmToken);
   }
 
   // Internal Webhook called by super-app

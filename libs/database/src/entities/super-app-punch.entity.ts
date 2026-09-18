@@ -4,12 +4,15 @@ import { SuperAppChild } from './super-app-child.entity';
 
 @Entity('super_app_punches')
 export class SuperAppPunch extends BaseEntityModel {
-  @ManyToOne(() => SuperAppChild, (child) => child.punches, { onDelete: 'CASCADE' })
+  @ManyToOne(() => SuperAppChild, (child) => child.punches, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'child_id' })
-  child: SuperAppChild;
+  child?: SuperAppChild;
 
-  @Column({ name: 'child_id' })
-  childId: string;
+  @Column({ name: 'child_id', nullable: true })
+  childId?: string;
+
+  @Column({ name: 'emp_code', nullable: true })
+  empCode?: string;
 
   @Column({ name: 'punch_time', type: 'timestamp' })
   punchTime: Date;

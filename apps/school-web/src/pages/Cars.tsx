@@ -7,7 +7,8 @@ export default function Cars() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ plateNumber: '', brand: '', model: '', capacity: 30 });
+  const [formData, setFormData] = useState({ plateNumber: '', brand: '', model: '', capacity: 30, gpsDeviceId: '', biotimeTerminalSn: '' });
+  const [devices, setDevices] = useState<any[]>([]);
 
   const fetchCars = async () => {
     try {
@@ -22,6 +23,7 @@ export default function Cars() {
 
   useEffect(() => {
     fetchCars();
+    api.get('/cars/allocated-devices').then(res => setDevices(res.data)).catch(console.error);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,7 +31,7 @@ export default function Cars() {
     try {
       await api.post('/cars', { ...formData, capacity: Number(formData.capacity) });
       setShowForm(false);
-      setFormData({ plateNumber: '', brand: '', model: '', capacity: 30 });
+      setFormData({ plateNumber: '', brand: '', model: '', capacity: 30, gpsDeviceId: '', biotimeTerminalSn: '' });
       fetchCars();
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Erreur lors de l'ajout du véhicule";
@@ -172,7 +174,7 @@ export default function Cars() {
                     <label className="premium-input-label">Capacité (Places)</label>
                     <div className="premium-input-wrapper">
                       <Users size={16} className="premium-input-icon" />
-                      <input required type="number" className="premium-input" value={formData.capacity} onChange={e => setFormData({...formData, capacity: e.target.value})} />
+                      <input required type="number" className="premium-input" value={formData.capacity} onChange={e => setFormData({...formData, capacity: parseInt(e.target.value, 10) as any})} />
                     </div>
                   </div>
                 </div>
@@ -190,6 +192,28 @@ export default function Cars() {
                   <div className="premium-input-wrapper">
                     <Settings size={16} className="premium-input-icon" />
                     <input required type="text" className="premium-input" placeholder="Coaster" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="flex gap-4 mt-4">
+                  <div className="premium-input-group w-full mb-0">
+                    <label className="premium-input-label">Balise GPS Associée (optionnel)</label>
+                    <select className="premium-input w-full" value={formData.gpsDeviceId} onChange={e => setFormData({...formData, gpsDeviceId: e.target.value})}>
+                      <option value="">Aucune balise</option>
+                      {devices.filter(d => d.typeDevice === 'GPS').map(d => (
+                        <option key={d.id} value={d.id}>{d.serialNumber}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="premium-input-group w-full mb-0">
+                    <label className="premium-input-label">Badgeuse Associée (optionnel)</label>
+                    <select className="premium-input w-full" value={formData.biotimeTerminalSn} onChange={e => setFormData({...formData, biotimeTerminalSn: e.target.value})}>
+                      <option value="">Aucune badgeuse</option>
+                      {devices.filter(d => d.typeDevice === 'BADGEUSE').map(d => (
+                        <option key={d.id} value={d.serialNumber}>{d.serialNumber}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               </div>

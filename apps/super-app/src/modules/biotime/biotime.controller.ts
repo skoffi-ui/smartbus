@@ -1,11 +1,16 @@
 import { Controller, Post, Get, HttpCode, HttpStatus, Query, Render, Body, Param } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { BiotimeService } from './biotime.service';
 
 @ApiTags('BioTime Sync Test')
 @Controller('biotime')
 export class BiotimeController {
-  constructor(private readonly biotimeService: BiotimeService) {}
+  constructor(
+    private readonly biotimeService: BiotimeService,
+    @InjectQueue('biotime-sync') private readonly biotimeQueue: Queue,
+  ) {}
 
   @Get('dashboard')
   @Render('dashboard')
@@ -14,12 +19,34 @@ export class BiotimeController {
     return { title: 'Tableau de Bord SMARTBUS' };
   }
 
+  @Get('config')
+  @ApiOperation({ summary: 'Récupère la configuration dynamique BioTime' })
+  getConfig() {
+    return { url: this.biotimeService['biotimeUrl'] };
+  }
+
+  @Post('config')
+  @ApiOperation({ summary: 'Met à jour la configuration dynamique BioTime' })
+  saveConfig(@Body('url') url: string) {
+    return this.biotimeService.saveConfigUrl(url);
+  }
+
+  @Get('devices')
+  @ApiOperation({ summary: 'Récupère la liste des terminaux physiques enregistrés' })
+  getDevices() {
+    return this.biotimeService.listDevices();
+  }
+
   @Post('sync-children')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Synchronise les employés (enfants) depuis BioTime' })
-  @ApiResponse({ status: 200, description: 'Synchronisation réussie.' })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Synchronise les employés (enfants) depuis BioTime via BullMQ' })
+  @ApiResponse({ status: 202, description: 'Synchronisation ajoutée à la file d\'attente.' })
   async syncChildren() {
-    return this.biotimeService.syncChildren();
+    const job = await this.biotimeQueue.add('sync-children', {});
+    return {
+      message: 'La synchronisation des enfants a été ajoutée à la file d\'attente.',
+      jobId: job.id,
+    };
   }
 
   @Post('webhook')
@@ -32,12 +59,16 @@ export class BiotimeController {
   }
 
   @Post('sync-punches')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Synchronise les transactions (pointages) depuis BioTime' })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Synchronise les transactions (pointages) depuis BioTime via BullMQ' })
   @ApiQuery({ name: 'date', required: false, description: 'Format YYYY-MM-DD. Par défaut: aujourd\'hui' })
-  @ApiResponse({ status: 200, description: 'Synchronisation réussie.' })
+  @ApiResponse({ status: 202, description: 'Synchronisation ajoutée à la file d\'attente.' })
   async syncPunches(@Query('date') date?: string) {
-    return this.biotimeService.syncPunches(date);
+    const job = await this.biotimeQueue.add('sync-punches', { dateStr: date });
+    return {
+      message: 'La synchronisation des pointages a été ajoutée à la file d\'attente.',
+      jobId: job.id,
+    };
   }
 
   @Get('children')

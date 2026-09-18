@@ -19,6 +19,9 @@ export class Parent extends SoftDeleteEntityModel {
   @Column({ name: 'pin_code', length: 4, nullable: true })
   pinCode: string;
 
+  @Column({ name: 'fcm_token', length: 500, nullable: true })
+  fcmToken: string;
+
   @Column({ default: true })
   active: boolean;
 

@@ -1,6 +1,8 @@
-import React, { ReactNode, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Bus, Users, LogOut, Settings, Sun, Moon, Map, MapPin, ListOrdered, CheckSquare, History, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Bus, Users, LogOut, Settings, Sun, Moon, Map, MapPin, ListOrdered, CheckSquare, History, AlertTriangle, Shield } from 'lucide-react';
+import { socketService } from '../services/socket.service';
 
 interface LayoutProps {
   children: ReactNode;
@@ -28,6 +30,16 @@ export default function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
+  // Listen for critical_anomaly events to show badge counter
+  const [criticalCount, setCriticalCount] = React.useState(0);
+  React.useEffect(() => {
+    const socket = socketService.connect();
+    socket.on('critical_anomaly', () => {
+      setCriticalCount(prev => prev + 1);
+    });
+    return () => { socket.off('critical_anomaly'); };
+  }, []);
+
   const navItems = [
     { name: "Vue d'ensemble", path: '/dashboard', icon: LayoutDashboard },
     { name: 'Live Tracking', path: '/live', icon: Bus },
@@ -43,6 +55,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Suivi des montées', path: '/suivi', icon: CheckSquare },
     { name: 'Historique', path: '/historique', icon: History },
     { name: 'Alertes', path: '/alertes', icon: AlertTriangle },
+    { name: 'Centre d\'Alertes', path: '/centre-alertes', icon: Shield, badge: criticalCount },
   ];
 
   return (

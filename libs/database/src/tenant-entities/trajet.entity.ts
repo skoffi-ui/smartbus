@@ -25,12 +25,19 @@ export class Trajet extends SoftDeleteEntityModel {
   @Column({ type: 'enum', enum: TrajetSens, default: TrajetSens.ALLER })
   sens: TrajetSens;
 
-  @Column({ name: 'duree_estimative', type: 'int', nullable: true, comment: 'Durée estimée du trajet en minutes' })
+  @Column({ name: 'duree_estimative', type: 'int', nullable: true, comment: 'Durée estimée du trajet en minutes (OSRM)' })
   dureeEstimative: number;
 
-  // Stockage du GeoJSON complet (Polyline Leaflet.draw)
+  @Column({ name: 'distance_km', type: 'float', nullable: true, comment: 'Distance totale calculée (OSRM)' })
+  distanceKm: number;
+
+  // Stockage du GeoJSON complet (Ligne générée par OSRM)
   @Column({ type: 'jsonb', nullable: true })
   geoJson: any;
+
+  // Stockage des points de passage clés (Départ, Arrivée, Étapes) cliqués par l'utilisateur
+  @Column({ type: 'jsonb', nullable: true })
+  waypoints: any[];
 
   // Relations
   @OneToMany(() => PointRecuperation, (point) => point.trajet)

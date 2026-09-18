@@ -14,6 +14,10 @@ export enum SandboxPaymentMethod {
   SANDBOX_MOBILE = 'sandbox_mobile',
   CREDIT_CARD = 'credit_card',
   MOBILE_MONEY = 'mobile_money',
+  ORANGE_MONEY = 'orange_money',
+  MTN_MONEY = 'mtn_money',
+  WAVE = 'wave',
+  PREPAID_CARD = 'prepaid_card',
 }
 
 @Entity('payments')

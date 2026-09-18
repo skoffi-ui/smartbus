@@ -34,6 +34,21 @@ export default function Billing() {
   const successfulTransactions = payments.filter(p => p.status === 'success').length;
   const failedTransactions = payments.filter(p => p.status !== 'success').length;
 
+  const getMethodBadge = (method: string) => {
+    switch (method?.toLowerCase()) {
+      case 'orange_money':
+        return <span className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2.5 py-1 rounded-md text-xs font-bold">🍊 Orange Money</span>;
+      case 'mtn_money':
+        return <span className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 px-2.5 py-1 rounded-md text-xs font-bold">💛 MTN Money</span>;
+      case 'wave':
+        return <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-md text-xs font-bold">🌊 Wave</span>;
+      case 'prepaid_card':
+        return <span className="bg-slate-500/10 text-slate-400 border border-slate-500/20 px-2.5 py-1 rounded-md text-xs font-bold">💳 Carte Prépayée</span>;
+      default:
+        return <span className="bg-white/5 px-2.5 py-1 rounded-md border border-white/10 uppercase text-xs">{method}</span>;
+    }
+  };
+
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       
@@ -111,7 +126,7 @@ export default function Billing() {
                     <div className="font-bold text-white">{payment.amount.toLocaleString()} {payment.currency}</div>
                   </td>
                   <td className="py-4 text-sm text-navy-300">
-                    <span className="bg-white/5 px-2 py-1 rounded-md border border-white/10 uppercase text-xs">{payment.method}</span>
+                    {getMethodBadge(payment.method)}
                   </td>
                   <td className="py-4 text-xs font-mono text-navy-300">
                     {payment.externalReference || '-'}

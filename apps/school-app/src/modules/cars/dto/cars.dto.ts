@@ -46,6 +46,16 @@ export class CreateCarDto {
   @IsDateString()
   @IsOptional()
   technicalInspectionExpiry?: string;
+
+  @ApiProperty({ example: 'GPS-1234', required: false })
+  @IsString()
+  @IsOptional()
+  gpsDeviceId?: string;
+
+  @ApiProperty({ example: 'CKPM223460449', required: false })
+  @IsString()
+  @IsOptional()
+  biotimeTerminalSn?: string;
 }
 
 export class UpdateCarDto extends PartialType(CreateCarDto) {}

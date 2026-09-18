@@ -65,10 +65,4 @@ export class Course extends SoftDeleteEntityModel {
 
   @Column({ length: 255, nullable: true, comment: 'Legacy - ignoré en SaaS multi-tenant' })
   ecole: string;
-
-  @Column({ type: 'jsonb', nullable: true, comment: 'Legacy - données brutes de carte' })
-  route: any[];
-
-  @Column({ type: 'jsonb', nullable: true, comment: 'Legacy - données brutes de marqueurs' })
-  markers: any[];
 }

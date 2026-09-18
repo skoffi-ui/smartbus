@@ -25,6 +25,20 @@ export class CarsService {
     return repo.find({ order: { createdAt: 'DESC' } });
   }
 
+  async getAllocatedDevices(): Promise<any[]> {
+    const orgId = this.tenantService.getTenantId();
+    if (!orgId) return [];
+
+    const query = `
+      SELECT d.id, d.serial_number as "serialNumber", d.type_device as "typeDevice", d.status, d.model
+      FROM devices d
+      INNER JOIN organisation_devices od ON od.device_id = d.id
+      WHERE od.organisation_id = $1 AND od.released_at IS NULL AND d.deleted_at IS NULL
+    `;
+    const devices = await this.tenantService.organisationRepository.query(query, [orgId]);
+    return devices;
+  }
+
   async findOne(id: string): Promise<Car> {
     const repo = await this.getRepo();
     const car = await repo.findOne({ where: { id } });

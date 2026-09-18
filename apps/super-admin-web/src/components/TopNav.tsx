@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, Users, CreditCard, Bus, LogOut } from 'lucide-react';
+import { Building2, Users, CreditCard, Bus, LogOut, Cpu } from 'lucide-react';
 
 export default function TopNav() {
   const location = useLocation();
@@ -16,7 +16,8 @@ export default function TopNav() {
     { path: '/dashboard', label: 'Écoles', icon: <Building2 size={18} /> },
     { path: '/users', label: 'Équipe', icon: <Users size={18} /> },
     { path: '/billing', label: 'Facturation', icon: <CreditCard size={18} /> },
-    { path: '/enfants', label: 'Enfants', icon: <Bus size={18} /> },
+    { path: '/biotime', label: 'BioTime', icon: <Bus size={18} /> },
+    { path: '/devices', label: 'Matériel', icon: <Cpu size={18} /> },
   ];
 
   return (

@@ -2,15 +2,19 @@ import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, IsNull, DataSource } from 'typeorm';
 import { SuperAppChild, SuperAppPunch } from '@app/database';
 import { firstValueFrom } from 'rxjs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class BiotimeService {
   private readonly logger = new Logger(BiotimeService.name);
+  private cachedToken: string | null = null;
+  private tokenExpiresAt: Date | null = null;
 
   constructor(
     private readonly httpService: HttpService,
@@ -20,10 +24,78 @@ export class BiotimeService {
     private readonly punchRepository: Repository<SuperAppPunch>,
     private readonly eventEmitter: EventEmitter2,
     private readonly configService: ConfigService,
+    private readonly centralDataSource: DataSource,
   ) {}
 
   private get biotimeUrl(): string {
+    const configPath = path.join(process.cwd(), 'data', 'config-biotime.json');
+    try {
+      if (fs.existsSync(configPath)) {
+        const fileContent = fs.readFileSync(configPath, 'utf8');
+        const config = JSON.parse(fileContent);
+        if (config && config.url) {
+          return config.url;
+        }
+      }
+    } catch (e) {
+      this.logger.warn(`Impossible de lire config-biotime.json : ${e.message}`);
+    }
     return this.configService.get<string>('BIOTIME_URL', 'http://160.120.143.20:8080');
+  }
+
+  async saveConfigUrl(url: string): Promise<any> {
+    const configDir = path.join(process.cwd(), 'data');
+    const configPath = path.join(configDir, 'config-biotime.json');
+    try {
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+      const config = { url };
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+      return { success: true, url };
+    } catch (e) {
+      this.logger.error(`Impossible de sauvegarder config-biotime.json : ${e.message}`);
+      throw new HttpException('Échec de sauvegarde de la configuration.', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async listDevices(): Promise<any[]> {
+    try {
+      const query = `
+        SELECT id, serial_number as "serialNumber", imei, model, status, last_seen_at as "lastSeenAt"
+        FROM devices
+        WHERE deleted_at IS NULL
+        ORDER BY last_seen_at DESC NULLS LAST
+      `;
+      return await this.centralDataSource.query(query);
+    } catch (err) {
+      this.logger.error(`Erreur lors de la récupération des équipements : ${err.message}`);
+      return [];
+    }
+  }
+
+  async autoRegisterDevice(serialNumber: string): Promise<void> {
+    try {
+      const existing = await this.centralDataSource.query(
+        `SELECT id FROM devices WHERE serial_number = $1 AND deleted_at IS NULL LIMIT 1`,
+        [serialNumber]
+      );
+      if (!existing || existing.length === 0) {
+        this.logger.log(`[Auto-Register] Création de la badgeuse avec S/N: ${serialNumber}`);
+        await this.centralDataSource.query(
+          `INSERT INTO devices (type_device, serial_number, status, last_seen_at) 
+           VALUES ('BADGEUSE', $1, 'ACTIVE', now())`,
+          [serialNumber]
+        );
+      } else {
+        await this.centralDataSource.query(
+          `UPDATE devices SET last_seen_at = now(), status = 'ACTIVE' WHERE id = $1`,
+          [existing[0].id]
+        );
+      }
+    } catch (err) {
+      this.logger.error(`Erreur lors de l'auto-enregistrement de la badgeuse ${serialNumber} : ${err.message}`);
+    }
   }
 
   private get biotimeUser(): string {
@@ -42,6 +114,9 @@ export class BiotimeService {
    * Obtient le token JWT pour communiquer avec l'API BioTime.
    */
   async getAuthToken(): Promise<string> {
+    if (this.cachedToken && this.tokenExpiresAt && this.tokenExpiresAt > new Date()) {
+      return this.cachedToken as string;
+    }
     try {
       const response = await firstValueFrom(
         this.httpService.post(`${this.biotimeUrl}/jwt-api-token-auth/`, {
@@ -52,11 +127,17 @@ export class BiotimeService {
         })
       );
       if (response.data && response.data.token) {
-        return response.data.token;
+        const tokenStr = response.data.token;
+        this.cachedToken = tokenStr;
+        // BioTime tokens usually expire, cache it for 23 hours to be safe
+        this.tokenExpiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000);
+        return tokenStr;
       }
       throw new Error('Token non reçu dans la réponse de BioTime');
     } catch (error) {
       this.logger.error('Erreur lors de la récupération du token BioTime', error.message);
+      this.cachedToken = null;
+      this.tokenExpiresAt = null;
       throw new HttpException('Erreur d\'authentification BioTime', HttpStatus.UNAUTHORIZED);
     }
   }
@@ -64,7 +145,6 @@ export class BiotimeService {
   /**
    * Synchronise les employés de BioTime vers la table super_app_children.
    */
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async syncChildren(): Promise<any> {
     const token = await this.getAuthToken();
     try {
@@ -107,9 +187,7 @@ export class BiotimeService {
           child.departmentId = emp.department ? emp.department.id?.toString() : undefined;
           child.departmentName = emp.department ? emp.department.dept_name : undefined;
           child.position = emp.position_name;
-          if (emp.hire_date) {
-            child.hireDate = new Date(emp.hire_date);
-          }
+          child.hireDate = emp.hire_date ? new Date(emp.hire_date) : (null as any);
           child.fingerprint = emp.fingerprint;
           child.areas = emp.area;
           child.photo = emp.photo;
@@ -121,90 +199,67 @@ export class BiotimeService {
         syncedCount++;
       }
 
-      return { message: 'Synchronisation des enfants terminée', count: syncedCount };
+      return { message: 'Synchronisation des employés réussie', count: syncedCount };
     } catch (error) {
-      this.logger.error('Erreur lors de la synchronisation des enfants', error.message);
-      throw new HttpException('Erreur de synchronisation des enfants', HttpStatus.INTERNAL_SERVER_ERROR);
+      this.logger.error('Erreur lors de la synchronisation des employés BioTime', error.message);
+      throw new HttpException('Erreur de synchronisation BioTime', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   /**
-   * Synchronise les transactions (pointages) de BioTime vers la table super_app_punches.
-   * Cette méthode s'exécute automatiquement toutes les 5 minutes.
+   * Synchronise les pointages (punches) depuis BioTime.
    */
-  @Cron(CronExpression.EVERY_5_MINUTES)
   async syncPunches(dateStr?: string): Promise<any> {
     const token = await this.getAuthToken();
-    
-    const targetDate = dateStr ? new Date(dateStr) : new Date();
-    const yyyy = targetDate.getFullYear();
-    const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(targetDate.getDate()).padStart(2, '0');
-    const startStr = `${yyyy}-${mm}-${dd} 00:00:00`;
-    const endStr = `${yyyy}-${mm}-${dd} 23:59:59`;
-
     try {
-      let syncedCount = 0;
-      const childrenSynced = new Set<string>();
-      let nextUrl: string | null = `${this.biotimeUrl}/iclock/api/transactions/?start_time=${startStr}&end_time=${endStr}&page_size=5000`;
+      const targetDate = dateStr ? new Date(dateStr) : new Date();
+      const formattedDate = targetDate.toISOString().split('T')[0];
 
-      while (nextUrl) {
-        const response: any = await firstValueFrom(
-          this.httpService.get(nextUrl, {
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `JWT ${token}`
-            }
-          })
-        );
-
-        const transactions = response.data.data;
-        if (transactions && Array.isArray(transactions)) {
-          for (const txn of transactions) {
-            // Find the corresponding child
-            const child = await this.childRepository.findOne({ where: { empCode: txn.emp_code } });
-            if (!child) {
-              this.logger.warn(`Pointage ignoré : Enfant avec empCode ${txn.emp_code} non trouvé.`);
-              continue;
-            }
-
-            // Check if punch already exists
-            const existingPunch = await this.punchRepository.findOne({ where: { biotimePunchId: txn.id.toString() } });
-            if (!existingPunch) {
-              const punch = this.punchRepository.create({
-                biotimePunchId: txn.id.toString(),
-                childId: child.id,
-                punchTime: new Date(txn.punch_time),
-                punchState: txn.punch_state,
-                verifyType: txn.verify_type,
-                terminalSn: txn.terminal_sn,
-              });
-              await this.punchRepository.save(punch);
-              syncedCount++;
-              childrenSynced.add(`${child.firstName} ${child.lastName}`);
-
-              // Déclencher un événement pour le nouveau pointage
-              this.eventEmitter.emit('punch.received', {
-                child,
-                punch
-              });
-            }
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.biotimeUrl}/iclock/api/transactions/?start_time=${formattedDate} 00:00:00&end_time=${formattedDate} 23:59:59&page_size=5000`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `JWT ${token}`
           }
-        }
-        
-        nextUrl = response.data.next || null;
+        })
+      );
+
+      const punches = response.data.data;
+      if (!punches || !Array.isArray(punches)) {
+        return { message: 'Aucun pointage trouvé pour cette date', count: 0 };
       }
 
-      return { 
-        message: `Synchronisation des pointages du ${startStr.split(' ')[0]} terminée`, 
-        count: syncedCount,
-        children: Array.from(childrenSynced)
-      };
+      let syncedCount = 0;
+      for (const p of punches) {
+        const child = await this.childRepository.findOne({ where: { empCode: p.emp_code } });
+        if (!child) continue;
+
+        let punch = await this.punchRepository.findOne({ where: { biotimePunchId: p.id.toString() } });
+        if (!punch) {
+          if (p.terminal_sn) {
+            await this.autoRegisterDevice(p.terminal_sn);
+          }
+          punch = this.punchRepository.create({
+            biotimePunchId: p.id.toString(),
+            childId: child.id,
+            empCode: p.emp_code,
+            punchTime: new Date(p.punch_time),
+            punchState: p.punch_state,
+            verifyType: p.verify_type,
+            terminalSn: p.terminal_sn,
+          });
+          await this.punchRepository.save(punch);
+          syncedCount++;
+        }
+      }
+
+      return { message: 'Synchronisation des pointages réussie', count: syncedCount };
     } catch (error) {
       this.logger.error('Erreur lors de la synchronisation des pointages', error.message);
       throw new HttpException('Erreur de synchronisation des pointages', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
   /**
    * Reçoit les pointages en temps réel depuis le Webhook de BioTime
    */
@@ -220,29 +275,38 @@ export class BiotimeService {
       if (!txn.emp_code || !txn.punch_time || !txn.terminal_sn) {
         continue; // Ignorer les payloads mal formés
       }
-
-      // Find the corresponding child
+ 
+      // Find the corresponding child (facultatif)
       const child = await this.childRepository.findOne({ where: { empCode: txn.emp_code } });
-      if (!child) {
-        this.logger.warn(`Webhook: Pointage ignoré : Enfant avec empCode ${txn.emp_code} non trouvé.`);
-        continue;
-      }
-
-      // Pour le webhook, BioTime n'envoie pas toujours un ID unique de transaction
-      // On vérifie si on a déjà un pointage à la même heure exacte pour éviter les doublons
+      const childId = child ? child.id : undefined;
+      // Pour le webhook, on privilégie l'ID de transaction s'il est fourni
       const punchTime = new Date(txn.punch_time);
-      const existingPunch = await this.punchRepository.findOne({ 
-        where: { 
-          childId: child.id,
-          punchTime: punchTime,
-          terminalSn: txn.terminal_sn
-        } 
-      });
+      let existingPunch = null;
+      
+      if (txn.id) {
+        existingPunch = await this.punchRepository.findOne({ where: { biotimePunchId: txn.id.toString() } });
+      }
+      
+      if (!existingPunch) {
+        // BioTime n'envoie pas toujours un ID unique de transaction
+        // On cherche un pointage proche (tolérance de ±2 secondes) pour éviter les doublons liés aux millisecondes
+        const recentPunches = await this.punchRepository.find({ 
+          where: { 
+            childId: childId === undefined ? IsNull() : childId,
+            terminalSn: txn.terminal_sn
+          } 
+        });
+        existingPunch = recentPunches.find(p => Math.abs(new Date(p.punchTime).getTime() - punchTime.getTime()) <= 2000);
+      } 
+      if (txn.terminal_sn) {
+        await this.autoRegisterDevice(txn.terminal_sn);
+      }
 
       if (!existingPunch) {
         const punch = this.punchRepository.create({
           biotimePunchId: txn.id ? txn.id.toString() : `WH-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          childId: child.id,
+          childId: childId,
+          empCode: txn.emp_code,
           punchTime: punchTime,
           punchState: txn.punch_state,
           verifyType: txn.verify_type,
@@ -250,15 +314,15 @@ export class BiotimeService {
         });
         await this.punchRepository.save(punch);
         processedCount++;
-
+ 
         // Déclencher un événement pour le nouveau pointage
         this.eventEmitter.emit('punch.received', {
-          child,
+          child: child || { id: null, firstName: 'Élève', lastName: `Inconnu (${txn.emp_code})`, empCode: txn.emp_code },
           punch
         });
       }
     }
-
+ 
     return { message: 'Webhook traité avec succès', processed: processedCount };
   }
 
@@ -274,11 +338,11 @@ export class BiotimeService {
     const targetDate = dateStr ? new Date(dateStr) : new Date();
     const targetDateString = targetDate.toDateString();
 
-    // Ne garder que les pointages de la date demandée et du bon terminal
+    // Ne garder que les pointages de la date demandée
     children.forEach(c => {
       if (c.punches) {
         c.punches = c.punches.filter(p => {
-          return new Date(p.punchTime).toDateString() === targetDateString && p.terminalSn === 'CKPM223460449';
+          return new Date(p.punchTime).toDateString() === targetDateString;
         });
       }
     });
@@ -298,8 +362,7 @@ export class BiotimeService {
 
     const punches = await this.punchRepository.find({
       where: { 
-        punchTime: Between(startOfDay, endOfDay),
-        terminalSn: 'CKPM223460449'
+        punchTime: Between(startOfDay, endOfDay)
       },
       relations: { child: true },
       order: { punchTime: 'DESC' }
@@ -361,7 +424,13 @@ export class BiotimeService {
           lastName: p.child.lastName,
           className: p.child.departmentName,
           photo: p.child.photo
-        } : null
+        } : {
+          empCode: p.empCode || 'N/A',
+          firstName: 'Élève',
+          lastName: `Inconnu (${p.empCode || 'N/A'})`,
+          className: 'Non assigné',
+          photo: null
+        }
       });
     }
 

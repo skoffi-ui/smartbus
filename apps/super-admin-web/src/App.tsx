@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Users from './pages/Users';
 import Billing from './pages/Billing';
 import BiotimeDashboard from './pages/BiotimeDashboard';
+import Devices from './pages/Devices';
 import AdminLayout from './layouts/AdminLayout';
 
 function App() {
@@ -18,7 +19,8 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="billing" element={<Billing />} />
-          <Route path="enfants" element={<BiotimeDashboard />} />
+          <Route path="biotime" element={<BiotimeDashboard />} />
+          <Route path="devices" element={<Devices />} />
         </Route>
       </Routes>
     </Router>

@@ -25,6 +25,12 @@ export class CarsController {
     return this.carsService.syncFromLibellule();
   }
 
+  @Get('allocated-devices')
+  @ApiOperation({ summary: 'Lister le matériel SaaS alloué à cette école' })
+  getAllocatedDevices() {
+    return this.carsService.getAllocatedDevices();
+  }
+
   @Get()
   @ApiOperation({ summary: 'Lister tous les véhicules de l\'école' })
   findAll() {

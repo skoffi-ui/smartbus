@@ -9,6 +9,7 @@ import Parents from './pages/Parents';
 import Children from './pages/Children';
 import ChildProfile from './pages/ChildProfile';
 import LiveTracking from './pages/LiveTracking';
+import CheckoutSandbox from './pages/CheckoutSandbox';
 
 // Nouveaux composants Transport
 import Courses from './pages/Courses';
@@ -17,6 +18,7 @@ import PointsRecuperation from './pages/PointsRecuperation';
 import AffectationEleves from './pages/AffectationEleves';
 import SuiviMontees from './pages/SuiviMontees';
 import AlertesTransport from './pages/AlertesTransport';
+import CentreAlertes from './pages/CentreAlertes';
 
 function App() {
   // Vérifie si un jeton est présent dans le navigateur
@@ -27,6 +29,7 @@ function App() {
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!isAuthenticated ? <RegisterSchool /> : <Navigate to="/dashboard" />} />
+        <Route path="/checkout-sandbox" element={<CheckoutSandbox />} />
         
         {/* Pages protégées avec le Layout */}
         <Route path="/dashboard" element={isAuthenticated ? <Layout><Dashboard /></Layout> : <Navigate to="/login" />} />
@@ -45,6 +48,7 @@ function App() {
         <Route path="/suivi" element={isAuthenticated ? <Layout><SuiviMontees /></Layout> : <Navigate to="/login" />} />
         <Route path="/historique" element={isAuthenticated ? <Layout><SuiviMontees /></Layout> : <Navigate to="/login" />} />
         <Route path="/alertes" element={isAuthenticated ? <Layout><AlertesTransport /></Layout> : <Navigate to="/login" />} />
+        <Route path="/centre-alertes" element={isAuthenticated ? <Layout><CentreAlertes /></Layout> : <Navigate to="/login" />} />
         
         <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
       </Routes>

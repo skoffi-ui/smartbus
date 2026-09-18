@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion, Child, Parent, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, Car, Driver } from './index';
+import { Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion } from './index';
+import { TenantConnectionService } from './tenant-connection.service';
 
 @Module({
   imports: [
@@ -14,20 +15,21 @@ import { Organisation, User, Subscription, BillingRecord, MetaData, Payment, Aud
         username: configService.get<string>('SUPER_DB_USER', 'postgres'),
         password: configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
         database: configService.get<string>('SUPER_DB_NAME', 'smartbus_super'),
-        // On déclare explicitement les entités
-        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion, Child, Parent, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, Car, Driver],
+        // On déclare uniquement les entités globales de la super-app
+        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion],
         // En développement uniquement – à désactiver en production
         synchronize: configService.get<string>('NODE_ENV') === 'development',
         logging: configService.get<string>('NODE_ENV') === 'development',
         autoLoadEntities: true,
         ssl:
           configService.get<string>('NODE_ENV') === 'production'
-            ? { rejectUnauthorized: false }
-            : false,
+              ? { rejectUnauthorized: false }
+              : false,
       }),
       inject: [ConfigService],
     }),
   ],
-  exports: [TypeOrmModule],
+  providers: [TenantConnectionService],
+  exports: [TypeOrmModule, TenantConnectionService],
 })
 export class DatabaseModule {}

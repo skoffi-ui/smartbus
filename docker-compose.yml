@@ -28,5 +28,16 @@ services:
     depends_on:
       - postgres
 
+  # Base de données de cache et files d'attente Redis (BullMQ)
+  redis:
+    image: redis:7-alpine
+    container_name: smartbus_redis
+    restart: always
+    ports:
+      - '6379:6379'
+    volumes:
+      - smartbus_redisdata:/data
+
 volumes:
   smartbus_pgdata:
+  smartbus_redisdata:

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import api from './api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
@@ -23,6 +24,12 @@ export const getCourses = async () => {
   return response.data;
 };
 
+// Géocodage
+export const reverseGeocode = async (lat: number, lng: number) => {
+  const response = await api.get(`/gps/geocode?lat=${lat}&lng=${lng}`);
+  return response.data;
+};
+
 export const createCourse = async (data: any) => {
   const response = await transportApi.post('/courses', data);
   return response.data;
@@ -39,6 +46,16 @@ export const deleteCourse = async (id: string) => {
 };
 
 // Trajets
+export const getTrajets = async () => {
+  const response = await transportApi.get('/trajets');
+  return response.data;
+};
+
+export const getTrajetById = async (id: string) => {
+  const response = await transportApi.get(`/trajets/${id}`);
+  return response.data;
+};
+
 export const createTrajet = async (data: any) => {
   const response = await transportApi.post('/trajets', data);
   return response.data;
@@ -46,6 +63,11 @@ export const createTrajet = async (data: any) => {
 
 export const updateTrajet = async (id: string, data: any) => {
   const response = await transportApi.put(`/trajets/${id}`, data);
+  return response.data;
+};
+
+export const deleteTrajet = async (id: string) => {
+  const response = await transportApi.delete(`/trajets/${id}`);
   return response.data;
 };
 

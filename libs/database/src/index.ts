@@ -31,3 +31,6 @@ export * from './tenant-entities/device.entity';
 export * from './tenant-entities/device-assignment.entity';
 export * from './tenant-entities/biometric-consent.entity';
 export * from './tenant-entities/course-execution.entity';
+export * from './tenant-entities/alerte-critique.entity';
+export { TenantConnectionService } from './tenant-connection.service';
+
