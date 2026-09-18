@@ -28,4 +28,7 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/
-.cache/".agents/stitch-skills-repo/" 
+.cache/
+
+# Agents
+.agents/stitch-skills-repo/
