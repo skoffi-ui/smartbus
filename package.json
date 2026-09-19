@@ -15,11 +15,16 @@
     "start:super-app": "nest start super-app --watch",
     "start:school-app": "nest start school-app --watch",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
+    "test": "jest --config jest.config.ts",
+    "test:watch": "jest --config jest.config.ts --watch",
+    "test:cov": "jest --config jest.config.ts --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config jest-e2e.config.ts",
+    "test:e2e:super": "jest --config jest-e2e.config.ts apps/super-app",
+    "test:e2e:school": "jest --config jest-e2e.config.ts apps/school-app",
+    "test:unit": "jest --config jest.config.ts --testPathIgnorePatterns=e2e",
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "test:ci": "jest --config jest.config.ts --coverage --maxWorkers=2"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
