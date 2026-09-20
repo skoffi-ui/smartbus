@@ -193,11 +193,40 @@ body {
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  /*
+   * L'image finale ne déclare volontairement PAS de transform.
+   *
+   * Avec `forwards`, un `transform: translateY(0)` final restait appliqué en
+   * permanence. Or tout transform non nul — même l'identité — fait de l'élément
+   * le référentiel de ses descendants `position: fixed`. Les modales des pages
+   * Véhicules, Chauffeurs, Parents et Élèves étaient donc positionnées par
+   * rapport au contenu de la page, décalées par la barre latérale, et leur
+   * panneau sortait de l'écran par le haut.
+   */
+  to { opacity: 1; }
 }
 
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
+}
+
+/*
+ * Variante sans `transform`, pour les conteneurs qui englobent des éléments en
+ * position fixe (modales, panneaux plein écran).
+ *
+ * `fadeIn` se termine sur `transform: translateY(0)` et la règle ci-dessus fige
+ * cette valeur avec `forwards`. Un transform non nul — même identité — fait de
+ * l'élément le référentiel de ses descendants `position: fixed` : une modale en
+ * `fixed inset-0` ne couvrait alors que la zone de contenu, décalée par la barre
+ * latérale, et son panneau sortait de l'écran.
+ */
+@keyframes fadeInSansTransform {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in-soft {
+  animation: fadeInSansTransform 0.4s ease-out forwards;
 }
 
 /* Premium Modal Styling */

@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 
 import { Map, Save, Navigation, AlertCircle, Trash2, Route, Plus, Trash } from 'lucide-react';
 import { getTrajets, createTrajet, updateTrajet, deleteTrajet, reverseGeocode } from '../services/transport.service';
+import { chargerLeafletRouting } from '../services/leaflet-routing';
 
 import './UiverseButton.css';
 import './UiverseInput.css';
@@ -27,33 +28,13 @@ function RoutingMachine({ initialWaypoints, onRouteFound, readOnly = false }: an
 
   useEffect(() => {
     if (!map) return;
-    
-    // Load Leaflet Routing Machine from CDN if not present
-    if (!(L as any).Routing) {
-      const loadLRM = async () => {
-        if (!document.getElementById('lrm-css')) {
-          const link = document.createElement('link');
-          link.id = 'lrm-css';
-          link.rel = 'stylesheet';
-          link.href = 'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css';
-          document.head.appendChild(link);
-        }
-        if (!document.getElementById('lrm-js')) {
-          const script = document.createElement('script');
-          script.id = 'lrm-js';
-          script.src = 'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js';
-          script.onload = initRouting;
-          document.head.appendChild(script);
-        } else {
-          // If script tag exists but maybe not loaded yet, wait a bit
-          setTimeout(initRouting, 500);
-        }
-      };
-      loadLRM();
-      return;
-    } else {
-      initRouting();
-    }
+    let annule = false;
+
+    // Un seul chargement partagé, puis initialisation : plus de course entre le
+    // `onload` du script et le double montage des effets en développement.
+    chargerLeafletRouting()
+      .then(() => { if (!annule) initRouting(); })
+      .catch((err) => console.error('Leaflet Routing Machine indisponible', err));
 
     function initRouting() {
       if (!map || !(L as any).Routing) return;
@@ -105,13 +86,19 @@ function RoutingMachine({ initialWaypoints, onRouteFound, readOnly = false }: an
       });
 
       routingControlRef.current = control;
-
-      // Cleanup function is handled in the main useEffect return, but we can store cleanup logic
       } catch (err) {
-        console.error("Failed to initialize Leaflet Routing Machine", err);
+        console.error("Initialisation du routage impossible", err);
       }
     }
-  }, [map, readOnly]); // Mount once per map config
+
+    return () => {
+      annule = true;
+      if (routingControlRef.current) {
+        try { map.removeControl(routingControlRef.current); } catch { /* déjà retiré */ }
+        routingControlRef.current = null;
+      }
+    };
+  }, [map, readOnly]);
 
   // Add waypoint on click (if not readonly)
   useEffect(() => {

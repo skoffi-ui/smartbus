@@ -130,7 +130,9 @@ export default function Layout({ children }: LayoutProps) {
             <Settings size={20} className="text-secondary" />
           </div>
         </header>
-        <div style={{ flex: 1 }} className="animate-fade-in">
+        {/* Variante sans transform : sinon ce conteneur devient le référentiel des
+            modales en position fixe et elles ne couvrent plus l'écran. */}
+        <div style={{ flex: 1 }} className="animate-fade-in-soft">
           {children}
         </div>
       </main>
