@@ -94,4 +94,40 @@ describe('TenantConnectionService', () => {
       ForbiddenException
     );
   });
+
+  it('accepte une école en essai gratuit (trial) : elle passe le contrôle de statut', async () => {
+    mockRequest.headers['x-tenant-id'] = 'trial-tenant-id';
+    mockOrganisationRepository.findOne.mockResolvedValue({
+      id: 'trial-tenant-id',
+      dbProvisioned: false,
+      dbName: null,
+      status: 'trial',
+    } as any);
+
+    // Si trial était refusé, on aurait un ForbiddenException avant le contrôle de provisionnement
+    await expect(service.getTenantConnection()).rejects.toThrow(InternalServerErrorException);
+  });
+
+  it("refuse une organisation en attente (pending)", async () => {
+    mockRequest.headers['x-tenant-id'] = 'pending-tenant-id';
+    mockOrganisationRepository.findOne.mockResolvedValue({
+      id: 'pending-tenant-id',
+      dbProvisioned: true,
+      dbName: 'db',
+      status: 'pending',
+    } as any);
+
+    await expect(service.getTenantConnection()).rejects.toThrow(ForbiddenException);
+  });
+
+  it("l'organisation du JWT prime sur un header x-tenant-id usurpé", async () => {
+    mockRequest.user = { organisationId: 'org-jwt' };
+    mockRequest.headers['x-tenant-id'] = 'org-usurpee';
+    mockOrganisationRepository.findOne.mockResolvedValue(null);
+
+    await expect(service.getTenantConnection()).rejects.toThrow(NotFoundException);
+    expect(mockOrganisationRepository.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'org-jwt' } }),
+    );
+  });
 });

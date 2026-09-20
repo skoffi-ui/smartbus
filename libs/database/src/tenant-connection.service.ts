@@ -3,26 +3,8 @@ import { REQUEST } from '@nestjs/core';
 import { DataSource, DataSourceOptions, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Organisation } from './entities/organisation.entity';
-import { 
-  Child, 
-  Car, 
-  Course,
-  Trajet,
-  PointRecuperation,
-  Affectation,
-  Montee,
-  Alerte,
-  BiometricEvent, 
-  Parent, 
-  Driver,
-  Notification,
-  AlerteCritique,
-  Device,
-  DeviceAssignment,
-  BiometricConsent,
-  CourseExecution
-} from './index';
+import { Organisation, TENANT_ACCESS_STATUSES } from './entities/organisation.entity';
+import { TENANT_ENTITIES } from './tenant-entity-list';
 
 // Cache global pour stocker les connexions actives
 const tenantDataSources = new Map<string, DataSource>();
@@ -46,13 +28,13 @@ export class TenantConnectionService {
     let tenantId = tenantIdOverride;
     
     if (!tenantId && this.request) {
-      // support de Express request headers
-      const headers = this.request.headers || {};
-      tenantId = headers['x-tenant-id'] || headers['x-tenant-schema'];
-      
-      // Fallback sur request.user si disponible via auth guards
-      if (!tenantId && this.request.user) {
-        tenantId = this.request.user.organisationId;
+      // L'identité issue du JWT vérifié (request.user) prime sur tout header client
+      tenantId = this.request.user?.organisationId;
+
+      // Repli sur les headers pour les appels sans session (ex: webhooks internes)
+      if (!tenantId) {
+        const headers = this.request.headers || {};
+        tenantId = headers['x-tenant-id'] || headers['x-tenant-schema'];
       }
     }
 
@@ -71,7 +53,7 @@ export class TenantConnectionService {
           where: { id: tenantId },
           select: { status: true },
         });
-        if (orgCheck && orgCheck.status === 'active') {
+        if (orgCheck && TENANT_ACCESS_STATUSES.includes(orgCheck.status)) {
           return cachedDS;
         }
         // Si l'école a été suspendue, on détruit la connexion et on nettoie le cache
@@ -102,7 +84,7 @@ export class TenantConnectionService {
     }
 
     // Vérifier si l'établissement est actif
-    if (org.status !== 'active') {
+    if (!TENANT_ACCESS_STATUSES.includes(org.status)) {
       throw new ForbiddenException(`L'accès à l'école [${org.id}] est actuellement suspendu ou désactivé.`);
     }
 
@@ -122,25 +104,7 @@ export class TenantConnectionService {
       username: org.dbUser || this.configService.get<string>('SUPER_DB_USER', 'postgres'),
       password: org.dbPassword || this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
       database: org.dbName,
-      entities: [
-        Child, 
-        Car, 
-        Course, 
-        Trajet, 
-        PointRecuperation, 
-        Affectation, 
-        Montee, 
-        Alerte, 
-        BiometricEvent, 
-        Parent, 
-        Driver, 
-        Notification, 
-        AlerteCritique,
-        Device,
-        DeviceAssignment,
-        BiometricConsent,
-        CourseExecution
-      ],
+      entities: TENANT_ENTITIES,
       synchronize: this.configService.get<string>('NODE_ENV') === 'development',
     };
 

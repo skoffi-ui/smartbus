@@ -24,6 +24,15 @@
         "tsConfigPath": "apps/school-app/tsconfig.app.json"
       }
     },
+    "api-gateway": {
+      "type": "application",
+      "root": "apps/api-gateway",
+      "entryFile": "main",
+      "sourceRoot": "apps/api-gateway/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/api-gateway/tsconfig.app.json"
+      }
+    },
     "common": {
       "type": "library",
       "root": "libs/common",

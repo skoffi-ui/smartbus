@@ -16,14 +16,15 @@ export class TenantService {
   ) {}
 
   /**
-   * Retourne l'ID du Tenant actuel depuis les headers de la requête.
+   * Retourne l'ID du Tenant actuel. L'identité issue du JWT vérifié prime toujours ;
+   * le header 'x-tenant-id' n'est qu'un repli pour les appels sans session (webhooks internes).
    */
   getTenantId(): string | null {
+    if (this.request?.user?.organisationId) {
+      return this.request.user.organisationId;
+    }
     if (this.request?.headers) {
       return this.request.headers['x-tenant-id'] || this.request.headers['x-tenant-schema'] || null;
-    }
-    if (this.request?.user) {
-      return this.request.user.organisationId || null;
     }
     return null;
   }

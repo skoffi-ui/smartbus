@@ -9,6 +9,7 @@
 
 | Service           | Port     | Type                         | URL locale                    |
 |-------------------|----------|------------------------------|-------------------------------|
+| api-gateway       | **3002** | NestJS (point d'entree unique) | http://localhost:3002       |
 | super-app         | **3000** | NestJS API (backend admin)   | http://localhost:3000         |
 | school-app        | **3001** | NestJS API (backend ecole)   | http://localhost:3001         |
 | super-admin-web   | **5173** | Vite React (frontend admin)  | http://localhost:5173         |
@@ -22,11 +23,19 @@
 ## Connexions entre services
 
 ```
-super-admin-web (5173)  --proxy /api-->  super-app (3000)
-    school-web (5174)  --proxy /api-->  school-app (3001)
+super-admin-web (5173) --+
+                         +--> api-gateway (3002) --JWT + statut ecole--> super-app (3000)
+    school-web (5174) ---+                        \--------------------> school-app (3001)
    school-app (3001)  --auth calls-->   super-app (3000)
    super-app (3000)  --provision-->    school-app DBs (PostgreSQL)
 ```
+
+Les frontends ne parlent qu'a l'API Gateway. Elle :
+- verifie le JWT et **ecrase** tout `x-tenant-id` / `x-user-*` envoye par le client ;
+- injecte `x-tenant-id` (organisation du JWT) vers school-app ;
+- refuse (403) les ecoles suspendues sur les routes ecole (la SUPER APP reste accessible pour payer) ;
+- refuse (426) une `x-app-version` inferieure a `APP_MIN_VERSION` ;
+- n'expose que les routes declarees dans `apps/api-gateway/src/route-table.ts` (404 sinon).
 
 ---
 
