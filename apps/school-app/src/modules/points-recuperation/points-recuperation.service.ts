@@ -15,10 +15,11 @@ export class PointsRecuperationService {
     return ds.getRepository(PointRecuperation);
   }
 
-  async findByTrajet(trajetId: string): Promise<PointRecuperation[]> {
+  /** Points d'un trajet, ou tous les points de l'école si `trajetId` est omis (paramètre optionnel). */
+  async findByTrajet(trajetId?: string): Promise<PointRecuperation[]> {
     const repo = await this.getRepo();
     return repo.find({
-      where: { trajetId },
+      where: trajetId ? { trajetId } : {},
       order: { ordrePassage: 'ASC' },
     });
   }

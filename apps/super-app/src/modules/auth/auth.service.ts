@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -97,8 +98,19 @@ export class AuthService {
     });
     const savedUser = await this.userRepository.save(user);
 
-    // 4. Déclencher le provisionnement de la base de données
-    await this.provisioningService.provisionOrganisation(organisation.id);
+    // 4. Déclencher le provisionnement de la base de données.
+    // En cas d'échec on annule l'inscription : sinon l'école existerait sans base et l'email
+    // serait "déjà utilisé", empêchant toute nouvelle tentative.
+    const provisioning = await this.provisioningService.provisionOrganisation(organisation.id);
+    if (provisioning.status === 'error') {
+      await this.userRepository.delete(savedUser.id);
+      await this.organisationsService.remove(organisation.id);
+      // La base a pu être créée avant l'échec (l'organisation n'est alors pas marquée provisionnée)
+      await this.provisioningService.dropOrganisationDatabase(provisioning.dbName);
+      throw new InternalServerErrorException(
+        "La création de la base de données de l'école a échoué. Aucun compte n'a été créé, veuillez réessayer.",
+      );
+    }
 
     // 4.5 Créer un abonnement d'essai gratuit de 7 jours
     const now = new Date();

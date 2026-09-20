@@ -1,7 +1,19 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion } from './index';
+// Imports directs (pas via './index') : le barrel charge ce module avant les entités,
+// ce qui les rendrait undefined au moment où TypeOrmModule.forFeature() est évalué.
+import { Organisation } from './entities/organisation.entity';
+import { User } from './entities/user.entity';
+import { Subscription } from './entities/subscription.entity';
+import { BillingRecord } from './entities/billing-record.entity';
+import { MetaData } from './entities/metadata.entity';
+import { Payment } from './entities/payment.entity';
+import { AuditLog } from './entities/audit-log.entity';
+import { SuperAppChild } from './entities/super-app-child.entity';
+import { SuperAppPunch } from './entities/super-app-punch.entity';
+import { TenantSchemaVersion } from './entities/tenant-schema-version.entity';
+import { BiotimeConfig } from './entities/biotime-config.entity';
 import { TenantConnectionService } from './tenant-connection.service';
 
 @Module({
@@ -16,7 +28,7 @@ import { TenantConnectionService } from './tenant-connection.service';
         password: configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
         database: configService.get<string>('SUPER_DB_NAME', 'smartbus_super'),
         // On déclare uniquement les entités globales de la super-app
-        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion],
+        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion, BiotimeConfig],
         // En développement uniquement – à désactiver en production
         synchronize: configService.get<string>('NODE_ENV') === 'development',
         logging: configService.get<string>('NODE_ENV') === 'development',
@@ -28,6 +40,8 @@ import { TenantConnectionService } from './tenant-connection.service';
       }),
       inject: [ConfigService],
     }),
+    // Requis par TenantConnectionService (résolution des infos de connexion de l'école)
+    TypeOrmModule.forFeature([Organisation]),
   ],
   providers: [TenantConnectionService],
   exports: [TypeOrmModule, TenantConnectionService],

@@ -18,6 +18,12 @@ export enum OrganisationStatus {
   PENDING = 'pending',
 }
 
+/** Statuts autorisés à utiliser l'APP école (une école neuve est en essai gratuit). */
+export const TENANT_ACCESS_STATUSES: readonly OrganisationStatus[] = [
+  OrganisationStatus.ACTIVE,
+  OrganisationStatus.TRIAL,
+];
+
 /**
  * Entité Organisation – représente un établissement scolaire ou un groupe.
  * Contient la configuration de la base de données dédiée.

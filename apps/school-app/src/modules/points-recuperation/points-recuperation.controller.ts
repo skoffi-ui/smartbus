@@ -17,7 +17,7 @@ export class PointsRecuperationController {
   @Get()
   @ApiOperation({ summary: 'Liste les points de récupération, filtrables par trajet' })
   @ApiQuery({ name: 'trajetId', required: false, description: 'Filtrer par UUID du trajet' })
-  findByTrajet(@Query('trajetId') trajetId: string) {
+  findByTrajet(@Query('trajetId') trajetId?: string) {
     return this.pointsService.findByTrajet(trajetId);
   }
 

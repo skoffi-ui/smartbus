@@ -1,11 +1,11 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
-import { BaseEntityModel } from '../entities/base.entity';
+import { SoftDeleteEntityModel } from '../entities/base.entity';
 import { Child } from './child.entity';
 import { Course } from './course.entity';
 import { Car } from './car.entity';
 
 @Entity('alertes_critiques')
-export class AlerteCritique extends BaseEntityModel {
+export class AlerteCritique extends SoftDeleteEntityModel {
   @Column()
   type: string;
 
@@ -21,31 +21,31 @@ export class AlerteCritique extends BaseEntityModel {
   @Column({ name: 'child_name' })
   childName: string;
 
-  @Column({ name: 'child_emp_code', nullable: true })
+  @Column({ name: 'child_emp_code', type: 'varchar', nullable: true })
   childEmpCode: string | null;
 
-  @Column({ name: 'detected_car_id', nullable: true })
+  @Column({ name: 'detected_car_id', type: 'uuid', nullable: true })
   detectedCarId: string | null;
 
-  @Column({ name: 'detected_car_plate', nullable: true })
+  @Column({ name: 'detected_car_plate', type: 'varchar', nullable: true })
   detectedCarPlate: string | null;
 
-  @Column({ name: 'terminal_sn', nullable: true })
+  @Column({ name: 'terminal_sn', type: 'varchar', nullable: true })
   terminalSn: string | null;
 
-  @Column({ name: 'detected_course_id', nullable: true })
+  @Column({ name: 'detected_course_id', type: 'uuid', nullable: true })
   detectedCourseId: string | null;
 
-  @Column({ name: 'expected_course_id', nullable: true })
+  @Column({ name: 'expected_course_id', type: 'uuid', nullable: true })
   expectedCourseId: string | null;
 
-  @Column({ name: 'detected_stop_id', nullable: true })
+  @Column({ name: 'detected_stop_id', type: 'uuid', nullable: true })
   detectedStopId: string | null;
 
-  @Column({ name: 'expected_stop_id', nullable: true })
+  @Column({ name: 'expected_stop_id', type: 'uuid', nullable: true })
   expectedStopId: string | null;
 
-  @Column({ name: 'expected_stop_name', nullable: true })
+  @Column({ name: 'expected_stop_name', type: 'varchar', nullable: true })
   expectedStopName: string | null;
 
   @Column({ name: 'punch_time', type: 'timestamp with time zone' })
@@ -57,7 +57,7 @@ export class AlerteCritique extends BaseEntityModel {
   @Column({ name: 'resolved_at', type: 'timestamp with time zone', nullable: true })
   resolvedAt: Date | null;
 
-  @Column({ name: 'resolved_by', nullable: true })
+  @Column({ name: 'resolved_by', type: 'varchar', nullable: true })
   resolvedBy: string | null;
 
   @Column({ name: 'resolution_note', type: 'text', nullable: true })

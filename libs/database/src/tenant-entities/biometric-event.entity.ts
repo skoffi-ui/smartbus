@@ -17,11 +17,14 @@ export enum BiometricEventType {
  */
 @Entity('biometric_events')
 export class BiometricEvent extends BaseEntityModel {
-  @ManyToOne(() => Course, { onDelete: 'CASCADE' })
+  // Nullable : un badgeage peut survenir sans course identifiée (badgeuse non
+  // rattachée à un car, aucune course active, badgeuse fixe à l'école). La trace
+  // doit exister malgré tout — ce sont précisément les cas à auditer.
+  @ManyToOne(() => Course, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn({ name: 'course_id' })
   course: Course;
 
-  @Column({ name: 'course_id' })
+  @Column({ name: 'course_id', nullable: true })
   courseId: string;
 
   @ManyToOne(() => Child, { onDelete: 'SET NULL', nullable: true })

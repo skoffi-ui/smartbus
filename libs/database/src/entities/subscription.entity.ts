@@ -17,6 +17,7 @@ export enum SubscriptionPlan {
  * Enumération des statuts d'abonnement
  */
 export enum SubscriptionStatus {
+  PENDING = 'pending', // En attente du premier paiement
   ACTIVE = 'active',
   EXPIRED = 'expired',
   CANCELLED = 'cancelled',

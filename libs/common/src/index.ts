@@ -22,5 +22,9 @@ export * from './filters/http-exception.filter';
 export * from './dto/pagination.dto';
 export * from './dto/pagination-response.dto';
 
+// Chiffrement des secrets tiers
+export * from './crypto/crypto.service';
+export * from './crypto/crypto.module';
+
 // Enums
 export { UserRole } from './enums/user-role.enum';

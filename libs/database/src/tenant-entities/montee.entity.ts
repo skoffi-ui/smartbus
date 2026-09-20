@@ -10,6 +10,29 @@ export enum MonteeStatut {
   REFUSE = 'refuse',
 }
 
+/** Sens du pointage : l'enfant monte dans le car, ou en descend. */
+export enum SensPointage {
+  MONTEE = 'montee',
+  DESCENTE = 'descente',
+}
+
+/**
+ * Codes `punch_state` de BioTime / ZKTeco signifiant une SORTIE.
+ * Convention ZKTeco : 0 Check-In, 1 Check-Out, 2 Break-Out, 3 Break-In, 4 OT-In, 5 OT-Out.
+ */
+const PUNCH_STATES_SORTIE = new Set(['1', '2', '5']);
+
+/**
+ * Traduit le `punch_state` de BioTime en sens métier.
+ *
+ * Source unique de cette conversion : elle était auparavant dupliquée, avec des
+ * règles divergentes, entre le traitement du flux et les notifications parents.
+ */
+export function sensFromPunchState(punchState?: string | number | null): SensPointage {
+  const code = punchState === null || punchState === undefined ? '0' : String(punchState).trim();
+  return PUNCH_STATES_SORTIE.has(code) ? SensPointage.DESCENTE : SensPointage.MONTEE;
+}
+
 @Entity('montees')
 export class Montee extends BaseEntityModel {
   @ManyToOne(() => Child, { onDelete: 'CASCADE' })
@@ -48,6 +71,9 @@ export class Montee extends BaseEntityModel {
 
   @Column({ name: 'distance_gps', type: 'decimal', precision: 8, scale: 2, nullable: true })
   distanceGps: number;
+
+  @Column({ type: 'enum', enum: SensPointage, default: SensPointage.MONTEE })
+  sens: SensPointage;
 
   @Column({ type: 'enum', enum: MonteeStatut, default: MonteeStatut.VALIDE })
   statut: MonteeStatut;

@@ -7,20 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { 
-  Organisation, 
-  Child, 
-  Car, 
-  Course,
-  Trajet,
-  PointRecuperation,
-  Affectation,
-  Montee,
-  Alerte,
-  BiometricEvent, 
-  Parent, 
-  Driver 
-} from '@app/database';
+import { Organisation, TENANT_ENTITIES } from '@app/database';
 
 export interface ProvisioningResult {
   organisationId: string;
@@ -157,7 +144,7 @@ export class ProvisioningService {
       username: this.configService.get<string>('SUPER_DB_USER', 'postgres'),
       password: this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
       database: dbName,
-      entities: [Child, Car, Course, Trajet, PointRecuperation, Affectation, Montee, Alerte, BiometricEvent, Parent, Driver],
+      entities: TENANT_ENTITIES,
       synchronize: true, // Magie : Crée toutes les tables automatiquement !
     });
 
