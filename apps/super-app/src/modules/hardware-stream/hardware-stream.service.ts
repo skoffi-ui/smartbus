@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -24,14 +24,56 @@ import {
   CourseStatus,
   TypeAlerte,
   AlerteCritique,
+  MonteeStatut,
+  SensPointage,
+  sensFromPunchState,
+  TENANT_ENTITIES,
 } from '@app/database';
+
+/**
+ * Résultat de la résolution du propriétaire d'un appareil.
+ *
+ * `pending` n'est pas une erreur : l'appareil est en stock dans l'inventaire central
+ * et attend qu'un administrateur lui attribue une école.
+ */
+export type DeviceResolution =
+  | { state: 'assigned'; tenant: any }
+  | { state: 'pending' };
+
+/**
+ * Verdict d'un pointage, produit par l'analyse d'anomalies et consigné dans
+ * l'historique des montées (table `montees`), que le pointage soit accepté ou non.
+ */
+export interface VerdictPointage {
+  statut: MonteeStatut;
+  message: string;
+  /** Arrêt attendu de l'enfant, connu seulement s'il est affecté à ce trajet. */
+  pointId?: string;
+  /** Distance du bus à cet arrêt, en mètres, si une position GPS était disponible. */
+  distanceMetres?: number;
+  /** Vrai si aucune montée ne peut être consignée (ni car, ni course identifiés). */
+  sansCourse?: boolean;
+}
+
+/** Position live d'un bus, toujours rattachée à l'école qui possède le véhicule. */
+export interface LiveCarPosition {
+  organisationId: string;
+  carId: string;
+  plateNumber?: string;
+  lat: number;
+  lng: number;
+  speed?: number;
+  time?: string;
+}
 
 @Injectable()
 export class HardwareStreamService {
   private readonly logger = new Logger(HardwareStreamService.name);
   private readonly tenantDataSources = new Map<string, DataSource>();
   private readonly triggeredAlerts = new Map<string, Set<string>>(); // courseId -> Set<childId>
-  private readonly latestCarGps = new Map<string, { lat: number; lng: number; speed?: number; time?: string; carId?: string; plateNumber?: string }>(); // carId -> GPS
+  // Clé : `${organisationId}:${carId}`. La position d'un bus n'est jamais lisible
+  // depuis une autre école : le filtrage est structurel, pas applicatif.
+  private readonly latestCarGps = new Map<string, LiveCarPosition>();
   private lastCleanupDate = new Date().toDateString();
 
   constructor(
@@ -62,15 +104,25 @@ export class HardwareStreamService {
     return null;
   }
 
+  /** Clé de cache d'une position : toujours préfixée par l'école propriétaire du bus. */
+  private gpsKey(organisationId: string, carId: string): string {
+    return `${organisationId}:${carId}`;
+  }
+
   /**
-   * Résout le tenant (organisation) propriétaire de l'appareil à partir de la base centrale.
+   * Résout l'école propriétaire d'un appareil à partir de l'inventaire central.
+   *
+   * Un appareil sans affectation renvoie `pending` : il reste en stock jusqu'à ce
+   * qu'on lui attribue une école. Ses données ne sont écrites dans aucune base
+   * entre-temps — les rattacher à une école arbitraire mélangerait deux clients.
    */
-  private async resolveTenantForDevice(deviceId: string): Promise<any> {
-    try {
-      // Requête sur la table de liaison de la base centrale
-      const query = `
-        SELECT od.organisation_id as "organisationId", o.name, o.db_name as "dbName", 
-               o.db_host as "dbHost", o.db_port as "dbPort", o.db_user as "dbUser", 
+  private async resolveTenantForDevice(deviceId: string): Promise<DeviceResolution> {
+    // Une erreur d'infrastructure est propagée telle quelle : l'émetteur pourra
+    // réessayer, plutôt que de voir son flux classé à tort « en attente ».
+    const result = await this.centralDataSource.query(
+      `
+        SELECT od.organisation_id as "organisationId", o.name, o.db_name as "dbName",
+               o.db_host as "dbHost", o.db_port as "dbPort", o.db_user as "dbUser",
                o.db_password as "dbPassword", o.db_provisioned as "dbProvisioned"
         FROM organisation_devices od
         INNER JOIN devices d ON d.id = od.device_id
@@ -79,35 +131,71 @@ export class HardwareStreamService {
           AND od.released_at IS NULL
           AND d.deleted_at IS NULL
         LIMIT 1
-      `;
-      const result = await this.centralDataSource.query(query, [deviceId]);
+      `,
+      [deviceId],
+    );
 
-      if (result && result.length > 0) {
-        return result[0];
+    if (result && result.length > 0) {
+      return { state: 'assigned', tenant: result[0] };
+    }
+    return { state: 'pending' };
+  }
+
+  /** Déduit la nature de l'appareil à partir de la forme de son payload. */
+  private inferDeviceType(payload: any): 'BADGEUSE' | 'GPS' {
+    return payload?.terminal_sn || payload?.terminalSn || payload?.sn ? 'BADGEUSE' : 'GPS';
+  }
+
+  /**
+   * Inscrit l'appareil à l'inventaire central s'il est inconnu, et rafraîchit son
+   * heartbeat. Un appareil inconnu entre « en stock », sans école : il apparaît
+   * ainsi dans le parc du Super Admin, qui peut l'attribuer à une école.
+   */
+  private async ensureDeviceRegistered(
+    deviceId: string,
+    typeDevice: 'BADGEUSE' | 'GPS',
+  ): Promise<void> {
+    try {
+      const existing = await this.centralDataSource.query(
+        `SELECT id FROM devices WHERE (serial_number = $1 OR imei = $1) AND deleted_at IS NULL LIMIT 1`,
+        [deviceId],
+      );
+
+      if (existing && existing.length > 0) {
+        await this.centralDataSource.query(
+          `UPDATE devices SET last_seen_at = now(), status = 'ACTIVE' WHERE id = $1`,
+          [existing[0].id],
+        );
+        return;
       }
-    } catch (err) {
-      this.logger.warn(`Erreur lors de la requête de résolution matérielle en base : ${err.message}. Passage au fallback.`);
-    }
 
-    // FALLBACK DE SECOURS (DÉMO / DÉVELOPPEMENT)
-    // Si la table de liaison n'existe pas ou qu'aucun appareil n'est lié, on utilise la première organisation
-    const fallbackOrgs = await this.organisationRepository.find({ take: 1 });
-    if (fallbackOrgs && fallbackOrgs.length > 0) {
-      const org = fallbackOrgs[0];
-      this.logger.warn(`[Fallback] Aucun appareil appairé trouvé pour ${deviceId}. Utilisation de l'organisation : ${org.name}`);
-      return {
-        organisationId: org.id,
-        name: org.name,
-        dbName: org.dbName,
-        dbHost: org.dbHost,
-        dbPort: org.dbPort,
-        dbUser: org.dbUser,
-        dbPassword: org.dbPassword,
-        dbProvisioned: org.dbProvisioned,
-      };
+      await this.centralDataSource.query(
+        `INSERT INTO devices (type_device, serial_number, status, last_seen_at)
+         VALUES ($1, $2, 'ACTIVE', now())`,
+        [typeDevice, deviceId],
+      );
+      this.logger.log(
+        `[Inventaire] Appareil ${typeDevice} "${deviceId}" inconnu : mis en stock, en attente d'affectation à une école.`,
+      );
+    } catch (err: any) {
+      this.logger.error(
+        `Impossible d'inscrire l'appareil ${deviceId} à l'inventaire : ${err.message}`,
+      );
     }
+  }
 
-    throw new NotFoundException(`Aucun tenant (organisation) résolu pour l'appareil : ${deviceId}`);
+  /** Réponse renvoyée à l'émetteur tant que l'appareil n'a pas d'école. */
+  private pendingResponse(deviceId: string) {
+    this.logger.warn(
+      `Appareil "${deviceId}" en attente d'affectation : flux accepté mais enregistré dans aucune base école.`,
+    );
+    return {
+      success: true,
+      pending: true,
+      message:
+        `Appareil "${deviceId}" en stock, en attente d'affectation à une école. ` +
+        `Aucune donnée métier n'a été enregistrée.`,
+    };
   }
 
   /**
@@ -133,11 +221,9 @@ export class HardwareStreamService {
       username,
       password,
       database: org.dbName,
-      entities: [
-        Child, Car, Course, Trajet, PointRecuperation, 
-        Affectation, Montee, Alerte, BiometricEvent, 
-        Parent, Driver, Notification, Pointage, AlerteCritique
-      ],
+      // Source unique partagée avec le provisionnement et la connexion tenant :
+      // une liste locale divergerait du schéma réellement créé en base.
+      entities: TENANT_ENTITIES,
       synchronize: false,
     });
 
@@ -156,44 +242,17 @@ export class HardwareStreamService {
       return { success: false, message: "Identifiant de périphérique introuvable dans le payload." };
     }
 
-    // 1. Vérification de l'existence de l'appareil dans la base centrale (Super Admin)
-    let device = null;
-    try {
-      const deviceQuery = `
-        SELECT id, type_device, status
-        FROM devices
-        WHERE (serial_number = $1 OR imei = $1)
-          AND deleted_at IS NULL
-        LIMIT 1
-      `;
-      const deviceResult = await this.centralDataSource.query(deviceQuery, [deviceId]);
-      if (deviceResult && deviceResult.length > 0) {
-        device = deviceResult[0];
-      }
-    } catch (err) {
-      this.logger.warn(`Erreur lors de la vérification de l'existence de l'appareil ${deviceId} : ${err.message}`);
+    // 1. Inventaire central : l'appareil est inscrit s'il est inconnu, et son
+    //    heartbeat rafraîchi dans tous les cas.
+    await this.ensureDeviceRegistered(deviceId, this.inferDeviceType(payload));
+
+    // 2. À quelle école appartient-il ?
+    const resolution = await this.resolveTenantForDevice(deviceId);
+    if (resolution.state === 'pending') {
+      return this.pendingResponse(deviceId);
     }
 
-    // Si l'appareil n'est pas enregistré par le Super Admin, rejet immédiat (Alerte Sécurité)
-    if (!device) {
-      this.logger.error(`🚨 ALERTE SÉCURITÉ : Signal reçu d'un appareil non autorisé ou inconnu ! ID: [${deviceId}]`);
-      throw new ForbiddenException(`Équipement [${deviceId}] inconnu ou non autorisé par l'administration centrale.`);
-    }
-
-    // 2. Mise à jour de last_seen_at et activation du statut en base centrale
-    try {
-      const updateQuery = `
-        UPDATE devices
-        SET last_seen_at = now(), status = 'ACTIVE'
-        WHERE id = $1
-      `;
-      await this.centralDataSource.query(updateQuery, [device.id]);
-    } catch (err) {
-      this.logger.error(`Impossible de mettre à jour le heartbeat pour l'appareil ${deviceId} : ${err.message}`);
-    }
-
-    // 3. Identification du Tenant
-    const tenantDetails = await this.resolveTenantForDevice(deviceId);
+    const tenantDetails = resolution.tenant;
     if (!tenantDetails.dbProvisioned || !tenantDetails.dbName) {
       return { success: false, message: `La base de données du tenant ${tenantDetails.name} n'est pas provisionnée.` };
     }
@@ -223,21 +282,14 @@ export class HardwareStreamService {
     const empCode = payload.emp_code || payload.empCode;
     const terminalSn = payload.terminal_sn || payload.terminalSn || payload.sn;
     const punchTime = payload.punch_time || payload.time || new Date().toISOString();
-    const punchState = payload.punch_state || '0'; // 0 = Montée, 1 = Descente
+    const punchState = payload.punch_state ?? payload.punchState ?? '0';
+    const sens = sensFromPunchState(punchState);
 
     // Trouver l'enfant dans la base isolée du tenant (facultatif)
     const child = await childRepo.findOne({ where: { empCode } });
 
-    // Enregistrer l'événement biométrique directement dans la base isolée du tenant
-    const bioEvent = eventRepo.create({
-      childId: child ? child.id : undefined,
-      type: punchState === '1' ? BiometricEventType.ALIGHTING : BiometricEventType.BOARDING,
-      occurredAt: new Date(punchTime),
-      notificationSent: false,
-    });
-    await eventRepo.save(bioEvent);
-
-    // Résoudre le trajet (course) actif
+    // Résoudre le véhicule puis la course active AVANT de tracer l'événement :
+    // l'événement porte la course quand elle est connue.
     let courseId = 'default-course';
     const car = await carRepo.findOne({ where: { biotimeTerminalSn: terminalSn } });
     let activeCourse: Course | null = null;
@@ -248,9 +300,29 @@ export class HardwareStreamService {
       }
     }
 
-    // Effectuer l'analyse en temps réel des anomalies de pointage (seulement pour les élèves enregistrés)
+    // Trace brute du badgeage, conservée même sans course identifiée.
+    const bioEvent = eventRepo.create({
+      childId: child ? child.id : undefined,
+      courseId: activeCourse ? activeCourse.id : undefined,
+      type: sens === SensPointage.DESCENTE ? BiometricEventType.ALIGHTING : BiometricEventType.BOARDING,
+      occurredAt: new Date(punchTime),
+      notificationSent: false,
+    });
+    await eventRepo.save(bioEvent);
+
+    // Analyse des anomalies, puis consignation du pointage dans l'historique.
     if (child) {
-      await this.validatePunchAnomalies(child, car, activeCourse, terminalSn, punchTime, tenantDetails, tenantDataSource);
+      const verdict = await this.validatePunchAnomalies(
+        child, car, activeCourse, terminalSn, punchTime, tenantDetails, tenantDataSource,
+      );
+
+      // L'historique des montées exige une course : sans car ni course active, seule
+      // l'alerte critique fait foi (c'est ce que consulte le centre d'alertes).
+      if (!verdict.sansCourse && activeCourse) {
+        await this.saveMontee(
+          tenantDataSource, child, activeCourse, car, sens, verdict, punchTime,
+        );
+      }
     }
 
     // Émettre l'événement temps réel pour la passerelle WebSocket (pour affichage instantané)
@@ -311,11 +383,14 @@ export class HardwareStreamService {
     if (car) {
       // Mettre à jour la cache en mémoire
       if (car && lat && lng) {
-        this.latestCarGps.set(car.id, { 
-          lat, lng, 
-          carId: car.id, 
+        this.latestCarGps.set(this.gpsKey(tenantDetails.organisationId, car.id), {
+          organisationId: tenantDetails.organisationId,
+          lat,
+          lng,
+          speed,
+          carId: car.id,
           plateNumber: car.plateNumber,
-          time: payload.time || new Date().toISOString()
+          time: payload.time || new Date().toISOString(),
         });
       }
 
@@ -523,6 +598,47 @@ export class HardwareStreamService {
    * 1/ Non affectation de l'élève à ce véhicule (mauvais car / trajet)
    * 2/ Mauvais arrêt d'embarquement/débarquement
    */
+  /**
+   * Consigne le pointage dans l'historique de l'école (table `montees`), avec son
+   * sens et le verdict de validation. C'est cette table que lit l'écran de suivi.
+   */
+  private async saveMontee(
+    tenantDataSource: DataSource,
+    child: Child,
+    course: Course,
+    car: Car | null,
+    sens: SensPointage,
+    verdict: VerdictPointage,
+    punchTime: string,
+  ): Promise<void> {
+    try {
+      const repo = tenantDataSource.getRepository(Montee);
+      const moment = new Date(punchTime);
+
+      const montee = repo.create({
+        childId: child.id,
+        courseId: course.id,
+        carId: car?.id,
+        pointId: verdict.pointId,
+        date: moment,
+        heure: moment.toTimeString().substring(0, 8),
+        distanceGps: verdict.distanceMetres,
+        sens,
+        statut: verdict.statut,
+        validationMessage: verdict.message,
+      });
+      await repo.save(montee);
+
+      this.logger.log(
+        `[Montée] ${child.firstName} ${child.lastName} — ${sens} ${verdict.statut} (course ${course.nom})`,
+      );
+    } catch (err: any) {
+      // Un échec d'écriture de l'historique ne doit pas faire échouer l'ingestion :
+      // l'événement biométrique et l'alerte éventuelle sont déjà enregistrés.
+      this.logger.error(`[Montée] Consignation impossible : ${err.message}`);
+    }
+  }
+
   private async validatePunchAnomalies(
     child: Child,
     car: Car | null,
@@ -531,7 +647,7 @@ export class HardwareStreamService {
     punchTime: string,
     tenantDetails: any,
     tenantDataSource: DataSource,
-  ): Promise<void> {
+  ): Promise<VerdictPointage> {
     const alerteCritiqueRepo = tenantDataSource.getRepository(AlerteCritique);
     const now = new Date(punchTime);
 
@@ -563,7 +679,7 @@ export class HardwareStreamService {
           time: now.toISOString(),
         },
       });
-      return;
+      return { statut: MonteeStatut.REFUSE, message: errorMsg, sansCourse: true };
     }
 
     // 2. Si aucune course active pour ce véhicule
@@ -596,7 +712,7 @@ export class HardwareStreamService {
           time: now.toISOString(),
         },
       });
-      return;
+      return { statut: MonteeStatut.REFUSE, message: errorMsg, sansCourse: true };
     }
 
     // 3. Vérifier l'affectation de l'élève à ce véhicule (via le trajet de la course active)
@@ -667,12 +783,13 @@ export class HardwareStreamService {
           expectedCourseId,
         },
       });
-      return;
+      return { statut: MonteeStatut.REFUSE, message: errorMsg };
     }
 
     // 4. L'élève est sur la bonne course. Vérifions s'il s'agit du bon arrêt !
     const expectedStop = affectationResult[0];
-    const carGps = this.latestCarGps.get(car.id);
+    const carGps = this.latestCarGps.get(this.gpsKey(tenantDetails.organisationId, car.id));
+    let distanceMetres: number | undefined;
 
     if (carGps) {
       const stopLat = parseFloat(expectedStop.stopLatitude);
@@ -680,6 +797,7 @@ export class HardwareStreamService {
 
       if (!isNaN(stopLat) && !isNaN(stopLng)) {
         const distance = this.calculateHaversine(carGps.lat, carGps.lng, stopLat, stopLng);
+        distanceMetres = Math.round(distance * 1000);
 
         // Si le bus est à plus de 500 mètres de l'arrêt théorique de l'élève
         if (distance > 0.5) {
@@ -717,9 +835,23 @@ export class HardwareStreamService {
               distance: parseFloat(distance.toFixed(2)),
             },
           });
+
+          return {
+            statut: MonteeStatut.REFUSE,
+            message: errorMsg,
+            pointId: expectedStop.pointId,
+            distanceMetres,
+          };
         }
       }
     }
+
+    return {
+      statut: MonteeStatut.VALIDE,
+      message: `Pointage conforme à l'arrêt « ${expectedStop.stopName} ».`,
+      pointId: expectedStop.pointId,
+      distanceMetres,
+    };
   }
 
   // --- TRACCAR INTEGRATION ---
@@ -749,19 +881,27 @@ export class HardwareStreamService {
     if (!lat || !lng) return { success: false, message: 'No coordinates in payload' };
 
     try {
-      const org = await this.resolveTenantForDevice(deviceId);
+      await this.ensureDeviceRegistered(deviceId, 'GPS');
+
+      const resolution = await this.resolveTenantForDevice(deviceId);
+      if (resolution.state === 'pending') {
+        return this.pendingResponse(deviceId);
+      }
+
+      const org = resolution.tenant;
       const ds = await this.getTenantDataSource(org);
       const carRepo = ds.getRepository(Car);
       
       const car = await carRepo.findOne({ where: { gpsDeviceId: deviceId } });
       if (car) {
-         this.latestCarGps.set(car.id, { 
-           lat, 
-           lng, 
-           speed, 
-           time, 
-           carId: car.id, 
-           plateNumber: car.plateNumber 
+         this.latestCarGps.set(this.gpsKey(org.organisationId, car.id), {
+           organisationId: org.organisationId,
+           lat,
+           lng,
+           speed,
+           time,
+           carId: car.id,
+           plateNumber: car.plateNumber,
          });
          this.logger.log(`Traccar GPS updated for car ${car.plateNumber} (Lat: ${lat}, Lng: ${lng})`);
       } else {
@@ -774,8 +914,17 @@ export class HardwareStreamService {
     }
   }
 
-  public getLiveLocations() {
-    return Array.from(this.latestCarGps.values());
+  /**
+   * Positions en direct des bus d'UNE école.
+   *
+   * `organisationId` est obligatoire et provient toujours d'un JWT vérifié : il n'existe
+   * volontairement aucune façon d'obtenir par cet appel les positions de toutes les écoles.
+   */
+  public getLiveLocations(organisationId: string): LiveCarPosition[] {
+    if (!organisationId) return [];
+    return Array.from(this.latestCarGps.values()).filter(
+      (position) => position.organisationId === organisationId,
+    );
   }
 
 }

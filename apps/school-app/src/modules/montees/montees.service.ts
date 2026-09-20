@@ -3,7 +3,7 @@ import { Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { TenantService } from '../tenant/tenant.service';
-import { Montee, Alerte, MonteeStatut, TypeAlerte, Child, Car, Course, Affectation, CourseStatus } from '@app/database';
+import { Montee, Alerte, MonteeStatut, SensPointage, sensFromPunchState, TypeAlerte, Child, Car, Course, Affectation, CourseStatus } from '@app/database';
 import { NotificationsGateway } from '../notifications/notifications.gateway';
 
 export const VALIDATION_QUEUE = 'biotime_validations_queue';
@@ -70,6 +70,8 @@ export class MonteesService {
     gpsLat?: number;
     gpsLng?: number;
     punchTime: string;
+    /** `punch_state` BioTime : détermine le sens (montée / descente). */
+    punchState?: string;
     tenantId?: string;
   }): Promise<{ queued: true; jobId: string }> {
     const job = await this.validationQueue.add('validate', payload, {
@@ -92,9 +94,11 @@ export class MonteesService {
     gpsLat?: number;
     gpsLng?: number;
     punchTime: string;
+    punchState?: string;
     tenantId?: string;
   }): Promise<void> {
-    const { empCode, terminalSn, gpsLat, gpsLng, punchTime, tenantId } = payload;
+    const { empCode, terminalSn, gpsLat, gpsLng, punchTime, punchState, tenantId } = payload;
+    const sens = sensFromPunchState(punchState);
     this.logger.log(`[Worker] Traitement badge : empCode=${empCode}, terminal=${terminalSn}`);
 
     const childRepo = await this.getRepo(Child, tenantId);
@@ -150,9 +154,9 @@ export class MonteesService {
         `Badge à ${Math.round(distance)}m du point (tolérance: ${rayonDetection}m)`,
         child, car ?? undefined, activeCourse, tenantId,
       );
-      await this.saveMontee(child, activeCourse, car ?? undefined, point.id, distance, MonteeStatut.REFUSE, 'Hors zone GPS', tenantId);
+      await this.saveMontee(child, activeCourse, car ?? undefined, point.id, distance, MonteeStatut.REFUSE, 'Hors zone GPS', tenantId, sens);
     } else {
-      await this.saveMontee(child, activeCourse, car ?? undefined, point.id, distance, MonteeStatut.VALIDE, 'OK', tenantId);
+      await this.saveMontee(child, activeCourse, car ?? undefined, point.id, distance, MonteeStatut.VALIDE, 'OK', tenantId, sens);
     }
 
     // 7. Notifier en temps réel via WebSocket
@@ -175,6 +179,7 @@ export class MonteesService {
     child: Child, course: Course, car: Car | undefined,
     pointId: string, distance: number,
     statut: MonteeStatut, msg: string, tenantId?: string,
+    sens: SensPointage = SensPointage.MONTEE,
   ): Promise<void> {
     const repo = await this.getRepo(Montee, tenantId);
     const montee = repo.create({
@@ -185,6 +190,7 @@ export class MonteesService {
       date: new Date(),
       heure: new Date().toTimeString().substring(0, 8),
       distanceGps: distance,
+      sens,
       statut,
       validationMessage: msg,
     });

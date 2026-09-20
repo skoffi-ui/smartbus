@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { TenantService } from '../tenant/tenant.service';
 import { Car } from '@app/database/tenant-entities/car.entity';
 import { Child } from '@app/database/tenant-entities/child.entity';
@@ -17,75 +18,63 @@ export class GpsService {
     private readonly httpService: HttpService,
     private readonly tenantService: TenantService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly configService: ConfigService,
   ) {}
 
-  async getLiveLocations(tenantIdOverride?: string): Promise<any[]> {
-    // URL de notre backend central (super-app)
-    const superAppUrl = 'http://localhost:3000/api/v1/hardware/live-locations';
-    
+  /**
+   * Positions en direct des bus de l'école appelante.
+   *
+   * Le jeton de l'utilisateur est relayé tel quel à la super-app, qui en déduit
+   * l'école et ne renvoie que SES véhicules. La chaîne d'identité est ainsi
+   * préservée de bout en bout : school-app n'a jamais à être crue sur parole.
+   */
+  async getLiveLocations(accessToken: string): Promise<any[]> {
+    const superAppUrl = `${this.configService.get<string>(
+      'SUPER_APP_URL',
+      'http://localhost:3000',
+    )}/api/v1/hardware/live-locations`;
+
     try {
-      const res = await firstValueFrom(this.httpService.get(superAppUrl));
-      const traccarLocations = res.data; // Array de { lat, lng, speed, time, carId, plateNumber }
-      
-      // On retourne directement les données du cache interne alimenté par Traccar
-      if (Array.isArray(traccarLocations) && traccarLocations.length > 0) {
-        return traccarLocations;
-      }
-      return [];
-    } catch (err) {
-      this.logger.error(`Erreur récupération GPS depuis Traccar Cache : ${err.message}`);
-      
-      // MOCK DE SECOURS EN CAS D'ERREUR POUR NE PAS BLOQUER LA DÉMO
-      const dataSource = await this.tenantService.getDataSource(tenantIdOverride);
-      const carRepo = dataSource.getRepository(Car);
-      const cars = await carRepo.find({ where: { isActive: true } });
-      const activeCars = cars.filter(c => c.gpsDeviceId);
-      
-      return activeCars.map(car => ({
-        carId: car.id,
-        plateNumber: car.plateNumber,
-        brand: car.brand,
-        model: car.model,
-        lat: 5.359951 + (Math.random() * 0.005), 
-        lng: -4.008256 + (Math.random() * 0.005),
-        speed: 15,
-        time: new Date().toISOString(),
-      }));
+      const res = await firstValueFrom(
+        this.httpService.get(superAppUrl, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }),
+      );
+      return Array.isArray(res.data) ? res.data : [];
+    } catch (err: any) {
+      // Aucune position de repli : fabriquer des coordonnées rendrait « le suivi est
+      // en panne » indiscernable de « le bus roule ». Sur un produit de sécurité
+      // enfant, un bus fantôme est plus dangereux qu'une absence de position.
+      const status = err?.response?.status;
+      this.logger.error(
+        `Positions GPS indisponibles (super-app ${status ?? 'injoignable'}) : ${err.message}`,
+      );
+      throw new ServiceUnavailableException(
+        'Positions GPS momentanément indisponibles.',
+      );
     }
   }
 
   /**
-   * Tâche d'arrière-plan surveillant l'approche des bus.
-   * Déclenche une alerte si un bus est à moins de 2 km d'un point d'arrêt d'un enfant.
+   * DÉSACTIVÉ — ne pas réactiver en l'état.
+   *
+   * Cette tâche était une maquette de démonstration : elle prenait le premier bus
+   * rencontré, le premier enfant de la première école, et émettait `bus.approaching`
+   * avec une distance (1,8 km) et un ETA (4 min) codés en dur — chaque minute. Ces
+   * événements alimentent les notifications aux parents : en production, c'était un
+   * générateur de fausses alertes de proximité, sans lien avec la position réelle.
+   *
+   * Une implémentation correcte appartient à la super-app, là où réside le cache des
+   * positions : parcourir les courses actives de chaque école, calculer la distance
+   * Haversine entre le bus et chaque point de récupération du trajet, et n'alerter
+   * que les parents des enfants réellement affectés à ce point — une seule fois par
+   * course et par enfant.
    */
-  @Cron(CronExpression.EVERY_MINUTE)
-  async checkApproachingBuses() {
-    this.logger.debug("Vérification des bus en approche...");
-    const liveLocations = await this.getLiveLocations();
-    
-    // Pour l'MVP, on simule la détection pour le premier bus actif
-    // En production, il faudrait récupérer les Courses actives, les Points de récupération,
-    // calculer la distance Haversine entre le bus et le point, et vérifier les enfants affectés.
-    if (liveLocations && liveLocations.length > 0) {
-      const bus = liveLocations[0]; // On prend un bus au hasard pour la démo
-      
-      // On récupère le premier enfant de la DB pour lui simuler l'alerte d'approche
-      try {
-        const ds = await this.tenantService.getDataSource(); // Prend le premier tenant
-        const child = await ds.getRepository(Child).findOne({ where: { isActive: true } });
-        if (child && bus) {
-           this.eventEmitter.emit('bus.approaching', {
-              childId: child.id,
-              carId: bus.carId,
-              distanceKm: 1.8, // Simulation < 2km
-              etaMins: 4,      // Simulation < 5 mins
-              tenantId: await this.tenantService.getFirstOrganisationId()
-           });
-        }
-      } catch (e) {
-        this.logger.error("Erreur de la boucle d'approche bus: " + e.message);
-      }
-    }
+  // @Cron(CronExpression.EVERY_MINUTE)  ← volontairement non planifié
+  async checkApproachingBuses(): Promise<void> {
+    this.logger.warn(
+      "checkApproachingBuses est désactivé : maquette de démonstration, à réécrire côté super-app.",
+    );
   }
 
   /**

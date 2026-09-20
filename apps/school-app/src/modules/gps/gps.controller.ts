@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Query, Req } from '@nestjs/common';
 import { GpsService } from './gps.service';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
@@ -13,9 +13,13 @@ export class GpsController {
   constructor(private readonly gpsService: GpsService) {}
 
   @Get('live')
-  @ApiOperation({ summary: 'Récupérer la position GPS en direct de tous les véhicules' })
-  async getLiveLocations() {
-    return this.gpsService.getLiveLocations();
+  @ApiOperation({
+    summary: 'Récupérer la position GPS en direct des véhicules de son école',
+  })
+  async getLiveLocations(@Req() req: { headers: Record<string, string | undefined> }) {
+    // Le jeton est relayé à la super-app, qui en déduit l'école propriétaire des bus.
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    return this.gpsService.getLiveLocations(token);
   }
 
   @Post('route')

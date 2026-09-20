@@ -7,6 +7,7 @@ import { Notification } from '@app/database/tenant-entities/notification.entity'
 import { Car } from '@app/database/tenant-entities/car.entity';
 import { Child } from '@app/database/tenant-entities/child.entity';
 import { Parent } from '@app/database/tenant-entities/parent.entity';
+import { SensPointage, sensFromPunchState } from '@app/database/tenant-entities/montee.entity';
 import { GpsService } from '../gps/gps.service';
 import { NotificationsGateway } from './notifications.gateway';
 import { OnEvent } from '@nestjs/event-emitter';
@@ -66,7 +67,7 @@ export class NotificationsService {
         } else if (hour >= 10 && hour < 14) {
           stateLabel = 'descendu de';
         } else {
-          stateLabel = punchState === '1' || punchState === '5' ? 'descendu de' : 'monté dans';
+          stateLabel = sensFromPunchState(punchState) === SensPointage.DESCENTE ? 'descendu de' : 'monté dans';
         }
       } else {
         if (hour >= 4 && hour < 12) {
@@ -74,13 +75,16 @@ export class NotificationsService {
         } else if (hour >= 12 && hour < 23) {
           stateLabel = hour < 17 ? 'monté dans' : 'descendu de';
         } else {
-          stateLabel = punchState === '1' || punchState === '5' ? 'descendu de' : 'monté dans';
+          stateLabel = sensFromPunchState(punchState) === SensPointage.DESCENTE ? 'descendu de' : 'monté dans';
         }
       }
-      
-      // Override avec la machine si l'état est explicite
-      if (punchState === '0' || punchState === '4') stateLabel = 'monté dans';
-      if (punchState === '1' || punchState === '5') stateLabel = 'descendu de';
+
+      // La badgeuse fait foi dès qu'elle annonce un état : l'heuristique horaire
+      // ci-dessus ne sert que lorsque `punch_state` est absent du flux.
+      if (punchState !== undefined && punchState !== null && punchState !== '') {
+        stateLabel =
+          sensFromPunchState(punchState) === SensPointage.DESCENTE ? 'descendu de' : 'monté dans';
+      }
       
       let title = `Pointage de ${childName}`;
       let message = `${childName} est ${stateLabel} `;
