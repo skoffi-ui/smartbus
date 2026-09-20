@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { Plus, Trash2, Bus, Hash, Users, Car, Settings, RefreshCw } from 'lucide-react';
 
@@ -146,7 +147,10 @@ export default function Cars() {
       )}
 
       {/* Modal d'ajout */}
-      {showForm && (
+      {/* Rendu dans un portail vers `document.body` : hors de l'arbre de la page,
+          aucun ancêtre transformé ne peut servir de référentiel à `position: fixed`.
+          La surcouche couvre donc réellement la fenêtre. */}
+      {showForm && createPortal(
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="premium-modal w-full max-w-md animate-fade-in">
             <div className="premium-modal-header">
@@ -224,7 +228,8 @@ export default function Cars() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

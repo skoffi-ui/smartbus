@@ -316,7 +316,16 @@ export default function Courses() {
             <div className="p-4 border-b border-slate-100 bg-white flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Navigation size={18} className="text-[#2563EB]" />
-                <h3 className="text-[16px] font-bold text-slate-900">Aperçu du trajet</h3>
+                <div>
+                  <h3 className="text-[16px] font-bold text-slate-900">
+                    Aperçu du trajet <span className="font-normal text-slate-500">(lecture seule)</span>
+                  </h3>
+                  {/* L'écran prêtait à confusion : on cherchait à y placer des points
+                      alors que le tracé se dessine dans Trajets. */}
+                  <p className="text-[12px] text-slate-500">
+                    Le tracé se modifie dans « Trajets ».
+                  </p>
+                </div>
               </div>
               {selectedTrajet && (
                 <div className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">

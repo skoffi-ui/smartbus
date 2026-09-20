@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Edit, Trash2, User, Key, Download, Search, CheckSquare, Square, ChevronRight } from 'lucide-react';
 import './Children.css';
@@ -227,7 +228,10 @@ export default function Children() {
       )}
 
       {/* Modal d'ajout */}
-      {showModal && (
+      {/* Rendu dans un portail vers `document.body` : hors de l'arbre de la page,
+          aucun ancêtre transformé ne peut servir de référentiel à `position: fixed`.
+          La surcouche couvre donc réellement la fenêtre. */}
+      {showModal && createPortal(
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="premium-modal w-full max-w-md animate-fade-in">
             <div className="premium-modal-header">
@@ -295,11 +299,15 @@ export default function Children() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Modal d'importation BioTime */}
-      {showImportModal && (
+      {/* Rendu dans un portail vers `document.body` : hors de l'arbre de la page,
+          aucun ancêtre transformé ne peut servir de référentiel à `position: fixed`.
+          La surcouche couvre donc réellement la fenêtre. */}
+      {showImportModal && createPortal(
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="import-modal-container mt-8 p-6 pt-10 w-full max-w-4xl animate-fade-in max-h-[90vh] flex flex-col">
             <div className="flex justify-between items-center mb-6">
@@ -421,7 +429,8 @@ export default function Children() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

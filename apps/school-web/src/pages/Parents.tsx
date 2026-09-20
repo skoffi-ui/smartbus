@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Users, Plus, Edit, Trash2, Phone, Mail, User } from 'lucide-react';
 import './Parents.css';
 import { GATEWAY_URL } from '../config';
@@ -156,7 +157,10 @@ export default function Parents() {
       </div>
 
       {/* Modal d'ajout */}
-      {showModal && (
+      {/* Rendu dans un portail vers `document.body` : hors de l'arbre de la page,
+          aucun ancêtre transformé ne peut servir de référentiel à `position: fixed`.
+          La surcouche couvre donc réellement la fenêtre. */}
+      {showModal && createPortal(
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="premium-modal w-full max-w-md animate-fade-in">
             <div className="premium-modal-header">
@@ -210,7 +214,8 @@ export default function Parents() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

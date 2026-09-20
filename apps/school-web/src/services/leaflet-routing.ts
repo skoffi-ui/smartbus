@@ -25,6 +25,12 @@ export function chargerLeafletRouting(): Promise<void> {
   if (promesse) return promesse;
 
   promesse = new Promise<void>((resolve, reject) => {
+    // Décisif : le script CDN s'attache à `window.L`. Sans cette ligne, il
+    // augmente un objet différent de l'import ESM utilisé par les composants,
+    // si bien que `L.Routing` y restait indéfini — le contrôle de routage
+    // n'était jamais créé et les clics sur la carte ne plaçaient aucun point.
+    (window as any).L = L;
+
     if (!document.getElementById('lrm-css')) {
       const lien = document.createElement('link');
       lien.id = 'lrm-css';
