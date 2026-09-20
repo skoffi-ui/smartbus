@@ -2,8 +2,8 @@
 .uiverse-new-btn {
   /* Variables adaptées pour un bouton de création (Vert) */
   --button_radius: 8px;
-  --button_color: #f0fdf4;
-  --button_outline_color: #22c55e;
+  --button_color: #eef2ff;
+  --button_outline_color: #4f46e5;
   font-size: 13px;
   font-weight: 600;
   border: none;

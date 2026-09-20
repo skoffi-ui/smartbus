@@ -1,6 +1,6 @@
 .uiverse-button {
   --stone-50: #fafaf9;
-  --stone-800: #292524;
+  --stone-800: #4f46e5; /* accent SMARTBUS, remplace le quasi-noir */
   --yellow-400: #facc15;
 
   font-size: 1rem;
@@ -104,4 +104,46 @@
       8px 0,
       12px 4px;
   }
+}
+
+/*
+ * Bouton d'action principal des écrans transport.
+ *
+ * `.uiverse-btn-submit` était utilisée dans Courses et Trajets sans avoir jamais
+ * été définie : les boutons retombaient sur un style global dont le fond reprend
+ * `--text-primary`, d'où un rendu quasi noir qui jurait avec l'indigo du produit.
+ */
+.uiverse-btn-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 46px;
+  padding: 0.7rem 1.25rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--accent-gradient, linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%));
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.uiverse-btn-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.3);
+}
+
+.uiverse-btn-submit:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.25);
+}
+
+.uiverse-btn-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
 }

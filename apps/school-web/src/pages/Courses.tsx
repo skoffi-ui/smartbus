@@ -16,6 +16,9 @@ import './UiverseNewButton.css';
 import { getCourses, createCourse, deleteCourse, updateCourse, getTrajets } from '../services/transport.service';
 import api from '../services/api';
 
+/** Centre de carte par défaut : Abidjan, et non Paris. */
+const ABIDJAN: [number, number] = [5.3364, -4.0267];
+
 // Fix Leaflet icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -324,7 +327,7 @@ export default function Courses() {
             <div className="flex-1 relative z-0">
               <MapContainer 
                 key={formData.trajetId || 'empty'}
-                center={[48.8566, 2.3522]} 
+                center={ABIDJAN} 
                 zoom={12} 
                 style={{ height: '100%', width: '100%' }}
               >

@@ -10,6 +10,9 @@ import { getTrajets, createTrajet, updateTrajet, deleteTrajet, reverseGeocode } 
 import './UiverseButton.css';
 import './UiverseInput.css';
 
+/** Centre de carte par défaut : Abidjan, et non Paris. */
+const ABIDJAN: [number, number] = [5.3364, -4.0267];
+
 // Fix icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -381,7 +384,7 @@ export default function Trajets() {
             {/* Clé magique : on force le remontage de la map si on change de trajet pour reset OSRM */}
             <MapContainer 
               key={selectedTrajetId || 'new'}
-              center={[48.8566, 2.3522]} 
+              center={ABIDJAN} 
               zoom={13} 
               style={{ height: '100%', width: '100%' }}
             >

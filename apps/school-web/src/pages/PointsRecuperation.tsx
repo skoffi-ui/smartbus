@@ -5,6 +5,9 @@ import 'leaflet/dist/leaflet.css';
 import { getCourses, getPointsByCourse, createPointForCourse, deletePoint } from '../services/transport.service';
 import { MapPin, Clock, Save, Trash2, ChevronRight, X, Loader2 } from 'lucide-react';
 
+/** Centre de carte par défaut : Abidjan, et non Paris. */
+const ABIDJAN: [number, number] = [5.3364, -4.0267];
+
 // Fix icônes Leaflet par défaut
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -287,7 +290,7 @@ export default function PointsRecuperation() {
           <div className="lg:col-span-8 bg-white rounded-[16px] shadow-sm border border-slate-200 p-2 relative h-[70vh] min-h-[500px]">
             {selectedCourse ? (
               <MapContainer 
-                center={[48.8566, 2.3522]} // Centre par défaut, sera mis à jour par MapUpdater
+                center={ABIDJAN}
                 zoom={13} 
                 style={{ height: '100%', width: '100%', borderRadius: '12px', zIndex: 0 }}
               >
