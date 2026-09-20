@@ -150,6 +150,23 @@ export const supprimerAffectation = async (id: string) => {
   return response.data;
 };
 
+// ─── Élèves (raccourci, pour les écrans transport) ──────────────────────────
+export const getEleves = async () => {
+  const response = await api.get('/children');
+  return response.data;
+};
+
+// ─── Chauffeurs et véhicules (sélecteurs des formulaires) ──────────────────
+export const getChauffeurs = async () => {
+  const response = await api.get('/drivers');
+  return response.data;
+};
+
+export const getVehicules = async () => {
+  const response = await api.get('/cars');
+  return response.data;
+};
+
 // ─── Suivi des montées & alertes ────────────────────────────────────────────
 export const getMontees = async () => {
   const response = await api.get('/montees');

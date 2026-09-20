@@ -1,5 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/*
+ * Tailwind est déclaré ICI, tout en haut, volontairement.
+ *
+ * Les utilitaires thémés définis plus bas dans ce fichier (par exemple
+ * `text-slate-600` → `var(--text-secondary)`) doivent continuer de primer sur
+ * les classes équivalentes de Tailwind, afin que les pages déjà en production
+ * gardent exactement leur apparence. À specificité égale, la dernière règle
+ * gagne : les utilitaires maison viennent donc après.
+ *
+ * `base` est conservé malgré `preflight: false` : il fournit les variables
+ * `--tw-*` dont dépendent `ring-*`, `shadow-*` et les transformations.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   /* Color Palette - Light Premium (Clean & Soft) */
   --bg-primary: #f8fafc; /* Very light slate/gray */
