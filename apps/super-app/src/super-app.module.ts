@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from '@app/database';
+import { CryptoModule } from '@app/common';
 import { BullModule } from '@nestjs/bullmq';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -30,6 +31,9 @@ import { DevicesModule } from './modules/devices/devices.module';
 
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
+
+    // Chiffrement des secrets tiers (identifiants BioTime des écoles)
+    CryptoModule,
 
     // Base de données centrale
     DatabaseModule,

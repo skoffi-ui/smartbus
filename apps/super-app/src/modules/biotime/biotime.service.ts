@@ -1,20 +1,34 @@
-import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, IsNull, DataSource } from 'typeorm';
-import { SuperAppChild, SuperAppPunch } from '@app/database';
+import { Repository, Between, DataSource, In } from 'typeorm';
+import { SuperAppChild, SuperAppPunch, sensFromPunchState, SensPointage } from '@app/database';
 import { firstValueFrom } from 'rxjs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import * as fs from 'fs';
-import * as path from 'path';
+import { BiotimeConfigService } from './biotime-config.service';
 
+interface JetonEnCache {
+  token: string;
+  expireLe: Date;
+}
+
+/** Recouvrement appliqué à la fenêtre de synchronisation, pour absorber la dérive d'horloge. */
+const RECOUVREMENT_MS = 5 * 60 * 1000;
+
+/**
+ * Lecture des serveurs BioTime des écoles.
+ *
+ * Chaque établissement héberge son propre serveur : toutes les opérations sont donc
+ * paramétrées par `organisationId`. L'ancienne configuration globale (URL dans un
+ * fichier sur disque, identifiants dans l'environnement) rendait impossible
+ * l'accueil d'un deuxième client.
+ */
 @Injectable()
 export class BiotimeService {
   private readonly logger = new Logger(BiotimeService.name);
-  private cachedToken: string | null = null;
-  private tokenExpiresAt: Date | null = null;
+
+  /** Un jeton par école : les serveurs sont distincts, les sessions aussi. */
+  private readonly jetons = new Map<string, JetonEnCache>();
 
   constructor(
     private readonly httpService: HttpService,
@@ -23,511 +37,589 @@ export class BiotimeService {
     @InjectRepository(SuperAppPunch)
     private readonly punchRepository: Repository<SuperAppPunch>,
     private readonly eventEmitter: EventEmitter2,
-    private readonly configService: ConfigService,
     private readonly centralDataSource: DataSource,
+    private readonly configService: BiotimeConfigService,
   ) {}
 
-  private get biotimeUrl(): string {
-    const configPath = path.join(process.cwd(), 'data', 'config-biotime.json');
-    try {
-      if (fs.existsSync(configPath)) {
-        const fileContent = fs.readFileSync(configPath, 'utf8');
-        const config = JSON.parse(fileContent);
-        if (config && config.url) {
-          return config.url;
-        }
-      }
-    } catch (e) {
-      this.logger.warn(`Impossible de lire config-biotime.json : ${e.message}`);
-    }
-    return this.configService.get<string>('BIOTIME_URL', 'http://160.120.143.20:8080');
-  }
+  // ───────────────────────────────────────────────────────────────────────────
+  // AUTHENTIFICATION AUPRÈS DU SERVEUR D'UNE ÉCOLE
+  // ───────────────────────────────────────────────────────────────────────────
 
-  async saveConfigUrl(url: string): Promise<any> {
-    const configDir = path.join(process.cwd(), 'data');
-    const configPath = path.join(configDir, 'config-biotime.json');
-    try {
-      if (!fs.existsSync(configDir)) {
-        fs.mkdirSync(configDir, { recursive: true });
-      }
-      const config = { url };
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
-      return { success: true, url };
-    } catch (e) {
-      this.logger.error(`Impossible de sauvegarder config-biotime.json : ${e.message}`);
-      throw new HttpException('Échec de sauvegarde de la configuration.', HttpStatus.INTERNAL_SERVER_ERROR);
+  async getAuthToken(organisationId: string): Promise<string> {
+    const enCache = this.jetons.get(organisationId);
+    if (enCache && enCache.expireLe > new Date()) {
+      return enCache.token;
     }
-  }
 
-  async listDevices(): Promise<any[]> {
-    try {
-      const query = `
-        SELECT id, serial_number as "serialNumber", imei, model, status, last_seen_at as "lastSeenAt"
-        FROM devices
-        WHERE deleted_at IS NULL
-        ORDER BY last_seen_at DESC NULLS LAST
-      `;
-      return await this.centralDataSource.query(query);
-    } catch (err) {
-      this.logger.error(`Erreur lors de la récupération des équipements : ${err.message}`);
-      return [];
-    }
-  }
+    const { url, username, password } = await this.configService.obtenirIdentifiants(organisationId);
 
-  async autoRegisterDevice(serialNumber: string): Promise<void> {
     try {
-      const existing = await this.centralDataSource.query(
-        `SELECT id FROM devices WHERE serial_number = $1 AND deleted_at IS NULL LIMIT 1`,
-        [serialNumber]
+      const response = await firstValueFrom(
+        this.httpService.post(
+          `${url}/jwt-api-token-auth/`,
+          { username, password },
+          { headers: { 'Content-Type': 'application/json' }, timeout: 15000 },
+        ),
       );
-      if (!existing || existing.length === 0) {
-        this.logger.log(`[Auto-Register] Création de la badgeuse avec S/N: ${serialNumber}`);
-        await this.centralDataSource.query(
-          `INSERT INTO devices (type_device, serial_number, status, last_seen_at) 
-           VALUES ('BADGEUSE', $1, 'ACTIVE', now())`,
-          [serialNumber]
+
+      const token = response.data?.token;
+      if (!token) {
+        throw new Error('Aucun jeton dans la réponse du serveur BioTime.');
+      }
+
+      // Les jetons BioTime durent typiquement 24 h : on garde une marge.
+      this.jetons.set(organisationId, {
+        token,
+        expireLe: new Date(Date.now() + 23 * 60 * 60 * 1000),
+      });
+      return token;
+    } catch (error: any) {
+      this.jetons.delete(organisationId);
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status} depuis ${url}`
+        : error.message;
+      await this.configService.enregistrerEchec(organisationId, `Authentification : ${message}`);
+      throw new HttpException(
+        `Authentification BioTime impossible pour cette école : ${message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  /** GET authentifié sur le serveur BioTime d'une école. */
+  private async lire(organisationId: string, chemin: string): Promise<any> {
+    const { url } = await this.configService.obtenirIdentifiants(organisationId);
+    const token = await this.getAuthToken(organisationId);
+
+    const appel = (jeton: string) =>
+      firstValueFrom(
+        this.httpService.get(`${url}${chemin}`, {
+          headers: { 'Content-Type': 'application/json', Authorization: `JWT ${jeton}` },
+          timeout: 30000,
+        }),
+      );
+
+    try {
+      const response = await appel(token);
+      return response.data;
+    } catch (error: any) {
+      // Jeton périmé côté serveur : une seule nouvelle tentative après réauthentification.
+      if (error?.response?.status === 401) {
+        this.jetons.delete(organisationId);
+        const response = await appel(await this.getAuthToken(organisationId));
+        return response.data;
+      }
+      throw error;
+    }
+  }
+
+  /** Vérifie qu'une configuration répond, sans rien synchroniser. */
+  async testerConnexion(organisationId: string): Promise<{ ok: boolean; message: string }> {
+    try {
+      const data = await this.lire(organisationId, '/personnel/api/employees/?page_size=1');
+      const total = data?.count ?? 0;
+      await this.configService.enregistrerSucces(organisationId, null, 0);
+      return { ok: true, message: `Connexion établie. ${total} employé(s) visible(s) sur ce serveur.` };
+    } catch (error: any) {
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : error.message || 'Serveur injoignable';
+      await this.configService.enregistrerEchec(organisationId, message);
+      return { ok: false, message };
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // SYNCHRONISATION DES ENFANTS (ANNUAIRE)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async syncChildren(organisationId: string): Promise<any> {
+    try {
+      const data = await this.lire(organisationId, '/personnel/api/employees/?page_size=5000');
+      const employes = data?.data;
+      if (!Array.isArray(employes) || employes.length === 0) {
+        return { message: 'Aucun employé trouvé sur ce serveur', count: 0 };
+      }
+
+      // Une seule lecture des enfants déjà connus de cette école.
+      const existants = await this.childRepository.find({ where: { organisationId } });
+      const parMatricule = new Map(existants.map((c) => [c.empCode, c]));
+
+      const aEnregistrer: SuperAppChild[] = [];
+      for (const emp of employes) {
+        const champs = {
+          organisationId,
+          empCode: emp.emp_code,
+          firstName: emp.first_name,
+          lastName: emp.last_name,
+          departmentId: emp.department ? emp.department.id?.toString() : undefined,
+          departmentName: emp.department ? emp.department.dept_name : undefined,
+          position: emp.position_name,
+          hireDate: emp.hire_date ? new Date(emp.hire_date) : undefined,
+          fingerprint: emp.fingerprint,
+          areas: emp.area,
+          photo: emp.photo,
+          mobile: emp.mobile,
+          contactTel: emp.contact_tel,
+          email: emp.email,
+        };
+
+        const connu = parMatricule.get(emp.emp_code);
+        aEnregistrer.push(
+          connu
+            ? (Object.assign(connu, champs) as SuperAppChild)
+            : (this.childRepository.create(champs as Partial<SuperAppChild>) as SuperAppChild),
         );
-      } else {
-        await this.centralDataSource.query(
-          `UPDATE devices SET last_seen_at = now(), status = 'ACTIVE' WHERE id = $1`,
-          [existing[0].id]
-        );
       }
-    } catch (err) {
-      this.logger.error(`Erreur lors de l'auto-enregistrement de la badgeuse ${serialNumber} : ${err.message}`);
+
+      await this.childRepository.save(aEnregistrer, { chunk: 200 });
+      await this.configService.enregistrerSucces(organisationId, null, aEnregistrer.length);
+
+      this.logger.log(
+        `[BioTime] ${aEnregistrer.length} enfant(s) synchronisé(s) pour l'école ${organisationId}`,
+      );
+      return { message: 'Synchronisation des employés réussie', count: aEnregistrer.length };
+    } catch (error: any) {
+      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      await this.configService.enregistrerEchec(organisationId, `Annuaire : ${message}`);
+      this.logger.error(`[BioTime] Annuaire école ${organisationId} : ${message}`);
+      throw new HttpException(
+        `Synchronisation de l'annuaire impossible : ${message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
     }
   }
 
-  private get biotimeUser(): string {
-    const user = this.configService.get<string>('BIOTIME_USER');
-    if (!user) throw new Error("La variable d'environnement BIOTIME_USER est manquante.");
-    return user;
-  }
-
-  private get biotimePassword(): string {
-    const pass = this.configService.get<string>('BIOTIME_PASSWORD');
-    if (!pass) throw new Error("La variable d'environnement BIOTIME_PASSWORD est manquante.");
-    return pass;
-  }
+  // ───────────────────────────────────────────────────────────────────────────
+  // SYNCHRONISATION DES POINTAGES (INCRÉMENTALE)
+  // ───────────────────────────────────────────────────────────────────────────
 
   /**
-   * Obtient le token JWT pour communiquer avec l'API BioTime.
+   * Récupère les pointages parus depuis la dernière synchronisation de cette école.
+   *
+   * La fenêtre part du dernier passage, avec un recouvrement de quelques minutes
+   * pour absorber la dérive d'horloge des badgeuses. La déduplication par
+   * (école, identifiant BioTime) rend ce recouvrement inoffensif.
+   *
+   * L'ancienne version redemandait toute la journée à chaque passage et exécutait
+   * trois requêtes SQL par pointage : le coût croissait tout au long de la journée.
    */
-  async getAuthToken(): Promise<string> {
-    if (this.cachedToken && this.tokenExpiresAt && this.tokenExpiresAt > new Date()) {
-      return this.cachedToken as string;
+  async syncPunches(organisationId: string, depuisIso?: string): Promise<any> {
+    const config = await this.configService.obtenirPublique(organisationId);
+    if (!config) {
+      throw new NotFoundException(`Aucun serveur BioTime configuré pour l'école ${organisationId}.`);
     }
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post(`${this.biotimeUrl}/jwt-api-token-auth/`, {
-          username: this.biotimeUser,
-          password: this.biotimePassword,
-        }, {
-          headers: { 'Content-Type': 'application/json' }
-        })
-      );
-      if (response.data && response.data.token) {
-        const tokenStr = response.data.token;
-        this.cachedToken = tokenStr;
-        // BioTime tokens usually expire, cache it for 23 hours to be safe
-        this.tokenExpiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000);
-        return tokenStr;
-      }
-      throw new Error('Token non reçu dans la réponse de BioTime');
-    } catch (error) {
-      this.logger.error('Erreur lors de la récupération du token BioTime', error.message);
-      this.cachedToken = null;
-      this.tokenExpiresAt = null;
-      throw new HttpException('Erreur d\'authentification BioTime', HttpStatus.UNAUTHORIZED);
-    }
-  }
 
-  /**
-   * Synchronise les employés de BioTime vers la table super_app_children.
-   */
-  async syncChildren(): Promise<any> {
-    const token = await this.getAuthToken();
+    const debut = depuisIso
+      ? new Date(depuisIso)
+      : config.lastSyncedAt
+        ? new Date(new Date(config.lastSyncedAt).getTime() - RECOUVREMENT_MS)
+        : this.debutDeJournee();
+    const fin = new Date();
+
     try {
-      const response = await firstValueFrom(
-        this.httpService.get(`${this.biotimeUrl}/personnel/api/employees/?page_size=5000`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `JWT ${token}`
-          }
-        })
+      const data = await this.lire(
+        organisationId,
+        `/iclock/api/transactions/?start_time=${this.formatBiotime(debut)}` +
+          `&end_time=${this.formatBiotime(fin)}&page_size=5000`,
       );
 
-      const employees = response.data.data;
-      if (!employees || !Array.isArray(employees)) {
-        return { message: 'Aucun employé trouvé', count: 0 };
+      const pointages = data?.data;
+      if (!Array.isArray(pointages) || pointages.length === 0) {
+        await this.configService.enregistrerSucces(organisationId, null, 0);
+        return { message: 'Aucun nouveau pointage', count: 0 };
       }
 
-      let syncedCount = 0;
-      for (const emp of employees) {
-        let child = await this.childRepository.findOne({ where: { empCode: emp.emp_code } });
-        if (!child) {
-          child = this.childRepository.create({
-            empCode: emp.emp_code,
-            firstName: emp.first_name,
-            lastName: emp.last_name,
-            departmentId: emp.department ? emp.department.id?.toString() : undefined,
-            departmentName: emp.department ? emp.department.dept_name : undefined,
-            position: emp.position_name,
-            hireDate: emp.hire_date ? new Date(emp.hire_date) : undefined,
-            fingerprint: emp.fingerprint,
-            areas: emp.area,
-            photo: emp.photo,
-            mobile: emp.mobile,
-            contactTel: emp.contact_tel,
-            email: emp.email,
-          });
-        } else {
-          child.firstName = emp.first_name;
-          child.lastName = emp.last_name;
-          child.departmentId = emp.department ? emp.department.id?.toString() : undefined;
-          child.departmentName = emp.department ? emp.department.dept_name : undefined;
-          child.position = emp.position_name;
-          child.hireDate = emp.hire_date ? new Date(emp.hire_date) : (null as any);
-          child.fingerprint = emp.fingerprint;
-          child.areas = emp.area;
-          child.photo = emp.photo;
-          child.mobile = emp.mobile;
-          child.contactTel = emp.contact_tel;
-          child.email = emp.email;
+      // Résolution en masse : un appel pour les enfants, un pour les doublons.
+      const matricules = [...new Set(pointages.map((p: any) => p.emp_code).filter(Boolean))];
+      const identifiants = pointages.map((p: any) => String(p.id)).filter(Boolean);
+
+      const [enfants, dejaVus] = await Promise.all([
+        matricules.length
+          ? this.childRepository.find({ where: { organisationId, empCode: In(matricules) } })
+          : Promise.resolve([]),
+        identifiants.length
+          ? this.punchRepository.find({
+              where: { organisationId, biotimePunchId: In(identifiants) },
+              select: { biotimePunchId: true },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const enfantParMatricule = new Map(enfants.map((c) => [c.empCode, c]));
+      const identifiantsConnus = new Set(dejaVus.map((p) => p.biotimePunchId));
+
+      const nouveaux: SuperAppPunch[] = [];
+      const terminauxVus = new Set<string>();
+      let sansEnfant = 0;
+      let dernierId: string | null = config.lastSyncedPunchId;
+
+      for (const p of pointages) {
+        const identifiant = String(p.id);
+        if (identifiantsConnus.has(identifiant)) continue;
+
+        const enfant = enfantParMatricule.get(p.emp_code);
+        if (!enfant) {
+          sansEnfant++;
+          continue;
         }
-        await this.childRepository.save(child);
-        syncedCount++;
-      }
 
-      return { message: 'Synchronisation des employés réussie', count: syncedCount };
-    } catch (error) {
-      this.logger.error('Erreur lors de la synchronisation des employés BioTime', error.message);
-      throw new HttpException('Erreur de synchronisation BioTime', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
+        if (p.terminal_sn) terminauxVus.add(p.terminal_sn);
+        if (!dernierId || Number(identifiant) > Number(dernierId)) dernierId = identifiant;
 
-  /**
-   * Synchronise les pointages (punches) depuis BioTime.
-   */
-  async syncPunches(dateStr?: string): Promise<any> {
-    const token = await this.getAuthToken();
-    try {
-      const targetDate = dateStr ? new Date(dateStr) : new Date();
-      const formattedDate = targetDate.toISOString().split('T')[0];
-
-      const response = await firstValueFrom(
-        this.httpService.get(`${this.biotimeUrl}/iclock/api/transactions/?start_time=${formattedDate} 00:00:00&end_time=${formattedDate} 23:59:59&page_size=5000`, {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `JWT ${token}`
-          }
-        })
-      );
-
-      const punches = response.data.data;
-      if (!punches || !Array.isArray(punches)) {
-        return { message: 'Aucun pointage trouvé pour cette date', count: 0 };
-      }
-
-      let syncedCount = 0;
-      for (const p of punches) {
-        const child = await this.childRepository.findOne({ where: { empCode: p.emp_code } });
-        if (!child) continue;
-
-        let punch = await this.punchRepository.findOne({ where: { biotimePunchId: p.id.toString() } });
-        if (!punch) {
-          if (p.terminal_sn) {
-            await this.autoRegisterDevice(p.terminal_sn);
-          }
-          punch = this.punchRepository.create({
-            biotimePunchId: p.id.toString(),
-            childId: child.id,
+        nouveaux.push(
+          this.punchRepository.create({
+            organisationId,
+            biotimePunchId: identifiant,
+            childId: enfant.id,
             empCode: p.emp_code,
             punchTime: new Date(p.punch_time),
             punchState: p.punch_state,
             verifyType: p.verify_type,
             terminalSn: p.terminal_sn,
-          });
-          await this.punchRepository.save(punch);
-          syncedCount++;
-        }
+          }),
+        );
       }
 
-      return { message: 'Synchronisation des pointages réussie', count: syncedCount };
-    } catch (error) {
-      this.logger.error('Erreur lors de la synchronisation des pointages', error.message);
-      throw new HttpException('Erreur de synchronisation des pointages', HttpStatus.INTERNAL_SERVER_ERROR);
+      if (nouveaux.length) {
+        await this.punchRepository.save(nouveaux, { chunk: 500 });
+      }
+      for (const sn of terminauxVus) {
+        await this.autoRegisterDevice(sn);
+      }
+
+      await this.configService.enregistrerSucces(organisationId, dernierId, nouveaux.length);
+
+      this.logger.log(
+        `[BioTime] École ${organisationId} : ${nouveaux.length} nouveau(x) pointage(s)` +
+          (sansEnfant ? `, ${sansEnfant} ignoré(s) faute d'enfant connu` : ''),
+      );
+
+      return {
+        message: 'Synchronisation des pointages réussie',
+        count: nouveaux.length,
+        ignores: sansEnfant,
+        fenetre: { debut: debut.toISOString(), fin: fin.toISOString() },
+      };
+    } catch (error: any) {
+      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      await this.configService.enregistrerEchec(organisationId, `Pointages : ${message}`);
+      this.logger.error(`[BioTime] Pointages école ${organisationId} : ${message}`);
+      throw new HttpException(
+        `Synchronisation des pointages impossible : ${message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
     }
   }
 
+  /** Synchronise toutes les écoles ayant une configuration active. Utilisé par le planificateur. */
+  async syncToutesLesEcoles(): Promise<{ ecoles: number; total: number; erreurs: number }> {
+    const configs = await this.configService.listerActives();
+    let total = 0;
+    let erreurs = 0;
+
+    // Séquentiel volontairement : les serveurs BioTime sont des machines d'école,
+    // souvent modestes, et rien n'exige la parallélisation à ce volume.
+    for (const config of configs) {
+      try {
+        const resultat = await this.syncPunches(config.organisationId);
+        total += resultat.count ?? 0;
+      } catch (err: any) {
+        erreurs++;
+        this.logger.warn(
+          `[BioTime] École ${config.organisationId} ignorée ce cycle : ${err.message}`,
+        );
+      }
+    }
+
+    return { ecoles: configs.length, total, erreurs };
+  }
+
+  private debutDeJournee(): Date {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  /** BioTime attend « YYYY-MM-DD HH:mm:ss ». */
+  private formatBiotime(d: Date): string {
+    const p = (n: number) => String(n).padStart(2, '0');
+    return (
+      `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
+      `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+    );
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // WEBHOOK (si un serveur ou un relais sait pousser)
+  // ───────────────────────────────────────────────────────────────────────────
+
   /**
-   * Reçoit les pointages en temps réel depuis le Webhook de BioTime
+   * Réception poussée de pointages.
+   *
+   * L'API BioTime 8.5 ne sait pas appeler un tiers : cet endpoint ne sert qu'à un
+   * relais ou un agent installé sur place. L'école est déduite du numéro de série
+   * du terminal via l'appairage central, jamais du contenu du message.
    */
   async handleWebhook(payload: any): Promise<any> {
-    this.logger.log(`Webhook reçu de BioTime: ${JSON.stringify(payload)}`);
-    
-    // BioTime peut envoyer un seul objet ou un tableau d'objets
     const transactions = Array.isArray(payload) ? payload : [payload];
-    
-    let processedCount = 0;
-    
+    let traites = 0;
+    let sansEcole = 0;
+
     for (const txn of transactions) {
-      if (!txn.emp_code || !txn.punch_time || !txn.terminal_sn) {
-        continue; // Ignorer les payloads mal formés
-      }
- 
-      // Find the corresponding child (facultatif)
-      const child = await this.childRepository.findOne({ where: { empCode: txn.emp_code } });
-      const childId = child ? child.id : undefined;
-      // Pour le webhook, on privilégie l'ID de transaction s'il est fourni
-      const punchTime = new Date(txn.punch_time);
-      let existingPunch = null;
-      
-      if (txn.id) {
-        existingPunch = await this.punchRepository.findOne({ where: { biotimePunchId: txn.id.toString() } });
-      }
-      
-      if (!existingPunch) {
-        // BioTime n'envoie pas toujours un ID unique de transaction
-        // On cherche un pointage proche (tolérance de ±2 secondes) pour éviter les doublons liés aux millisecondes
-        const recentPunches = await this.punchRepository.find({ 
-          where: { 
-            childId: childId === undefined ? IsNull() : childId,
-            terminalSn: txn.terminal_sn
-          } 
-        });
-        existingPunch = recentPunches.find(p => Math.abs(new Date(p.punchTime).getTime() - punchTime.getTime()) <= 2000);
-      } 
-      if (txn.terminal_sn) {
-        await this.autoRegisterDevice(txn.terminal_sn);
+      if (!txn.emp_code || !txn.punch_time || !txn.terminal_sn) continue;
+
+      const organisationId = await this.resoudreEcoleDuTerminal(txn.terminal_sn);
+      if (!organisationId) {
+        sansEcole++;
+        this.logger.warn(
+          `[BioTime] Terminal "${txn.terminal_sn}" non appairé : pointage conservé nulle part.`,
+        );
+        continue;
       }
 
-      if (!existingPunch) {
-        const punch = this.punchRepository.create({
-          biotimePunchId: txn.id ? txn.id.toString() : `WH-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          childId: childId,
-          empCode: txn.emp_code,
-          punchTime: punchTime,
-          punchState: txn.punch_state,
-          verifyType: txn.verify_type,
-          terminalSn: txn.terminal_sn,
-        });
-        await this.punchRepository.save(punch);
-        processedCount++;
- 
-        // Déclencher un événement pour le nouveau pointage
-        this.eventEmitter.emit('punch.received', {
-          child: child || { id: null, firstName: 'Élève', lastName: `Inconnu (${txn.emp_code})`, empCode: txn.emp_code },
-          punch
-        });
-      }
-    }
- 
-    return { message: 'Webhook traité avec succès', processed: processedCount };
-  }
+      const identifiant = txn.id
+        ? String(txn.id)
+        : `WH-${new Date(txn.punch_time).getTime()}-${txn.emp_code}`;
 
-  /**
-   * Retourne tous les enfants avec leurs pointages pour une date donnée
-   */
-  async findAllChildren(dateStr?: string): Promise<SuperAppChild[]> {
-    const children = await this.childRepository.find({
-      relations: { punches: true },
-      order: { lastName: 'ASC', firstName: 'ASC' }
-    });
+      const existant = await this.punchRepository.findOne({
+        where: { organisationId, biotimePunchId: identifiant },
+      });
+      if (existant) continue;
 
-    const targetDate = dateStr ? new Date(dateStr) : new Date();
-    const targetDateString = targetDate.toDateString();
+      const enfant = await this.childRepository.findOne({
+        where: { organisationId, empCode: txn.emp_code },
+      });
 
-    // Ne garder que les pointages de la date demandée
-    children.forEach(c => {
-      if (c.punches) {
-        c.punches = c.punches.filter(p => {
-          return new Date(p.punchTime).toDateString() === targetDateString;
-        });
-      }
-    });
+      await this.autoRegisterDevice(txn.terminal_sn);
 
-    return children;
-  }
+      const punch = this.punchRepository.create({
+        organisationId,
+        biotimePunchId: identifiant,
+        childId: enfant?.id,
+        empCode: txn.emp_code,
+        punchTime: new Date(txn.punch_time),
+        punchState: txn.punch_state,
+        verifyType: txn.verify_type,
+        terminalSn: txn.terminal_sn,
+      });
+      await this.punchRepository.save(punch);
+      traites++;
 
-  /**
-   * Retourne l'historique des pointages structuré par date, pour une date spécifique
-   */
-  async findAllPunches(dateStr?: string): Promise<Record<string, any[]>> {
-    const targetDate = dateStr ? new Date(dateStr) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const punches = await this.punchRepository.find({
-      where: { 
-        punchTime: Between(startOfDay, endOfDay)
-      },
-      relations: { child: true },
-      order: { punchTime: 'DESC' }
-    });
-
-    const grouped: Record<string, any[]> = {};
-    
-    // Dictionnaire de traduction des terminaux (à enrichir ou migrer en BDD plus tard)
-    const TERMINAL_MAP: Record<string, string> = {
-      'CKPM223460449': 'Bus Principal (Ligne 1)'
-    };
-    
-    for (const p of punches) {
-      // Create a local date string for grouping (YYYY-MM-DD)
-      const dateObj = new Date(p.punchTime);
-      const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      
-      if (!grouped[dateStr]) {
-        grouped[dateStr] = [];
-      }
-
-      // Logique intelligente basée sur les tranches horaires
-      const hour = dateObj.getHours();
-      const isSaturday = dateObj.getDay() === 6;
-      let stateLabel = '';
-
-      if (isSaturday) {
-        if (hour >= 4 && hour < 10) {
-          stateLabel = 'MONTÉE';
-        } else if (hour >= 10 && hour < 14) {
-          stateLabel = 'DESCENTE';
-        } else {
-          stateLabel = p.punchState === '1' || p.punchState === '5' ? 'DESCENTE' : 'MONTÉE';
-        }
-      } else {
-        if (hour >= 4 && hour < 12) {
-          stateLabel = hour < 9 ? 'MONTÉE' : 'DESCENTE';
-        } else if (hour >= 12 && hour < 23) {
-          stateLabel = hour < 17 ? 'MONTÉE' : 'DESCENTE';
-        } else {
-          stateLabel = p.punchState === '1' || p.punchState === '5' ? 'DESCENTE' : 'MONTÉE';
-        }
-      }
-      
-      // Override avec la machine si l'état est explicite (0=Montée, 1=Descente)
-      if (p.punchState === '0' || p.punchState === '4') stateLabel = 'MONTÉE';
-      if (p.punchState === '1' || p.punchState === '5') stateLabel = 'DESCENTE';
-
-      grouped[dateStr].push({
-        id: p.id,
-        punchTime: p.punchTime,
-        time: dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        stateCode: p.punchState,
-        stateLabel: stateLabel,
-        terminal: TERMINAL_MAP[p.terminalSn] || `Terminal: ${p.terminalSn}`,
-        child: p.child ? {
-          empCode: p.child.empCode,
-          firstName: p.child.firstName,
-          lastName: p.child.lastName,
-          className: p.child.departmentName,
-          photo: p.child.photo
-        } : {
-          empCode: p.empCode || 'N/A',
-          firstName: 'Élève',
-          lastName: `Inconnu (${p.empCode || 'N/A'})`,
-          className: 'Non assigné',
-          photo: null
-        }
+      this.eventEmitter.emit('punch.received', {
+        child:
+          enfant ?? {
+            id: null,
+            firstName: 'Élève',
+            lastName: `Inconnu (${txn.emp_code})`,
+            empCode: txn.emp_code,
+          },
+        punch,
       });
     }
 
-    return grouped;
+    return { message: 'Webhook traité', processed: traites, sansEcole };
   }
 
-  /**
-   * Retourne l'historique des pointages pour un élève spécifique (via empCode)
-   * Limité aux 60 derniers jours
-   */
-  async getPunchesByEmpCode(empCode: string): Promise<any[]> {
-    const sixtyDaysAgo = new Date();
-    sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+  /** École propriétaire d'un terminal, d'après l'appairage central. */
+  private async resoudreEcoleDuTerminal(serialNumber: string): Promise<string | null> {
+    try {
+      const lignes = await this.centralDataSource.query(
+        `
+          SELECT od.organisation_id AS "organisationId"
+          FROM organisation_devices od
+          INNER JOIN devices d ON d.id = od.device_id
+          WHERE (d.serial_number = $1 OR d.imei = $1)
+            AND od.released_at IS NULL
+            AND d.deleted_at IS NULL
+          LIMIT 1
+        `,
+        [serialNumber],
+      );
+      return lignes?.[0]?.organisationId ?? null;
+    } catch (err: any) {
+      this.logger.error(`Résolution du terminal ${serialNumber} impossible : ${err.message}`);
+      return null;
+    }
+  }
 
-    const punches = await this.punchRepository.find({
-      relations: { child: true },
-      where: {
-        child: { empCode: empCode },
-        punchTime: Between(sixtyDaysAgo, new Date()),
-        terminalSn: 'CKPM223460449'
-      },
-      order: { punchTime: 'DESC' }
+  // ───────────────────────────────────────────────────────────────────────────
+  // INVENTAIRE DES TERMINAUX
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** Terminaux du parc. Restreint à une école si `organisationId` est fourni. */
+  async listDevices(organisationId?: string): Promise<any[]> {
+    try {
+      const filtreEcole = organisationId
+        ? `INNER JOIN organisation_devices od
+             ON od.device_id = d.id AND od.released_at IS NULL AND od.organisation_id = $1`
+        : '';
+      return await this.centralDataSource.query(
+        `
+          SELECT d.id, d.serial_number as "serialNumber", d.imei, d.type_device as "typeDevice",
+                 d.status, d.last_seen_at as "lastSeenAt"
+          FROM devices d
+          ${filtreEcole}
+          WHERE d.deleted_at IS NULL
+          ORDER BY d.last_seen_at DESC NULLS LAST
+        `,
+        organisationId ? [organisationId] : [],
+      );
+    } catch (err: any) {
+      this.logger.error(`Récupération des équipements impossible : ${err.message}`);
+      return [];
+    }
+  }
+
+  /** Inscrit le terminal à l'inventaire s'il est inconnu, et rafraîchit son heartbeat. */
+  async autoRegisterDevice(serialNumber: string): Promise<void> {
+    try {
+      const existant = await this.centralDataSource.query(
+        `SELECT id FROM devices WHERE serial_number = $1 AND deleted_at IS NULL LIMIT 1`,
+        [serialNumber],
+      );
+      if (existant?.length) {
+        await this.centralDataSource.query(
+          `UPDATE devices SET last_seen_at = now(), status = 'ACTIVE' WHERE id = $1`,
+          [existant[0].id],
+        );
+        return;
+      }
+      await this.centralDataSource.query(
+        `INSERT INTO devices (type_device, serial_number, status, last_seen_at)
+         VALUES ('BADGEUSE', $1, 'ACTIVE', now())`,
+        [serialNumber],
+      );
+      this.logger.log(`[Inventaire] Badgeuse "${serialNumber}" mise en stock, sans école.`);
+    } catch (err: any) {
+      this.logger.error(`Auto-inscription de ${serialNumber} impossible : ${err.message}`);
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // LECTURES POUR LA SUPERVISION (toujours limitées à une école)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async findAllChildren(organisationId: string, dateStr?: string): Promise<SuperAppChild[]> {
+    const children = await this.childRepository.find({
+      where: { organisationId },
+      relations: { punches: true },
+      order: { lastName: 'ASC', firstName: 'ASC' },
     });
 
-    // Translation dict
-    const TERMINAL_MAP: Record<string, string> = {
-      'CKPM223460449': 'Bus Principal (Ligne 1)'
-    };
-
-    return punches.map(p => {
-      const dateObj = new Date(p.punchTime);
-      const hour = dateObj.getHours();
-      const isSaturday = dateObj.getDay() === 6;
-      let stateLabel = '';
-
-      if (isSaturday) {
-        if (hour >= 4 && hour < 10) {
-          stateLabel = 'MONTÉE';
-        } else if (hour >= 10 && hour < 14) {
-          stateLabel = 'DESCENTE';
-        } else {
-          stateLabel = p.punchState === '1' || p.punchState === '5' ? 'DESCENTE' : 'MONTÉE';
-        }
-      } else {
-        if (hour >= 4 && hour < 12) {
-          stateLabel = hour < 9 ? 'MONTÉE' : 'DESCENTE';
-        } else if (hour >= 12 && hour < 23) {
-          stateLabel = hour < 17 ? 'MONTÉE' : 'DESCENTE';
-        } else {
-          stateLabel = p.punchState === '1' || p.punchState === '5' ? 'DESCENTE' : 'MONTÉE';
-        }
+    const jour = (dateStr ? new Date(dateStr) : new Date()).toDateString();
+    for (const c of children) {
+      if (c.punches) {
+        c.punches = c.punches.filter((p) => new Date(p.punchTime).toDateString() === jour);
       }
+    }
+    return children;
+  }
 
-      if (p.punchState === '0' || p.punchState === '4') stateLabel = 'MONTÉE';
-      if (p.punchState === '1' || p.punchState === '5') stateLabel = 'DESCENTE';
+  async findAllPunches(organisationId: string, dateStr?: string): Promise<Record<string, any[]>> {
+    const cible = dateStr ? new Date(dateStr) : new Date();
+    const debut = new Date(cible);
+    debut.setHours(0, 0, 0, 0);
+    const fin = new Date(cible);
+    fin.setHours(23, 59, 59, 999);
 
+    const punches = await this.punchRepository.find({
+      where: { organisationId, punchTime: Between(debut, fin) },
+      relations: { child: true },
+      order: { punchTime: 'DESC' },
+    });
+
+    const groupes: Record<string, any[]> = {};
+    for (const p of punches) {
+      const d = new Date(p.punchTime);
+      const cle = d.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      groupes[cle] ??= [];
+
+      groupes[cle].push({
+        id: p.id,
+        punchTime: p.punchTime,
+        time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        stateCode: p.punchState,
+        stateLabel: this.libelleSens(p.punchState),
+        terminal: p.terminalSn ? `Terminal : ${p.terminalSn}` : 'Terminal inconnu',
+        child: p.child
+          ? {
+              empCode: p.child.empCode,
+              firstName: p.child.firstName,
+              lastName: p.child.lastName,
+              className: p.child.departmentName,
+              photo: p.child.photo,
+            }
+          : {
+              empCode: p.empCode || 'N/A',
+              firstName: 'Élève',
+              lastName: `Inconnu (${p.empCode || 'N/A'})`,
+              className: 'Non assigné',
+              photo: null,
+            },
+      });
+    }
+    return groupes;
+  }
+
+  async getPunchesByEmpCode(organisationId: string, empCode: string): Promise<any[]> {
+    const depuis = new Date();
+    depuis.setDate(depuis.getDate() - 60);
+
+    const punches = await this.punchRepository.find({
+      where: { organisationId, empCode, punchTime: Between(depuis, new Date()) },
+      order: { punchTime: 'DESC' },
+    });
+
+    return punches.map((p) => {
+      const d = new Date(p.punchTime);
       return {
         id: p.id,
         punchTime: p.punchTime,
-        date: dateObj.toISOString().split('T')[0], // format YYYY-MM-DD
-        time: dateObj.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        date: d.toISOString().split('T')[0],
+        time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         stateCode: p.punchState,
-        stateLabel: stateLabel,
-        terminal: TERMINAL_MAP[p.terminalSn] || `Terminal: ${p.terminalSn}`
+        stateLabel: this.libelleSens(p.punchState),
+        terminal: p.terminalSn ? `Terminal : ${p.terminalSn}` : 'Terminal inconnu',
       };
     });
   }
 
   /**
-   * Retourne les informations de l'employé BioTime
+   * Libellé du sens d'un pointage.
+   *
+   * S'appuie sur `sensFromPunchState`, source unique de cette règle. Les anciennes
+   * versions devinaient le sens à partir de l'heure de la journée, avec des tranches
+   * horaires différentes selon les écrans.
    */
-  async getEmployeeByEmpCode(empCode: string): Promise<SuperAppChild> {
-    const child = await this.childRepository.findOne({ where: { empCode } });
+  private libelleSens(punchState?: string): string {
+    return sensFromPunchState(punchState) === SensPointage.DESCENTE ? 'DESCENTE' : 'MONTÉE';
+  }
+
+  async getEmployeeByEmpCode(organisationId: string, empCode: string): Promise<SuperAppChild> {
+    const child = await this.childRepository.findOne({ where: { organisationId, empCode } });
     if (!child) {
-      throw new HttpException('Employé introuvable', HttpStatus.NOT_FOUND);
+      throw new HttpException('Employé introuvable dans cette école', HttpStatus.NOT_FOUND);
     }
     return child;
   }
 
-  /**
-   * Retourne tout le répertoire des employés (enfants) synchronisés depuis BioTime
-   */
-  async getDirectory(): Promise<SuperAppChild[]> {
+  async getDirectory(organisationId: string): Promise<SuperAppChild[]> {
     return this.childRepository.find({
-      order: { lastName: 'ASC', firstName: 'ASC' }
+      where: { organisationId },
+      order: { lastName: 'ASC', firstName: 'ASC' },
     });
   }
 
-  /**
-   * Retourne les détails complets pour une liste spécifique d'employés
-   */
-  async getDirectoryBulk(empCodes: string[]): Promise<SuperAppChild[]> {
-    if (!empCodes || empCodes.length === 0) return [];
-    
-    // Fallback to query builder to handle IN clause elegantly
-    return this.childRepository.createQueryBuilder('child')
-      .where('child.empCode IN (:...empCodes)', { empCodes })
-      .getMany();
+  async getDirectoryBulk(organisationId: string, empCodes: string[]): Promise<SuperAppChild[]> {
+    if (!empCodes?.length) return [];
+    return this.childRepository.find({
+      where: { organisationId, empCode: In(empCodes) },
+    });
   }
 }

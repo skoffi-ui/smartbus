@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { BiotimeConfigService } from '../biotime/biotime-config.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, DataSource } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -17,6 +18,7 @@ export class CronService {
     private readonly organisationRepository: Repository<Organisation>,
     private readonly dataSource: DataSource,
     @InjectQueue('biotime-sync') private readonly biotimeQueue: Queue,
+    private readonly biotimeConfigService: BiotimeConfigService,
     private readonly tenantConnectionService: TenantConnectionService,
   ) {}
 
@@ -105,17 +107,30 @@ export class CronService {
     }
   }
 
-  // Tâche périodique pour enfiler la synchronisation des pointages toutes les 5 minutes
+  /**
+   * Synchronisation des pointages, toutes les 5 minutes.
+   *
+   * Un seul job sans `organisationId` : le worker parcourt alors toutes les écoles
+   * ayant une configuration BioTime active. Chaque école a son propre serveur, donc
+   * son propre curseur de synchronisation.
+   */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async triggerBioTimePunchesSync() {
-    this.logger.debug('🤖 Planificateur : Ajout de la synchronisation des pointages BioTime à la file d\'attente...');
-    await this.biotimeQueue.add('sync-punches', { dateStr: new Date().toISOString() });
+    this.logger.debug('Planificateur : synchronisation des pointages de toutes les ecoles configurees...');
+    await this.biotimeQueue.add('sync-punches', {});
   }
 
-  // Tâche périodique pour enfiler la synchronisation des élèves tous les jours à minuit
+  /** Annuaire des enfants : un job par ecole, chaque nuit. */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async triggerBioTimeChildrenSync() {
-    this.logger.debug('🤖 Planificateur : Ajout de la synchronisation des enfants BioTime à la file d\'attente...');
-    await this.biotimeQueue.add('sync-children', {});
+    const configs = await this.biotimeConfigService.listerActives();
+    if (configs.length === 0) {
+      this.logger.debug('Planificateur : aucune ecole avec un serveur BioTime configure.');
+      return;
+    }
+    for (const config of configs) {
+      await this.biotimeQueue.add('sync-children', { organisationId: config.organisationId });
+    }
+    this.logger.debug(`Planificateur : annuaire mis en file pour ${configs.length} ecole(s).`);
   }
 }

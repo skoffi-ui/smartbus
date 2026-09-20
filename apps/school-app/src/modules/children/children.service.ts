@@ -5,14 +5,32 @@ import { CreateChildDto, UpdateChildDto } from './dto/children.dto';
 import { TenantService } from '../tenant/tenant.service';
 import { Parent } from '@app/database/tenant-entities/parent.entity';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class ChildrenService {
   constructor(
     private readonly tenantService: TenantService,
-    private readonly httpService: HttpService
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
   ) {}
+
+  /**
+   * Appel aux routes « mon-ecole » de la super-app.
+   *
+   * Le jeton de l'utilisateur est relayé tel quel : la super-app en déduit
+   * l'école et ne renvoie que l'annuaire BioTime de cet établissement. Chaque
+   * école ayant son propre serveur BioTime, un appel anonyme n'a plus de sens.
+   */
+  private urlSuperApp(chemin: string): string {
+    const base = this.configService.get<string>('SUPER_APP_URL', 'http://localhost:3000');
+    return `${base}/api/v1/biotime/mon-ecole${chemin}`;
+  }
+
+  private enTetes(accessToken?: string): { headers: Record<string, string> } {
+    return { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} };
+  }
 
   private async getRepo(): Promise<Repository<Child>> {
     const dataSource = await this.tenantService.getDataSource();
@@ -29,7 +47,7 @@ export class ChildrenService {
     return repo.find({ relations: { parent: true }, order: { createdAt: 'DESC' } });
   }
 
-  async findOne(id: string): Promise<Child> {
+  async findOne(id: string, accessToken?: string): Promise<Child> {
     const repo = await this.getRepo();
     const child = await repo.findOne({ where: { id }, relations: { parent: true } });
     if (!child) {
@@ -40,7 +58,10 @@ export class ChildrenService {
     if (!child.photoUrl && child.empCode) {
       try {
         const response = await firstValueFrom(
-          this.httpService.get(`http://localhost:3000/api/v1/biotime/employee/${child.empCode}`)
+          this.httpService.get(
+            this.urlSuperApp(`/employee/${child.empCode}`),
+            this.enTetes(accessToken),
+          ),
         );
         if (response.data && response.data.photo) {
           const photo = response.data.photo;
@@ -128,7 +149,7 @@ export class ChildrenService {
     await repo.remove(child);
   }
 
-  async getPunches(id: string): Promise<any[]> {
+  async getPunches(id: string, accessToken?: string): Promise<any[]> {
     const child = await this.findOne(id);
     if (!child.empCode) {
       return [];
@@ -137,7 +158,10 @@ export class ChildrenService {
     try {
       // Appel du super-app pour récupérer l'historique
       const response = await firstValueFrom(
-        this.httpService.get(`http://localhost:3000/api/v1/biotime/punches/empcode/${child.empCode}`)
+        this.httpService.get(
+          this.urlSuperApp(`/punches/empcode/${child.empCode}`),
+          this.enTetes(accessToken),
+        ),
       );
       return response.data;
     } catch (error) {
@@ -146,10 +170,10 @@ export class ChildrenService {
     }
   }
 
-  async getBiotimeDirectory(): Promise<any[]> {
+  async getBiotimeDirectory(accessToken?: string): Promise<any[]> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(`http://localhost:3000/api/v1/biotime/directory`)
+        this.httpService.get(this.urlSuperApp('/directory'), this.enTetes(accessToken)),
       );
       return response.data || [];
     } catch (error) {
@@ -158,7 +182,7 @@ export class ChildrenService {
     }
   }
 
-  async bulkImport(empCodes: string[]): Promise<any> {
+  async bulkImport(empCodes: string[], accessToken?: string): Promise<any> {
     if (!empCodes || empCodes.length === 0) {
       return { message: 'Aucun matricule fourni', count: 0 };
     }
@@ -166,7 +190,11 @@ export class ChildrenService {
     try {
       // 1. Fetch details from super-app
       const response = await firstValueFrom(
-        this.httpService.post(`http://localhost:3000/api/v1/biotime/directory/bulk`, { empCodes })
+        this.httpService.post(
+          this.urlSuperApp('/directory/bulk'),
+          { empCodes },
+          this.enTetes(accessToken),
+        ),
       );
       const employees = response.data || [];
       
@@ -215,7 +243,7 @@ export class ChildrenService {
    * Corrige les photoUrl existantes en base pour y ajouter le port :8080 manquant.
    * Nécessaire après la migration du BIOTIME_URL vers http://160.120.143.20:8080
    */
-  async resyncPhotos(): Promise<{ updated: number }> {
+  async resyncPhotos(accessToken?: string): Promise<{ updated: number }> {
     const repo = await this.getRepo();
     const allChildren = await repo.find();
     let updated = 0;
@@ -233,7 +261,10 @@ export class ChildrenService {
       if (!child.photoUrl && child.empCode) {
         try {
           const response = await firstValueFrom(
-            this.httpService.get<any>(`http://localhost:3000/api/v1/biotime/employee/${child.empCode}`)
+            this.httpService.get<any>(
+              this.urlSuperApp(`/employee/${child.empCode}`),
+              this.enTetes(accessToken),
+            ),
           );
           if (response.data && response.data.photo) {
             const photo: string = response.data.photo;

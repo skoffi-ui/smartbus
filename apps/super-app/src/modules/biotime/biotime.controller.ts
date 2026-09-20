@@ -1,14 +1,46 @@
-import { Controller, Post, Get, HttpCode, HttpStatus, Query, Render, Body, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody } from '@nestjs/swagger';
+import {
+  Controller,
+  Post,
+  Get,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Query,
+  Render,
+  Body,
+  Param,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiQuery,
+  ApiBody,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { JwtAuthGuard, RolesGuard, Roles, UserRole, Public, CurrentUser } from '@app/common';
 import { BiotimeService } from './biotime.service';
+import { BiotimeConfigService, EnregistrerConfigDto } from './biotime-config.service';
 
-@ApiTags('BioTime Sync Test')
+/**
+ * Supervision des serveurs BioTime des écoles.
+ *
+ * Chaque école a son propre serveur : toutes les routes sont paramétrées par
+ * `organisationId`. Réservé au super admin, hormis le webhook d'ingestion.
+ */
+@ApiTags('BioTime')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.SUPER_ADMIN)
 @Controller('biotime')
 export class BiotimeController {
   constructor(
     private readonly biotimeService: BiotimeService,
+    private readonly configService: BiotimeConfigService,
     @InjectQueue('biotime-sync') private readonly biotimeQueue: Queue,
   ) {}
 
@@ -19,101 +51,199 @@ export class BiotimeController {
     return { title: 'Tableau de Bord SMARTBUS' };
   }
 
-  @Get('config')
-  @ApiOperation({ summary: 'Récupère la configuration dynamique BioTime' })
-  getConfig() {
-    return { url: this.biotimeService['biotimeUrl'] };
+  // ── Configuration par école ─────────────────────────────────────────────
+
+  @Get('configs')
+  @ApiOperation({ summary: 'Configurations BioTime de toutes les écoles' })
+  listerConfigs() {
+    return this.configService.listerToutes();
   }
 
-  @Post('config')
-  @ApiOperation({ summary: 'Met à jour la configuration dynamique BioTime' })
-  saveConfig(@Body('url') url: string) {
-    return this.biotimeService.saveConfigUrl(url);
+  @Get('configs/:organisationId')
+  @ApiOperation({ summary: "Configuration BioTime d'une école" })
+  obtenirConfig(@Param('organisationId') organisationId: string) {
+    return this.configService.obtenirPublique(organisationId);
   }
 
-  @Get('devices')
-  @ApiOperation({ summary: 'Récupère la liste des terminaux physiques enregistrés' })
-  getDevices() {
-    return this.biotimeService.listDevices();
+  @Post('configs/:organisationId')
+  @ApiOperation({ summary: "Crée ou met à jour le serveur BioTime d'une école" })
+  @ApiBody({
+    schema: {
+      example: {
+        url: 'http://192.168.1.50:8080',
+        username: 'admin',
+        password: 'secret',
+        isActive: true,
+      },
+    },
+  })
+  enregistrerConfig(
+    @Param('organisationId') organisationId: string,
+    @Body() dto: EnregistrerConfigDto,
+  ) {
+    return this.configService.enregistrer(organisationId, dto);
   }
 
-  @Post('sync-children')
+  @Delete('configs/:organisationId')
+  @ApiOperation({ summary: "Supprime la configuration BioTime d'une école" })
+  async supprimerConfig(@Param('organisationId') organisationId: string) {
+    await this.configService.supprimer(organisationId);
+    return { success: true };
+  }
+
+  @Post('configs/:organisationId/test')
+  @ApiOperation({ summary: "Teste la connexion au serveur BioTime d'une école" })
+  testerConnexion(@Param('organisationId') organisationId: string) {
+    return this.biotimeService.testerConnexion(organisationId);
+  }
+
+  // ── Répertoire de SA propre école (responsable d'établissement) ─────────
+  //
+  // L'école vient du JWT, jamais d'un paramètre : un responsable ne peut lire
+  // que l'annuaire BioTime de son établissement. C'est ce que consomme l'APP
+  // école pour importer ses enfants depuis les empreintes enrôlées sur place.
+
+  @Get('mon-ecole/directory')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Répertoire BioTime de sa propre école" })
+  getMonDirectory(@CurrentUser() user: { organisationId?: string }) {
+    return this.biotimeService.getDirectory(this.ecoleDe(user));
+  }
+
+  @Post('mon-ecole/directory/bulk')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Détails d'une liste d'élèves de sa propre école" })
+  @ApiBody({ schema: { example: { empCodes: ['123', '456'] } } })
+  getMonDirectoryBulk(
+    @CurrentUser() user: { organisationId?: string },
+    @Body('empCodes') empCodes: string[],
+  ) {
+    return this.biotimeService.getDirectoryBulk(this.ecoleDe(user), empCodes);
+  }
+
+  @Get('mon-ecole/employee/:empCode')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Informations BioTime d'un élève de sa propre école" })
+  getMonEmployee(
+    @CurrentUser() user: { organisationId?: string },
+    @Param('empCode') empCode: string,
+  ) {
+    return this.biotimeService.getEmployeeByEmpCode(this.ecoleDe(user), empCode);
+  }
+
+  @Get('mon-ecole/punches/empcode/:empCode')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Pointages d'un élève de sa propre école" })
+  getMesPunches(
+    @CurrentUser() user: { organisationId?: string },
+    @Param('empCode') empCode: string,
+  ) {
+    return this.biotimeService.getPunchesByEmpCode(this.ecoleDe(user), empCode);
+  }
+
+  private ecoleDe(user: { organisationId?: string }): string {
+    if (!user?.organisationId) {
+      throw new ForbiddenException("Aucune école n'est associée à ce compte.");
+    }
+    return user.organisationId;
+  }
+
+  // ── Synchronisations ────────────────────────────────────────────────────
+
+  @Post(':organisationId/sync-children')
   @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Synchronise les employés (enfants) depuis BioTime via BullMQ' })
-  @ApiResponse({ status: 202, description: 'Synchronisation ajoutée à la file d\'attente.' })
-  async syncChildren() {
-    const job = await this.biotimeQueue.add('sync-children', {});
-    return {
-      message: 'La synchronisation des enfants a été ajoutée à la file d\'attente.',
-      jobId: job.id,
-    };
+  @ApiOperation({ summary: "Synchronise l'annuaire des enfants d'une école" })
+  async syncChildren(@Param('organisationId') organisationId: string) {
+    const job = await this.biotimeQueue.add('sync-children', { organisationId });
+    return { message: "Synchronisation de l'annuaire mise en file.", jobId: job.id };
   }
 
+  @Post(':organisationId/sync-punches')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: "Synchronise les pointages d'une école" })
+  @ApiQuery({ name: 'depuis', required: false, description: 'ISO. Par défaut : dernier passage.' })
+  async syncPunches(
+    @Param('organisationId') organisationId: string,
+    @Query('depuis') depuis?: string,
+  ) {
+    const job = await this.biotimeQueue.add('sync-punches', { organisationId, depuis });
+    return { message: 'Synchronisation des pointages mise en file.', jobId: job.id };
+  }
+
+  // ── Lectures de supervision ─────────────────────────────────────────────
+
+  @Get(':organisationId/devices')
+  @ApiOperation({ summary: "Terminaux physiques alloués à une école" })
+  getDevices(@Param('organisationId') organisationId: string) {
+    return this.biotimeService.listDevices(organisationId);
+  }
+
+  @Get(':organisationId/children')
+  @ApiOperation({ summary: "Enfants d'une école et leurs pointages du jour" })
+  @ApiQuery({ name: 'date', required: false, description: 'Format YYYY-MM-DD.' })
+  getChildren(@Param('organisationId') organisationId: string, @Query('date') date?: string) {
+    return this.biotimeService.findAllChildren(organisationId, date);
+  }
+
+  @Get(':organisationId/punches')
+  @ApiOperation({ summary: "Historique des pointages d'une école" })
+  @ApiQuery({ name: 'date', required: false, description: 'Format YYYY-MM-DD.' })
+  getPunches(@Param('organisationId') organisationId: string, @Query('date') date?: string) {
+    return this.biotimeService.findAllPunches(organisationId, date);
+  }
+
+  @Get(':organisationId/punches/empcode/:empCode')
+  @ApiOperation({ summary: "Historique des pointages d'un élève" })
+  getPunchesByEmpCode(
+    @Param('organisationId') organisationId: string,
+    @Param('empCode') empCode: string,
+  ) {
+    return this.biotimeService.getPunchesByEmpCode(organisationId, empCode);
+  }
+
+  @Get(':organisationId/employee/:empCode')
+  @ApiOperation({ summary: "Informations BioTime d'un élève" })
+  getEmployeeByEmpCode(
+    @Param('organisationId') organisationId: string,
+    @Param('empCode') empCode: string,
+  ) {
+    return this.biotimeService.getEmployeeByEmpCode(organisationId, empCode);
+  }
+
+  @Get(':organisationId/directory')
+  @ApiOperation({ summary: "Répertoire BioTime d'une école" })
+  getDirectory(@Param('organisationId') organisationId: string) {
+    return this.biotimeService.getDirectory(organisationId);
+  }
+
+  @Post(':organisationId/directory/bulk')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Détails d'une liste d'élèves d'une école" })
+  @ApiBody({ schema: { example: { empCodes: ['123', '456'] } } })
+  getDirectoryBulk(
+    @Param('organisationId') organisationId: string,
+    @Body('empCodes') empCodes: string[],
+  ) {
+    return this.biotimeService.getDirectoryBulk(organisationId, empCodes);
+  }
+
+
+  // ── Ingestion poussée ───────────────────────────────────────────────────
+
+  /**
+   * Sans JWT : l'appelant est un relais ou un agent installé chez l'école, pas un
+   * utilisateur. L'école est déduite de l'appairage du terminal.
+   *
+   * À FAIRE : authentifier par secret d'appareil (HMAC).
+   */
+  @Public()
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Point d\'entrée Webhook pour les pointages en temps réel' })
-  @ApiBody({ description: 'Payload envoyé par BioTime (peut être un objet ou un tableau)', required: true })
-  @ApiResponse({ status: 200, description: 'Webhook traité avec succès.' })
-  async receiveWebhook(@Body() payload: any) {
+  @UseGuards()
+  @ApiOperation({ summary: 'Réception poussée de pointages (relais / agent)' })
+  @ApiResponse({ status: 200, description: 'Webhook traité.' })
+  receiveWebhook(@Body() payload: any) {
     return this.biotimeService.handleWebhook(payload);
-  }
-
-  @Post('sync-punches')
-  @HttpCode(HttpStatus.ACCEPTED)
-  @ApiOperation({ summary: 'Synchronise les transactions (pointages) depuis BioTime via BullMQ' })
-  @ApiQuery({ name: 'date', required: false, description: 'Format YYYY-MM-DD. Par défaut: aujourd\'hui' })
-  @ApiResponse({ status: 202, description: 'Synchronisation ajoutée à la file d\'attente.' })
-  async syncPunches(@Query('date') date?: string) {
-    const job = await this.biotimeQueue.add('sync-punches', { dateStr: date });
-    return {
-      message: 'La synchronisation des pointages a été ajoutée à la file d\'attente.',
-      jobId: job.id,
-    };
-  }
-
-  @Get('children')
-  @ApiOperation({ summary: 'Récupère la liste des enfants et de leurs pointages pour une date donnée' })
-  @ApiQuery({ name: 'date', required: false, description: 'Format YYYY-MM-DD. Par défaut: aujourd\'hui' })
-  @ApiResponse({ status: 200, description: 'Liste des enfants retournée.' })
-  async getChildren(@Query('date') date?: string) {
-    return this.biotimeService.findAllChildren(date);
-  }
-
-  @Get('punches')
-  @ApiOperation({ summary: 'Récupère l\'historique des pointages pour une date donnée' })
-  @ApiQuery({ name: 'date', required: false, description: 'Format YYYY-MM-DD. Par défaut: aujourd\'hui' })
-  @ApiResponse({ status: 200, description: 'Historique des pointages retourné.' })
-  async getPunches(@Query('date') date?: string) {
-    return this.biotimeService.findAllPunches(date);
-  }
-
-  @Get('punches/empcode/:empCode')
-  @ApiOperation({ summary: 'Récupère l\'historique des pointages pour un élève spécifique' })
-  @ApiResponse({ status: 200, description: 'Historique des pointages de l\'élève retourné.' })
-  async getPunchesByEmpCode(@Param('empCode') empCode: string) {
-    return this.biotimeService.getPunchesByEmpCode(empCode);
-  }
-
-  @Get('employee/:empCode')
-  @ApiOperation({ summary: 'Récupère les informations d\'un élève spécifique depuis BioTime' })
-  @ApiResponse({ status: 200, description: 'Informations de l\'élève retournées.' })
-  async getEmployeeByEmpCode(@Param('empCode') empCode: string) {
-    return this.biotimeService.getEmployeeByEmpCode(empCode);
-  }
-
-  @Get('directory')
-  @ApiOperation({ summary: 'Récupère le répertoire complet des employés BioTime' })
-  @ApiResponse({ status: 200, description: 'Répertoire retourné avec succès.' })
-  async getDirectory() {
-    return this.biotimeService.getDirectory();
-  }
-
-  @Post('directory/bulk')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Récupère les détails d\'une liste d\'employés' })
-  @ApiBody({ schema: { example: { empCodes: ['123', '456'] } } })
-  @ApiResponse({ status: 200, description: 'Détails retournés.' })
-  async getDirectoryBulk(@Body('empCodes') empCodes: string[]) {
-    return this.biotimeService.getDirectoryBulk(empCodes);
   }
 }

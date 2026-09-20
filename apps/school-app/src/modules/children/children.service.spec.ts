@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException, HttpException } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
 import { ChildrenService } from './children.service';
 import { TenantService } from '../tenant/tenant.service';
@@ -78,6 +79,13 @@ describe('ChildrenService', () => {
           provide: HttpService,
           useValue: mockHttpService,
         },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: (clef: string, defaut?: string) =>
+              clef === 'SUPER_APP_URL' ? 'http://localhost:3000' : defaut,
+          },
+        },
       ],
     }).compile();
 
@@ -151,10 +159,13 @@ describe('ChildrenService', () => {
       };
       jest.spyOn(httpService, 'get').mockReturnValue(of(mockResponse as any));
 
-      const result = await service.findOne(mockChild.id!);
+      // Le jeton du responsable est relayé : la super-app en déduit l'école, et
+      // ne renvoie que l'annuaire BioTime de cet établissement.
+      const result = await service.findOne(mockChild.id!, 'jeton-ecole');
 
       expect(httpService.get).toHaveBeenCalledWith(
-        `http://localhost:3000/api/v1/biotime/employee/${mockChild.empCode}`,
+        `http://localhost:3000/api/v1/biotime/mon-ecole/employee/${mockChild.empCode}`,
+        { headers: { Authorization: 'Bearer jeton-ecole' } },
       );
       expect(mockChildRepo.save).toHaveBeenCalled();
     });
@@ -287,7 +298,8 @@ describe('ChildrenService', () => {
 
       expect(result).toEqual(mockPunches);
       expect(httpService.get).toHaveBeenCalledWith(
-        `http://localhost:3000/api/v1/biotime/punches/empcode/${mockChild.empCode}`,
+        `http://localhost:3000/api/v1/biotime/mon-ecole/punches/empcode/${mockChild.empCode}`,
+        { headers: {} },
       );
     });
 
@@ -338,8 +350,9 @@ describe('ChildrenService', () => {
 
       expect(result.count).toBe(1);
       expect(httpService.post).toHaveBeenCalledWith(
-        'http://localhost:3000/api/v1/biotime/directory/bulk',
+        'http://localhost:3000/api/v1/biotime/mon-ecole/directory/bulk',
         { empCodes },
+        { headers: {} },
       );
     });
 
