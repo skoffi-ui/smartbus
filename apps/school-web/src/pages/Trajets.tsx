@@ -11,6 +11,20 @@ import { chargerLeafletRouting } from '../services/leaflet-routing';
 import './UiverseButton.css';
 import './UiverseInput.css';
 
+/**
+ * Espace de noms du routage, lu sur `window.L`.
+ *
+ * Le script CDN de Leaflet Routing Machine enrichit l'objet global `window.L`.
+ * L'objet rendu par `import * as L from 'leaflet'` est un espace de noms de
+ * module ES, distinct et non extensible : `L.Routing` y restait donc toujours
+ * indéfini. Le garde de `initRouting` abandonnait à chaque appel, le contrôle
+ * n'était jamais ajouté à la carte, et les clics ne plaçaient aucun point.
+ */
+function routage(): any {
+  return (window as any).L?.Routing;
+}
+
+
 /** Centre de carte par défaut : Abidjan, et non Paris. */
 const ABIDJAN: [number, number] = [5.3364, -4.0267];
 
@@ -37,9 +51,10 @@ function RoutingMachine({ initialWaypoints, onRouteFound, readOnly = false }: an
       .catch((err) => console.error('Leaflet Routing Machine indisponible', err));
 
     function initRouting() {
-      if (!map || !(L as any).Routing) return;
+      const Routing = routage();
+      if (!map || !Routing) return;
       try {
-        const control = (L as any).Routing.control({
+        const control = Routing.control({
         waypoints: initialWaypoints || [],
         routeWhileDragging: !readOnly,
         show: false, // hide instructions panel
@@ -87,7 +102,7 @@ function RoutingMachine({ initialWaypoints, onRouteFound, readOnly = false }: an
 
       routingControlRef.current = control;
       } catch (err) {
-        console.error("Initialisation du routage impossible", err);
+        console.error('Initialisation du routage impossible', err);
       }
     }
 
