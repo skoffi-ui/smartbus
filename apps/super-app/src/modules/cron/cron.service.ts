@@ -1,12 +1,28 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ContextIdFactory, ModuleRef } from '@nestjs/core';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { BiotimeConfigService } from '../biotime/biotime-config.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, DataSource } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { DataSource as TenantDataSource } from 'typeorm';
 import { Subscription, SubscriptionStatus, Organisation, OrganisationStatus, TenantConnectionService } from '@app/database';
 
+/**
+ * Tâches planifiées de la plateforme.
+ *
+ * Ce service doit rester un singleton : `@nestjs/schedule` ne sait enregistrer
+ * les tâches `@Cron` que sur des fournisseurs statiques. Injecter directement
+ * `TenantConnectionService`, qui est en portée requête, propageait cette portée
+ * à tout le service — et le planificateur refusait alors d'enregistrer **toutes**
+ * les tâches, en se contentant d'un avertissement au démarrage. Résultat : ni
+ * suspension des impayés, ni surveillance des équipements, ni synchronisation
+ * BioTime automatique.
+ *
+ * La connexion tenant est donc résolue à la demande, hors de tout contexte de
+ * requête HTTP.
+ */
 @Injectable()
 export class CronService {
   private readonly logger = new Logger(CronService.name);
@@ -19,8 +35,25 @@ export class CronService {
     private readonly dataSource: DataSource,
     @InjectQueue('biotime-sync') private readonly biotimeQueue: Queue,
     private readonly biotimeConfigService: BiotimeConfigService,
-    private readonly tenantConnectionService: TenantConnectionService,
+    private readonly moduleRef: ModuleRef,
   ) {}
+
+  /**
+   * Connexion à la base d'une école, obtenue hors contexte HTTP.
+   *
+   * `TenantConnectionService` attend un objet requête pour lire l'en-tête de
+   * l'école ; ici l'identifiant est passé explicitement, donc un contexte vide
+   * suffit et aucun en-tête n'est jamais consulté.
+   */
+  private async connexionEcole(organisationId: string): Promise<TenantDataSource> {
+    const contextId = ContextIdFactory.create();
+    this.moduleRef.registerRequestByContextId({}, contextId);
+
+    const service = await this.moduleRef.resolve(TenantConnectionService, contextId, {
+      strict: false,
+    });
+    return service.getTenantConnection(organisationId);
+  }
 
   // En production, on utiliserait CronExpression.EVERY_DAY_AT_MIDNIGHT
   // Mais pour notre Sandbox de 5 minutes, on le fait tourner TOUTES LES MINUTES !
@@ -86,7 +119,7 @@ export class CronService {
       // 3. Boucler sur chaque école pour interroger sa base de données dédiée
       for (const school of schools) {
         try {
-          const tenantDS = await this.tenantConnectionService.getTenantConnection(school.id);
+          const tenantDS = await this.connexionEcole(school.id);
           const result = await tenantDS.query(inactiveQuery);
 
           if (result && result.length > 0) {
