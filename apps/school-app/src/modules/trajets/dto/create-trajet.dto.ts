@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsEnum, IsNumber, IsArray, Min } from 'class-validator';
+import { TrajetSens } from '@app/database';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTrajetDto {
@@ -21,4 +22,32 @@ export class CreateTrajetDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({
+    enum: TrajetSens,
+    description: 'Sens du parcours : aller, retour ou mixte',
+  })
+  @IsOptional()
+  @IsEnum(TrajetSens)
+  sens?: TrajetSens;
+
+  @ApiPropertyOptional({ description: 'Distance totale calculée par OSRM, en kilomètres' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  distanceKm?: number;
+
+  @ApiPropertyOptional({ description: "Durée estimée par OSRM, en minutes, hors arrêts" })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  dureeEstimative?: number;
+
+  @ApiPropertyOptional({
+    description: 'Points de passage cliqués sur la carte',
+    example: [{ lat: 5.36, lng: -3.99 }],
+  })
+  @IsOptional()
+  @IsArray()
+  waypoints?: any[];
 }

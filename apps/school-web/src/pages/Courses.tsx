@@ -236,9 +236,16 @@ export default function Courses() {
         {/* Colonne Gauche : Liste des courses */}
         <div className="lg:col-span-3 flex flex-col gap-4 overflow-hidden">
           <div className="bg-white rounded-[10px] p-5 shadow-sm border border-slate-100 shrink-0">
-            <h2 className="text-[28px] font-bold text-slate-900 mb-1 leading-tight">Courses</h2>
+            <div className="flex items-baseline justify-between gap-2 mb-1">
+              <h2 className="text-[28px] font-bold text-slate-900 leading-tight">Courses</h2>
+              {courses.length > 0 && (
+                <span className="text-[13px] font-semibold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100 shrink-0">
+                  {courses.length}
+                </span>
+              )}
+            </div>
             <p className="text-[#64748B] text-[14px] mb-4">Planification des horaires</p>
-            
+
             <div className="uiverse-search-group">
               <Search className="uiverse-search-icon" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." className="uiverse-search-input" />
@@ -246,18 +253,51 @@ export default function Courses() {
           </div>
 
           <div className="cir-radio flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            {/* Sans état vide, la colonne restait muette et donnait l'impression
+                qu'aucune liste n'existait. */}
+            {courses.length === 0 && (
+              <div className="bg-white rounded-[10px] p-5 border border-dashed border-slate-300 text-center">
+                <Route className="mx-auto mb-2 text-slate-400" size={28} />
+                <p className="text-[14px] font-semibold text-slate-700 mb-1">
+                  Aucune course planifiée
+                </p>
+                <p className="text-[13px] text-slate-500">
+                  Renseignez le formulaire à droite pour créer la première. Un trajet est requis :
+                  créez-le d'abord dans « Trajets ».
+                </p>
+              </div>
+            )}
+
+            {courses.length > 0 && filteredCourses.length === 0 && (
+              <p className="text-[13px] text-slate-500 px-2 py-4">
+                Aucune course ne correspond à « {search} ».
+              </p>
+            )}
+
             {filteredCourses.map(course => (
               <label key={course.id} className="cir-radio__opt relative">
                 <input type="radio" checked={selectedCourseId === course.id} onChange={() => handleSelectCourse(course)} />
                 <div className="cir-radio__dot"></div>
-                
+
                 <div className="cir-radio__body pl-1">
                   <div className="cir-radio__t flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: course.couleurCarte || '#2563EB' }} />
-                    {course.nom}
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: course.couleurCarte || '#2563EB' }} />
+                    <span className="truncate">{course.nom}</span>
+                    <span
+                      className={`ml-auto text-[11px] px-2 py-0.5 rounded-full shrink-0 ${
+                        course.statut === 'active'
+                          ? 'bg-emerald-50 text-emerald-600'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {course.statut === 'active' ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
                   <div className="cir-radio__d text-xs mt-1 text-slate-500">
                     Départ: {course.heureDepart || '--:--'}
+                    {Array.isArray(course.joursExecution) && course.joursExecution.length > 0
+                      ? ` · ${course.joursExecution.join(' ')}`
+                      : ''}
                   </div>
                 </div>
               </label>

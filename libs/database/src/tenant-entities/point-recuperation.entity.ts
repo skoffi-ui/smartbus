@@ -30,6 +30,17 @@ export class PointRecuperation extends BaseEntityModel {
   @Column({ type: 'text', nullable: true })
   commentaire: string;
 
+  /**
+   * Tolérance GPS de cet arrêt, en mètres.
+   *
+   * La colonne manquait alors que l'API l'acceptait et que la validation des
+   * montées la lisait : la valeur était silencieusement jetée et la tolérance
+   * retombait systématiquement à 30 m. Un GPS embarqué dérive couramment de 20
+   * à 50 m en ville, d'où des refus « hors zone » injustifiés.
+   */
+  @Column({ name: 'rayon_detection', type: 'int', default: 100 })
+  rayonDetection: number;
+
   @OneToMany(() => Affectation, (affectation) => affectation.pointRecuperation)
   affectations: Affectation[];
 }

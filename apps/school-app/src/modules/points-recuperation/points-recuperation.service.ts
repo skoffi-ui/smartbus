@@ -35,7 +35,7 @@ export class PointsRecuperationService {
     const repo = await this.getRepo();
     const point = repo.create({
       ...dto,
-      rayonDetection: dto.rayonDetection ?? 30, // Valeur par défaut: 30 mètres
+      rayonDetection: dto.rayonDetection ?? 100, // 100 m : marge réaliste pour un GPS embarqué
     } as Partial<PointRecuperation>);
     const saved = await repo.save(point);
     this.logger.log(`Point créé : ${saved.id} - ${saved.nom} (trajet: ${dto.trajetId})`);

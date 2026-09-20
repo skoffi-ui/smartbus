@@ -186,8 +186,16 @@ export default function SuiviMontees() {
 
               {!chargement && montees.length === 0 && !erreur && (
                 <tr>
-                  <td colSpan={6} className="p-10 text-center text-gray-500 dark:text-gray-400">
-                    Aucun pointage enregistré pour le moment.
+                  <td colSpan={6} className="p-10 text-center">
+                    <p className="font-semibold text-gray-700 dark:text-gray-200 mb-2">
+                      Aucun pointage enregistré
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 max-w-lg mx-auto">
+                      Une ligne apparaît ici dès qu'un élève badge dans un car. Il faut pour cela
+                      que la badgeuse du car soit allouée à l'école, que le car porte son numéro de
+                      série, que l'élève ait un matricule et soit affecté à un arrêt du trajet, et
+                      qu'une course soit active sur ce car.
+                    </p>
                   </td>
                 </tr>
               )}

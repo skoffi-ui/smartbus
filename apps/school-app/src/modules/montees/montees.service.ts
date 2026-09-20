@@ -145,7 +145,9 @@ export class MonteesService {
         ? this.haversineDistance(gpsLat, gpsLng, point.latitude, point.longitude)
         : 0;
 
-    const rayonDetection = (point as any).rayonDetection ?? 30;
+    // Tolérance propre à l'arrêt (colonne `rayon_detection`), et non plus une
+    // valeur par défaut codée en dur que rien ne pouvait ajuster.
+    const rayonDetection = point.rayonDetection ?? 100;
 
     // 6. Décision : valider ou refuser
     if (distance > rayonDetection) {

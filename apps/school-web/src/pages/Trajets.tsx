@@ -274,8 +274,13 @@ export default function Trajets() {
             <h2 className="text-[28px] font-bold text-slate-900 mb-1 leading-tight flex items-center gap-2">
               <Route className="text-blue-600" /> Trajets
             </h2>
-            <p className="text-[#64748B] text-[14px] mb-4">Itinéraires géographiques (OSRM)</p>
-            
+            <p className="text-[#64748B] text-[14px] mb-1">Itinéraires géographiques (OSRM)</p>
+            <p className="text-[#64748B] text-[13px] mb-4">
+              {trajets.length === 0
+                ? "Aucun trajet pour l'instant. Nommez-le, choisissez son sens, puis cliquez sur la carte pour placer le départ, les étapes et l'arrivée."
+                : `${trajets.length} trajet${trajets.length > 1 ? 's' : ''} enregistré${trajets.length > 1 ? 's' : ''}.`}
+            </p>
+
             <div className="flex gap-2">
               <select 
                 className="uiverse-input flex-1" 
