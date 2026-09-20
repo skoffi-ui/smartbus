@@ -27,6 +27,9 @@ const config: Config = {
     '^@app/database(|/.*)$': '<rootDir>/libs/database/src/$1',
     '^@app/provisioning(|/.*)$': '<rootDir>/libs/provisioning/src/$1',
   },
+  // uuid >= 12 est distribué uniquement en ESM : Jest doit le transformer comme nos
+  // sources, sinon tout test important @app/common échoue au chargement.
+  transformIgnorePatterns: ['/node_modules/(?!uuid/)'],
   coverageThreshold: {
     global: {
       branches: 70,
