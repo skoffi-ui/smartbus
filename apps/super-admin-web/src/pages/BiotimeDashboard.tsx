@@ -1,10 +1,7 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import axios from 'axios';
-import TopNav from '../components/TopNav';
-import { Users, Clock, Bus, CheckCircle, Search, Download, RefreshCw, User } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { Bus, CheckCircle, Search, Download, RefreshCw } from 'lucide-react';
+import api, { messageFromError } from '../services/api';
 
-const API_BASE = 'http://localhost:3000/api/v1/biotime';
-const BIOTIME_IP = 'http://160.120.143.20';
 
 export default function BiotimeDashboard() {
   const [punchesMap, setPunchesMap] = useState<Record<string, any[]>>({});
@@ -18,7 +15,7 @@ export default function BiotimeDashboard() {
 
   const fetchConfig = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/config`);
+      const res = await api.get('/biotime/config');
       if (res.data && res.data.url) {
         setServerUrl(res.data.url);
       }
@@ -31,10 +28,10 @@ export default function BiotimeDashboard() {
     e.preventDefault();
     setSavingConfig(true);
     try {
-      await axios.post(`${API_BASE}/config`, { url: serverUrl });
+      await api.post('/biotime/config', { url: serverUrl });
       alert("Configuration serveur sauvegardée avec succès.");
     } catch (err: any) {
-      alert("Erreur lors de la sauvegarde : " + (err.response?.data?.message || err.message));
+      alert(messageFromError(err, 'Erreur lors de la sauvegarde de la configuration.'));
     } finally {
       setSavingConfig(false);
     }
@@ -45,7 +42,7 @@ export default function BiotimeDashboard() {
   const fetchPunches = async () => {
     setLoadingPunches(true);
     try {
-      const res = await axios.get(`${API_BASE}/punches?date=${filterDate}`);
+      const res = await api.get('/biotime/punches', { params: { date: filterDate } });
       setPunchesMap(res.data);
     } catch (err) {
       console.error("Erreur de chargement des pointages", err);
@@ -241,7 +238,7 @@ export default function BiotimeDashboard() {
                   return acc;
                 }, {} as Record<string, any[]>);
 
-                return Object.entries(groupedByTerminal).map(([terminalName, punches]) => (
+                return Object.entries(groupedByTerminal as Record<string, any[]>).map(([terminalName, punches]) => (
                   <div key={terminalName} className="mb-6">
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center' }}>
                       <Bus size={14} style={{ marginRight: '0.5rem' }} /> {terminalName} 

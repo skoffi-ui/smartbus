@@ -1,7 +1,8 @@
 import { io, Socket } from 'socket.io-client';
+import { GATEWAY_URL } from '../config';
 
 // URL de la super-app qui héberge le serveur WebSocket
-const WS_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+const WS_URL = import.meta.env.VITE_WS_URL || GATEWAY_URL;
 
 let socket: Socket | null = null;
 
@@ -16,17 +17,22 @@ export function getSocket(): Socket {
       reconnection: true,
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
+      // Le serveur déduit l'école de ce jeton et n'envoie que les bus de cette école.
+      auth: { token: localStorage.getItem('accessToken') || '' },
     });
   }
   return socket;
 }
 
 /**
- * Souscrit à la room d'une école + course
+ * Affine l'écoute sur une course précise.
+ *
+ * L'école n'est pas transmise : le serveur la déduit du jeton fourni à la connexion.
+ * À la connexion, le client reçoit déjà toute l'activité de son école.
  */
-export function subscribeToCourse(tenantId: string, courseId: string): void {
+export function subscribeToCourse(courseId: string): void {
   const s = getSocket();
-  s.emit('subscribe', { tenantId, courseId });
+  s.emit('subscribe', { courseId });
 }
 
 /**

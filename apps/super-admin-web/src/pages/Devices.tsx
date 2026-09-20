@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Server, Cpu, Plus, Trash2, Link, Shield, AlertTriangle } from 'lucide-react';
-import axios from 'axios';
+import { Server, Plus, Trash2, Link, Shield, AlertTriangle } from 'lucide-react';
+import api, { messageFromError } from '../services/api';
 
-const API_BASE = 'http://localhost:3000/api/v1';
 
 export default function Devices() {
   const [devices, setDevices] = useState<any[]>([]);
@@ -18,9 +17,7 @@ export default function Devices() {
 
   const fetchDevices = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/devices`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
-      });
+      const res = await api.get('/devices');
       setDevices(res.data);
     } catch (err) {
       console.error("Erreur de chargement des équipements", err);
@@ -31,9 +28,7 @@ export default function Devices() {
 
   const fetchOrganisations = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/organisations?limit=100`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
-      });
+      const res = await api.get('/organisations', { params: { limit: 100 } });
       setOrganisations(res.data.data || res.data.items || res.data || []);
     } catch (err) {
       console.error("Erreur de chargement des organisations", err);
@@ -48,36 +43,30 @@ export default function Devices() {
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_BASE}/devices`, formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
-      });
+      await api.post('/devices', formData);
       setShowAddModal(false);
       setFormData({ serial_number: '', type_device: 'BADGEUSE', imei: '' });
       fetchDevices();
     } catch (err: any) {
-      alert("Erreur: " + (err.response?.data?.message || err.message));
+      alert(messageFromError(err, "Impossible d'enregistrer l'équipement."));
     }
   };
 
   const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_BASE}/devices/${selectedDeviceId}/assign`, { organisationId: selectedOrgId }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
-      });
+      await api.post(`/devices/${selectedDeviceId}/assign`, { organisationId: selectedOrgId });
       setShowAssignModal(false);
       fetchDevices();
-    } catch (err: any) {
-      alert("Erreur: " + (err.response?.data?.message || err.message));
+    } catch (err: unknown) {
+      alert(messageFromError(err, "Impossible d'allouer l'équipement."));
     }
   };
 
   const handleRelease = async (id: string) => {
     if (window.confirm("Voulez-vous vraiment désallouer cet équipement de l'école ? L'école perdra l'accès.")) {
       try {
-        await axios.post(`${API_BASE}/devices/${id}/release`, {}, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
-        });
+        await api.post(`/devices/${id}/release`, {});
         fetchDevices();
       } catch (err) {
         console.error(err);
@@ -88,9 +77,7 @@ export default function Devices() {
   const handleDelete = async (id: string) => {
     if (window.confirm("Voulez-vous vraiment supprimer définitivement cet équipement du parc SaaS ?")) {
       try {
-        await axios.delete(`${API_BASE}/devices/${id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` }
-        });
+        await api.delete(`/devices/${id}`);
         fetchDevices();
       } catch (err) {
         console.error(err);
@@ -100,6 +87,9 @@ export default function Devices() {
 
   if (loading) return <div className="text-center text-navy-300 py-10">Chargement du parc matériel...</div>;
 
+  // Appareils déjà connus du parc mais encore rattachés à aucune école.
+  const nbEnAttente = devices.filter((d) => !d.assigned_organisation_id).length;
+
   return (
     <div className="animate-fade-in">
       <div className="glass-panel p-6">
@@ -107,6 +97,17 @@ export default function Devices() {
           <div>
             <h1 className="text-2xl font-bold text-white">Gestion du Matériel</h1>
             <p className="text-navy-300 mt-1">Gérez le stock de badgeuses et de balises GPS et allouez-les aux écoles.</p>
+            {/* Un appareil qui émet sans être appairé s'inscrit ici automatiquement :
+                ses données ne partent dans aucune école avant son allocation. */}
+            {nbEnAttente > 0 && (
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-semibold">
+                <AlertTriangle size={15} />
+                {nbEnAttente} appareil{nbEnAttente > 1 ? 's' : ''} en attente d'allocation
+                <span className="font-normal text-amber-200/70">
+                  — aucune donnée n'est enregistrée tant qu'aucune école n'est affectée
+                </span>
+              </div>
+            )}
           </div>
           <button 
             onClick={() => setShowAddModal(!showAddModal)}

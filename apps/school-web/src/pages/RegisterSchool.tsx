@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { GATEWAY_URL } from '../config';
 
 export default function RegisterSchool() {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ export default function RegisterSchool() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/v1/auth/register-school', formData);
+      const response = await axios.post(`${GATEWAY_URL}/api/v1/auth/register-school`, formData);
       
       setStatus({ 
         type: 'success', 

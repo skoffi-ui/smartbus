@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-import TopNav from '../components/TopNav';
+import api, { messageFromError } from '../services/api';
 
 export default function Users() {
   const [users, setUsers] = useState<any[]>([]);
@@ -17,15 +17,10 @@ export default function Users() {
   });
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch('http://localhost:3000/api/v1/users', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Erreur réseau');
-      const data = await res.json();
-      setUsers(data);
-    } catch (err: any) {
-      setError(err.message);
+      const res = await api.get('/users');
+      setUsers(res.data);
+    } catch (err: unknown) {
+      setError(messageFromError(err, 'Impossible de charger les utilisateurs.'));
     } finally {
       setLoading(false);
     }
@@ -37,35 +32,22 @@ export default function Users() {
 
   const handleToggleStatus = async (id: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
-      await fetch(`http://localhost:3000/api/v1/users/${id}/toggle-status`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.patch(`/users/${id}/toggle-status`);
       fetchUsers();
-    } catch (err) {
-      alert('Erreur lors du changement de statut');
+    } catch (err: unknown) {
+      alert(messageFromError(err, 'Erreur lors du changement de statut.'));
     }
   };
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch('http://localhost:3000/api/v1/users', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` 
-        },
-        body: JSON.stringify(formData),
-      });
-      if (!res.ok) throw new Error('Erreur lors de la création');
+      await api.post('/users', formData);
       setShowAddForm(false);
       setFormData({ firstName: '', lastName: '', email: '', role: 'super_admin', password: '' });
       fetchUsers();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      alert(messageFromError(err, "Erreur lors de la création de l'utilisateur."));
     }
   };
 

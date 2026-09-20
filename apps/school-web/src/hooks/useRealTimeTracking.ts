@@ -30,11 +30,20 @@ export interface PunchEvent {
   message?: string;
 }
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+export type ConnectionStatus =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'error'
+  | 'unauthorized';
 
 interface UseRealTimeTrackingOptions {
-  tenantId: string;
-  courseIds?: string[]; // Si vide, écoute tous les cours actifs
+  /**
+   * Courses à suivre précisément. Si vide, le client reçoit toute l'activité de son
+   * école. L'école n'est jamais passée depuis le client : le serveur la déduit du
+   * jeton d'authentification fourni à l'ouverture du socket.
+   */
+  courseIds?: string[];
 }
 
 interface UseRealTimeTrackingReturn {
@@ -46,24 +55,18 @@ interface UseRealTimeTrackingReturn {
 }
 
 export function useRealTimeTracking({
-  tenantId,
   courseIds = [],
-}: UseRealTimeTrackingOptions): UseRealTimeTrackingReturn {
+}: UseRealTimeTrackingOptions = {}): UseRealTimeTrackingReturn {
   const [busPositions, setBusPositions] = useState<Map<string, BusPosition>>(new Map());
   const [punchEvents, setPunchEvents] = useState<PunchEvent[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
   const socketRef = useRef(getSocket());
 
   const subscribeToRooms = useCallback(() => {
-    if (courseIds.length > 0) {
-      courseIds.forEach((courseId) => {
-        subscribeToCourse(tenantId, courseId);
-      });
-    } else {
-      // Abonnement global à toutes les courses de l'école
-      subscribeToCourse(tenantId, '*');
-    }
-  }, [tenantId, courseIds]);
+    // Sans courseIds, aucun abonnement supplémentaire n'est requis : le serveur
+    // rattache déjà le client à toute l'activité de son école dès la connexion.
+    courseIds.forEach((courseId) => subscribeToCourse(courseId));
+  }, [courseIds]);
 
   const reconnect = useCallback(() => {
     disconnectSocket();
@@ -88,8 +91,21 @@ export function useRealTimeTracking({
       setConnectionStatus('error');
     });
 
-    // Événement GPS : mise à jour de la position du bus
-    socket.on('hardware.gps', (payload: BusPosition) => {
+    // Le serveur confirme l'école déduite du jeton : la session est utilisable.
+    socket.on('connected', () => {
+      setConnectionStatus('connected');
+      subscribeToRooms();
+    });
+
+    // Jeton absent, invalide, ou compte sans école : le serveur ferme la connexion.
+    socket.on('unauthorized', () => {
+      setConnectionStatus('unauthorized');
+    });
+
+    // Événement GPS : mise à jour de la position du bus.
+    // Le nom doit correspondre exactement à celui émis par la passerelle
+    // (HardwareStreamGateway.broadcast), sinon aucune position n'arrive.
+    socket.on('gps', (payload: BusPosition) => {
       setBusPositions((prev) => {
         const next = new Map(prev);
         next.set(payload.courseId, {
@@ -102,7 +118,7 @@ export function useRealTimeTracking({
     });
 
     // Événement de pointage biométrique
-    socket.on('hardware.punch', (payload: PunchEvent) => {
+    socket.on('punch', (payload: PunchEvent) => {
       setPunchEvents((prev) => [payload, ...prev].slice(0, 50)); // Garde les 50 derniers
     });
 
@@ -151,12 +167,14 @@ export function useRealTimeTracking({
       socket.off('connect');
       socket.off('disconnect');
       socket.off('connect_error');
-      socket.off('hardware.gps');
-      socket.off('hardware.punch');
+      socket.off('connected');
+      socket.off('unauthorized');
+      socket.off('gps');
+      socket.off('punch');
       socket.off('proximity_alert');
       socket.off('critical_anomaly');
     };
-  }, [tenantId]);
+  }, []);
 
   return {
     busPositions,

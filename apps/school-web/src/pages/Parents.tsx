@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, Edit, Trash2, Phone, Mail, User } from 'lucide-react';
 import './Parents.css';
+import { GATEWAY_URL } from '../config';
 
 export default function Parents() {
   const [parents, setParents] = useState<any[]>([]);
@@ -13,7 +14,7 @@ export default function Parents() {
   const fetchParents = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch('http://localhost:3001/api/v1/parents', {
+      const res = await fetch(`${GATEWAY_URL}/api/v1/parents`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -35,7 +36,7 @@ export default function Parents() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch('http://localhost:3001/api/v1/parents', {
+      const res = await fetch(`${GATEWAY_URL}/api/v1/parents`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,7 +61,7 @@ export default function Parents() {
     if (!confirm('Voulez-vous vraiment supprimer ce parent ?')) return;
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch(`http://localhost:3001/api/v1/parents/${id}`, {
+      const res = await fetch(`${GATEWAY_URL}/api/v1/parents/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

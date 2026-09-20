@@ -10,6 +10,7 @@ import Children from './pages/Children';
 import ChildProfile from './pages/ChildProfile';
 import LiveTracking from './pages/LiveTracking';
 import CheckoutSandbox from './pages/CheckoutSandbox';
+import AccesBloque from './pages/AccesBloque';
 
 // Nouveaux composants Transport
 import Courses from './pages/Courses';
@@ -30,6 +31,8 @@ function App() {
         <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/register" element={!isAuthenticated ? <RegisterSchool /> : <Navigate to="/dashboard" />} />
         <Route path="/checkout-sandbox" element={<CheckoutSandbox />} />
+        {/* École suspendue / non activée / version obsolète : la raison est expliquée ici */}
+        <Route path="/acces-bloque" element={<AccesBloque />} />
         
         {/* Pages protégées avec le Layout */}
         <Route path="/dashboard" element={isAuthenticated ? <Layout><Dashboard /></Layout> : <Navigate to="/login" />} />

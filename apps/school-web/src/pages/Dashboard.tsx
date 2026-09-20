@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import CheckoutModal from '../components/CheckoutModal';
 import './Dashboard.css';
+import { GATEWAY_URL } from '../config';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ cars: 0, drivers: 0, parents: 0, children: 0 });
@@ -41,7 +42,7 @@ export default function Dashboard() {
 
       if (organisationId) {
         const token = localStorage.getItem('accessToken');
-        const subRes = await axios.get(`http://localhost:3000/api/v1/subscriptions/organisation/${organisationId}`, {
+        const subRes = await axios.get(`${GATEWAY_URL}/api/v1/subscriptions/organisation/${organisationId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const subs = Array.isArray(subRes.data) ? subRes.data : [subRes.data];
@@ -95,7 +96,7 @@ export default function Dashboard() {
           {subscription && (
             <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '4px solid var(--accent-primary)', flexWrap: 'wrap', gap: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '3rem', height: '3rem', borderRadius: '50%', display: 'flex', items: 'center', justifyContent: 'center', background: 'rgba(79, 70, 229, 0.1)', color: 'var(--accent-primary)' }}>
+                <div style={{ width: '3rem', height: '3rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(79, 70, 229, 0.1)', color: 'var(--accent-primary)' }}>
                   <CreditCard size={24} />
                 </div>
                 <div>

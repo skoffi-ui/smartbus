@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Edit, Trash2, User, Key, Download, Search, CheckSquare, Square, ChevronRight } from 'lucide-react';
 import './Children.css';
+import { GATEWAY_URL } from '../config';
 
 export default function Children() {
   const navigate = useNavigate();
@@ -28,8 +29,8 @@ export default function Children() {
       const headers = { Authorization: `Bearer ${token}` };
       
       const [childRes, parentRes] = await Promise.all([
-        fetch('http://localhost:3001/api/v1/children', { headers }),
-        fetch('http://localhost:3001/api/v1/parents', { headers })
+        fetch(`${GATEWAY_URL}/api/v1/children`, { headers }),
+        fetch(`${GATEWAY_URL}/api/v1/parents`, { headers })
       ]);
       
       if (childRes.ok) setChildren(await childRes.json());
@@ -49,7 +50,7 @@ export default function Children() {
   const fetchBiotimeDirectory = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch('http://localhost:3001/api/v1/children/biotime-directory', {
+      const res = await fetch(`${GATEWAY_URL}/api/v1/children/biotime-directory`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -70,7 +71,7 @@ export default function Children() {
     setImporting(true);
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch('http://localhost:3001/api/v1/children/bulk-import', {
+      const res = await fetch(`${GATEWAY_URL}/api/v1/children/bulk-import`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -103,7 +104,7 @@ export default function Children() {
       if (!payload.empCode) delete (payload as any).empCode;
       if (!payload.parentId) delete (payload as any).parentId;
       
-      const res = await fetch('http://localhost:3001/api/v1/children', {
+      const res = await fetch(`${GATEWAY_URL}/api/v1/children`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +129,7 @@ export default function Children() {
     if (!confirm('Voulez-vous vraiment supprimer cet élève ?')) return;
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch(`http://localhost:3001/api/v1/children/${id}`, {
+      const res = await fetch(`${GATEWAY_URL}/api/v1/children/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });

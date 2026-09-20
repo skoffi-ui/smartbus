@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CreditCard, Phone, CheckCircle, XCircle, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
+import { GATEWAY_URL } from '../config';
 
 export default function CheckoutSandbox() {
   const [searchParams] = useSearchParams();
@@ -52,7 +53,7 @@ export default function CheckoutSandbox() {
     setLoading(true);
     try {
       const transactionId = `${method.toUpperCase()}_TXN_${Math.floor(Math.random() * 10000000)}`;
-      const res = await fetch('http://localhost:3000/api/v1/payments/webhook', {
+      const res = await fetch(`${GATEWAY_URL}/api/v1/payments/webhook`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

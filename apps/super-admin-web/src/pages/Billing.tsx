@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { DollarSign, Activity, AlertCircle, FileText } from 'lucide-react';
+import api, { messageFromError } from '../services/api';
 
 export default function Billing() {
   const [payments, setPayments] = useState<any[]>([]);
@@ -8,15 +9,10 @@ export default function Billing() {
 
   const fetchPayments = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch('http://localhost:3000/api/v1/payments', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Erreur réseau');
-      const data = await res.json();
-      setPayments(data);
-    } catch (err: any) {
-      setError(err.message);
+      const res = await api.get('/payments');
+      setPayments(res.data);
+    } catch (err: unknown) {
+      setError(messageFromError(err, 'Impossible de charger la facturation.'));
     } finally {
       setLoading(false);
     }

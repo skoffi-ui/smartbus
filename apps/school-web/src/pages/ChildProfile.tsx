@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Users, Phone, Mail, Key, Calendar, Bus, Clock, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import './ChildProfile.css';
+import { GATEWAY_URL } from '../config';
 
 export default function ChildProfile() {
   const { id } = useParams<{ id: string }>();
@@ -30,13 +31,13 @@ export default function ChildProfile() {
         const headers = { Authorization: `Bearer ${token}` };
         
         // 1. Fetch child details
-        const childRes = await fetch(`http://localhost:3001/api/v1/children/${id}`, { headers });
+        const childRes = await fetch(`${GATEWAY_URL}/api/v1/children/${id}`, { headers });
         if (childRes.ok) {
           const childData = await childRes.json();
           setChild(childData);
           
           // 2. Fetch punch history (using the new endpoint)
-          const punchesRes = await fetch(`http://localhost:3001/api/v1/children/${id}/punches`, { headers });
+          const punchesRes = await fetch(`${GATEWAY_URL}/api/v1/children/${id}/punches`, { headers });
           if (punchesRes.ok) {
             setPunches(await punchesRes.json());
           }

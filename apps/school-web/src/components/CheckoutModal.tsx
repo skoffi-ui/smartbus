@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, CreditCard, DollarSign, ShieldAlert, Check } from 'lucide-react';
 import axios from 'axios';
+import { GATEWAY_URL } from '../config';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     try {
       const token = localStorage.getItem('accessToken');
       // Appel direct de l'API de facturation globale (Super-App port 3000)
-      const response = await axios.post('http://localhost:3000/api/v1/payments/initiate', {
+      const response = await axios.post(`${GATEWAY_URL}/api/v1/payments/initiate`, {
         plan: selectedPlan,
         amount: getAmount(),
         method: paymentMethod

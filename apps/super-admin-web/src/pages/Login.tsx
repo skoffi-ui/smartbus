@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import api, { messageFromError } from '../services/api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,7 +13,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://localhost:3000/api/v1/auth/login', {
+      const response = await api.post('/auth/login', {
         email: email.trim(),
         password
       });
@@ -25,7 +25,7 @@ export default function Login() {
       // On recharge la page pour que le routeur nous envoie vers le tableau de bord
       window.location.href = '/dashboard';
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Erreur de connexion. Vérifiez vos identifiants.');
+      setError(messageFromError(err, 'Erreur de connexion. Vérifiez vos identifiants.'));
     } finally {
       setLoading(false);
     }

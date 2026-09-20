@@ -93,6 +93,7 @@ function ConnectionBadge({ status, onReconnect }: { status: string; onReconnect:
     connecting:   { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', icon: <Activity size={13} />,   label: 'Connexion…' },
     disconnected: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   icon: <WifiOff size={13} />,    label: 'Déconnecté' },
     error:        { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   icon: <AlertTriangle size={13}/>,label: 'Erreur' },
+    unauthorized: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)',   icon: <AlertTriangle size={13}/>,label: 'Session expirée' },
   };
   const cfg = configs[status] || configs.disconnected;
 
@@ -205,18 +206,10 @@ function EventCard({ event }: { event: PunchEvent & { type?: string } }) {
 // Composant principal
 // ──────────────────────────────────────────────────────────────────────────────
 export default function LiveTracking() {
-  // Récupère le tenantId depuis le JWT stocké
-  const tenantId = (() => {
-    try {
-      const token = localStorage.getItem('accessToken');
-      if (!token) return '';
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.organisationId || payload.tenantId || payload.sub || '';
-    } catch { return ''; }
-  })();
-
+  // L'école n'est plus déterminée côté client : le serveur la déduit du jeton et
+  // ne diffuse que les bus de cette école.
   const { busPositions, punchEvents, connectionStatus, activeBusCount, reconnect } =
-    useRealTimeTracking({ tenantId });
+    useRealTimeTracking();
 
   const [busDetails, setBusDetails] = useState<Record<string, any>>({});
   const [selectedBus, setSelectedBus] = useState<string | null>(null);

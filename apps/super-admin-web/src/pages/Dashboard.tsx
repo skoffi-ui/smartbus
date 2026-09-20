@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useEffect, useState } from 'react';
 
 interface Organisation {
   id: string;
@@ -12,7 +11,7 @@ interface Organisation {
   subscriptions?: any[];
 }
 
-import TopNav from '../components/TopNav';
+import api, { messageFromError } from '../services/api';
 
 export default function Dashboard() {
   // ... (le code d'avant ne bouge pas, on remplace juste le render de TopNav)
@@ -23,17 +22,14 @@ export default function Dashboard() {
 
   const fetchOrganisations = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await axios.get('http://localhost:3000/api/v1/organisations', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/organisations');
       // L'API renvoie un objet PaginationResponseDto { data, total, page, limit }
       setOrganisations(response.data.data);
     } catch (err: any) {
       if (err.response?.status === 401) {
         handleLogout();
       } else {
-        setError('Erreur lors du chargement des écoles clientes.');
+        setError(messageFromError(err, 'Erreur lors du chargement des écoles clientes.'));
       }
     } finally {
       setLoading(false);
@@ -42,10 +38,7 @@ export default function Dashboard() {
 
   const fetchDeviceAlerts = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const response = await axios.get('http://localhost:3000/api/v1/hardware/alerts', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/hardware/alerts');
       setDeviceAlerts(response.data);
     } catch (err) {
       console.error('Erreur de chargement des alertes matériel', err);
@@ -72,14 +65,11 @@ export default function Dashboard() {
 
   const handleStatusToggle = async (id: string, currentStatus: string) => {
     try {
-      const token = localStorage.getItem('accessToken');
       const action = currentStatus === 'suspended' ? 'activate' : 'suspend';
-      await axios.patch(`http://localhost:3000/api/v1/organisations/${id}/${action}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.patch(`/organisations/${id}/${action}`, {});
       fetchOrganisations(); // Recharge la liste après modification
     } catch (err) {
-      alert("Action non autorisée ou erreur serveur.");
+      alert(messageFromError(err, 'Action non autorisée ou erreur serveur.'));
     }
   };
 
@@ -87,13 +77,10 @@ export default function Dashboard() {
     if (!window.confirm("⚠️ DANGER : Êtes-vous sûr de vouloir supprimer cette école ? Toutes ses données seront définitivement effacées !")) return;
 
     try {
-      const token = localStorage.getItem('accessToken');
-      await axios.delete(`http://localhost:3000/api/v1/organisations/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await api.delete(`/organisations/${id}`);
       fetchOrganisations();
     } catch (err) {
-      alert("Erreur lors de la suppression.");
+      alert(messageFromError(err, 'Erreur lors de la suppression.'));
     }
   };
 

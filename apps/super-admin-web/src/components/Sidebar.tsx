@@ -1,6 +1,5 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, UserCircle, Cpu } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, UserCircle, Cpu, Server } from 'lucide-react';
 
 export default function Sidebar() {
   const links = [
@@ -8,6 +7,7 @@ export default function Sidebar() {
     { name: 'Équipe', path: '/users', icon: Users },
     { name: 'Facturation', path: '/billing', icon: CreditCard },
     { name: 'BioTime', path: '/biotime', icon: UserCircle },
+    { name: 'Serveurs BioTime', path: '/biotime-serveurs', icon: Server },
     { name: 'Matériel', path: '/devices', icon: Cpu },
   ];
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -6,6 +5,7 @@ import Users from './pages/Users';
 import Billing from './pages/Billing';
 import BiotimeDashboard from './pages/BiotimeDashboard';
 import Devices from './pages/Devices';
+import BiotimeServeurs from './pages/BiotimeServeurs';
 import AdminLayout from './layouts/AdminLayout';
 
 function App() {
@@ -20,6 +20,7 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="billing" element={<Billing />} />
           <Route path="biotime" element={<BiotimeDashboard />} />
+          <Route path="biotime-serveurs" element={<BiotimeServeurs />} />
           <Route path="devices" element={<Devices />} />
         </Route>
       </Routes>
