@@ -195,7 +195,11 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
           routeWhileDragging: false, // Désactivé pour éviter les calculs pendant le drag
           show: false,
           addWaypoints: false, // Désactivé pour éviter les ajouts automatiques de waypoints
-          fitSelectedRoutes: true,
+          // Le recadrage automatique reprenait la main sur la vue à chaque
+          // itinéraire calculé, donc à chaque point ajouté : la carte sautait
+          // sous le curseur pendant qu'on plaçait les arrêts suivants.
+          // L'utilisateur garde le contrôle de son cadrage.
+          fitSelectedRoutes: false,
           draggableWaypoints: false, // Désactivé pour permettre la navigation sur la carte
           lineOptions: {
             styles: [{ color: '#3b82f6', weight: 6, opacity: 0.85 }],
@@ -441,22 +445,53 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
     if (!routingControlRef.current || !waypoints) return;
 
     try {
-      // Toujours mettre à jour les waypoints pour garantir la synchronisation
-      routingControlRef.current.setWaypoints(waypoints);
+      // Ne rien pousser si le contrôle a déjà exactement ces points.
+      //
+      // `setWaypoints` relance un calcul d'itinéraire à chaque appel. Un simple
+      // re-rendu du parent suffisait donc à redemander la même route, et toute
+      // boucle de rendu se transformait en rafale de requêtes OSRM. La
+      // comparaison porte sur les coordonnées, pas sur l'identité du tableau,
+      // qui change à chaque rendu.
+      const actuels = routingControlRef.current
+        .getWaypoints()
+        .map((w: any) => w.latLng)
+        .filter(Boolean);
+
+      const identiques =
+        actuels.length === waypoints.length &&
+        waypoints.every((wp: any, i: number) =>
+          Math.abs(actuels[i].lat - Number(wp.lat)) < 1e-6 &&
+          Math.abs(actuels[i].lng - Number(wp.lng)) < 1e-6,
+        );
+
+      if (!identiques) routingControlRef.current.setWaypoints(waypoints);
     } catch (err) {
       console.error('Erreur lors de la mise à jour des waypoints', err);
     }
   }, [waypoints]);
 
-  // Centrer la carte sur le point highlighted
+  /**
+   * Centre la carte sur le point sélectionné dans la liste.
+   *
+   * `waypoints` figurait dans les dépendances : l'animation repartait donc à
+   * chaque recalcul d'itinéraire, et Leaflet désactive le déplacement pendant un
+   * `flyTo`. Un point mis en évidence rendait la carte durablement impossible à
+   * déplacer. Seul un changement de sélection doit déclencher le vol.
+   */
+  const dernierSurvol = useRef<number | null>(null);
   useEffect(() => {
-    if (highlightedIndex !== null && highlightedIndex >= 0 && waypoints[highlightedIndex]) {
-      const wp = waypoints[highlightedIndex];
-      if (wp && map) {
-        map.flyTo(wp, 16, { duration: 0.8 });
-      }
+    if (highlightedIndex === null || highlightedIndex < 0) {
+      dernierSurvol.current = null;
+      return;
     }
-  }, [highlightedIndex, waypoints, map]);
+    if (dernierSurvol.current === highlightedIndex) return;
+
+    const wp = waypoints?.[highlightedIndex];
+    if (wp && map) {
+      dernierSurvol.current = highlightedIndex;
+      map.flyTo(wp, 16, { duration: 0.8 });
+    }
+  }, [highlightedIndex, map]);
 
   // Gestionnaire de clic sur la carte : appelle directement handleMapClickForGeocode
   // sans ajouter de waypoint automatiquement (évite les doublons)
@@ -664,11 +699,24 @@ export default function TrajetEditor() {
     setDureeMin(0);
   };
 
-  const handleRouteFound = (dist: number, time: number, geo: any, wps: any) => {
+  /**
+   * Résultat d'un calcul d'itinéraire : on ne garde que la distance, la durée et
+   * le tracé.
+   *
+   * Cette fonction réinjectait aussi les waypoints renvoyés par le contrôle de
+   * routage (`setWaypoints(wps)`), ce qui refermait une boucle infinie : le
+   * nouvel état repartait dans le contrôle, qui recalculait l'itinéraire, qui
+   * rappelait cette fonction. Deux points suffisaient à déclencher des dizaines
+   * de requêtes OSRM, à saturer la page — la carte ne répondait plus au
+   * déplacement et refusait tout point supplémentaire.
+   *
+   * Les waypoints sont dérivés de `pointsRecup`, qui est la seule source de
+   * vérité : le contrôle de routage les reçoit, il ne les dicte pas.
+   */
+  const handleRouteFound = (dist: number, time: number, geo: any, _wps: any) => {
     setDistanceKm(dist / 1000);
     setDureeMin(Math.round(time / 60));
     setGeoJson(geo);
-    setWaypoints(wps);
   };
 
   const handleRoutesFound = (routes: any[]) => {
@@ -1354,8 +1402,13 @@ export default function TrajetEditor() {
                 />
                 <MapCursorController cursorType={selectedMarkerType} />
                 <SearchControl />
+                {/*
+                  Pas de `key` dérivée des coordonnées ici : elle changeait à chaque
+                  point placé, ce qui démontait et reconstruisait tout le contrôle de
+                  routage — nouveau contrôle, nouveau recadrage, nouvelles requêtes
+                  OSRM. Le composant se met à jour seul quand `waypoints` change.
+                */}
                 <RoutingMachine
-                  key={`routing-${pointsRecup.map((p, i) => `${i}-${p.type}-${Number(p.latitude).toFixed(6)}-${Number(p.longitude).toFixed(6)}`).join('|')}`}
                   waypoints={waypoints}
                   pointsTypes={pointsRecup.map(p => p.type)}
                   onRouteFound={handleRouteFound}
