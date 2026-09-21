@@ -8,13 +8,13 @@ import Drivers from './pages/Drivers';
 import Parents from './pages/Parents';
 import Children from './pages/Children';
 import ChildProfile from './pages/ChildProfile';
-import LiveTracking from './pages/LiveTracking';
+import LiveTracking from './pages/LiveTracking.enhanced';
 import CheckoutSandbox from './pages/CheckoutSandbox';
 import AccesBloque from './pages/AccesBloque';
 
 // Nouveaux composants Transport
 import Courses from './pages/Courses';
-import Trajets from './pages/Trajets';
+import TrajetEditor from './pages/TrajetEditor';
 import PointsRecuperation from './pages/PointsRecuperation';
 import AffectationEleves from './pages/AffectationEleves';
 import SuiviMontees from './pages/SuiviMontees';
@@ -45,7 +45,7 @@ function App() {
         
         {/* Nouvelles pages Transport Scolaire */}
         <Route path="/courses" element={isAuthenticated ? <Layout><Courses /></Layout> : <Navigate to="/login" />} />
-        <Route path="/trajets" element={isAuthenticated ? <Layout><Trajets /></Layout> : <Navigate to="/login" />} />
+        <Route path="/trajets" element={isAuthenticated ? <Layout><TrajetEditor /></Layout> : <Navigate to="/login" />} />
         <Route path="/points" element={isAuthenticated ? <Layout><PointsRecuperation /></Layout> : <Navigate to="/login" />} />
         <Route path="/affectation" element={isAuthenticated ? <Layout><AffectationEleves /></Layout> : <Navigate to="/login" />} />
         <Route path="/suivi" element={isAuthenticated ? <Layout><SuiviMontees /></Layout> : <Navigate to="/login" />} />

@@ -32,3 +32,28 @@ temp/
 
 # Agents
 .agents/stitch-skills-repo/
+# Claude Code
+.claude/
+skills/
+
+# Notes de travail
+AMELIORATIONS_*.md
+ANALYSE_*.md
+CORRECTIFS_*.md
+DESIGN_*.md
+ERREURS_*.md
+FEATURE_*.md
+FIX_*.md
+GUIDE_*.md
+INFO_*.md
+ITINERAIRES_*.md
+LOCALISATION_*.md
+PATCH_*.md
+RESTORE_*.md
+SKILLS_*.md
+SUPPRESSION_*.md
+APERCU_*.txt
+
+# Sauvegardes temporaires
+*.backup.tsx
+*.enhanced.tsx

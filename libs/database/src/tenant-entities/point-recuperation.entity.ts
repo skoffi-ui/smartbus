@@ -41,6 +41,22 @@ export class PointRecuperation extends BaseEntityModel {
   @Column({ name: 'rayon_detection', type: 'int', default: 100 })
   rayonDetection: number;
 
+  /**
+   * Type de point : départ, arrêt intermédiaire, ou arrivée.
+   *
+   * Permet à l'utilisateur de choisir explicitement le type de marqueur
+   * à afficher sur la carte (vert pour départ, bleu pour arrêt, rouge pour arrivée).
+   * Nullable pour la rétrocompatibilité avec les points existants.
+   */
+  @Column({
+    type: 'varchar',
+    length: 10,
+    nullable: true,
+    default: 'arret',
+    comment: 'Type de point: depart, arret, ou arrivee'
+  })
+  type: string;
+
   @OneToMany(() => Affectation, (affectation) => affectation.pointRecuperation)
   affectations: Affectation[];
 }
