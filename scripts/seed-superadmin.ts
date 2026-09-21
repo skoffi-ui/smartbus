@@ -12,7 +12,20 @@ async function bootstrap() {
   const dataSource = app.get(DataSource);
   const userRepo = dataSource.getRepository(User);
 
-  const passwordHash = await bcrypt.hash('superadminpassword', 10);
+  // Le mot de passe était écrit en dur (`superadminpassword`) : il est donc connu
+  // de quiconque lit ce dépôt, et ce script le RÉINITIALISE sur les comptes
+  // existants — le rejouer sur une base réelle rouvrait l'accès SUPER_ADMIN à
+  // tout le monde. Il doit désormais être fourni au lancement.
+  const motDePasse = process.env.SUPERADMIN_PASSWORD;
+  if (!motDePasse || motDePasse.length < 12) {
+    console.error(
+      '❌ SUPERADMIN_PASSWORD est requis (12 caractères minimum).\n' +
+        '   Exemple : SUPERADMIN_PASSWORD="<mot de passe fort>" npm run seed:superadmin',
+    );
+    process.exit(1);
+  }
+
+  const passwordHash = await bcrypt.hash(motDePasse, 10);
 
   const adminEmails = ['superadmin@smartbus.com', 'admin@smartbus.com'];
 

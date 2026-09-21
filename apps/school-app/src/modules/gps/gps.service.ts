@@ -12,8 +12,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 @Injectable()
 export class GpsService {
   private readonly logger = new Logger(GpsService.name);
-  private readonly apiHash = '$2y$10$O3UKDU8Lnn/NJeSg3.sDH.D1RPrdjZ7qFi4hLwMf/xgrHB0kkdGNi'; // Temporarily hardcoded for prototype
-
   constructor(
     private readonly httpService: HttpService,
     private readonly tenantService: TenantService,

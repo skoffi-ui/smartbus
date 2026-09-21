@@ -4,6 +4,7 @@ import { Car } from '@app/database';
 import { CreateCarDto, UpdateCarDto } from './dto/cars.dto';
 import { TenantService } from '../tenant/tenant.service';
 import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class CarsService {
   constructor(
     private readonly tenantService: TenantService,
     private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
   ) {}
 
   private async getRepo(): Promise<Repository<Car>> {
@@ -79,9 +81,21 @@ export class CarsService {
     await repo.remove(car);
   }
 
+  /**
+   * Importe les véhicules déclarés sur la plateforme GPS Libellule.
+   *
+   * La clé d'API était écrite en dur ici et dans `gps.service.ts` : elle est
+   * donc publiée dans l'historique Git, où la retirer du code ne l'efface pas.
+   * Elle est désormais lue dans l'environnement, et la valeur précédente doit
+   * être renouvelée côté fournisseur.
+   */
   async syncFromLibellule(): Promise<{ synced: number }> {
-    const hash = '$2y$10$O3UKDU8Lnn/NJeSg3.sDH.D1RPrdjZ7qFi4hLwMf/xgrHB0kkdGNi';
-    const url = `https://libellule.sudcontractors.com/api/devices?user_api_hash=${hash}`;
+    const hash = this.configService.get<string>('LIBELLULE_API_HASH', '');
+    if (!hash) {
+      this.logger.error('LIBELLULE_API_HASH absente : synchronisation GPS impossible.');
+      throw new Error("Clé d'API GPS non configurée sur ce service");
+    }
+    const url = `https://libellule.sudcontractors.com/api/devices?user_api_hash=${encodeURIComponent(hash)}`;
     
     let devices: any[] = [];
     try {
