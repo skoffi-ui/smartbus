@@ -29,7 +29,10 @@
     "test:e2e:school": "jest --config jest-e2e.config.ts apps/school-app",
     "test:unit": "jest --config jest.config.ts --testPathIgnorePatterns=e2e",
     "test:all": "npm run test:unit && npm run test:e2e",
-    "test:ci": "jest --config jest.config.ts --coverage --maxWorkers=2"
+    "test:ci": "jest --config jest.config.ts --coverage --maxWorkers=2",
+    "demo:peupler": "node scripts/demo/peupler-demo.js",
+    "demo:balises": "node scripts/demo/rattacher-balises.js",
+    "demo:gps": "node scripts/demo/simulateur-gps.js"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",
