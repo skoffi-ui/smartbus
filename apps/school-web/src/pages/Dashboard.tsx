@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+import api, { messageFromError } from '../services/api';
 import { Bus, Users, GraduationCap, ShieldCheck, Activity, CreditCard, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 import CheckoutModal from '../components/CheckoutModal';
 import './Dashboard.css';
-import { GATEWAY_URL } from '../config';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({ cars: 0, drivers: 0, parents: 0, children: 0 });
@@ -13,6 +11,8 @@ export default function Dashboard() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [subscription, setSubscription] = useState<any>(null);
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [erreur, setErreur] = useState('');
+  const [erreurAbonnement, setErreurAbonnement] = useState('');
 
   // Décoder l'ID d'organisation depuis le JWT
   const organisationId = (() => {
@@ -40,27 +40,29 @@ export default function Dashboard() {
         children: childrenRes.data.length || 0
       });
 
+      // L'abonnement vit dans la SUPER APP : son indisponibilité ne doit pas
+      // vider le tableau de bord de l'école, qui vient d'un autre service.
       if (organisationId) {
-        const token = localStorage.getItem('accessToken');
-        const subRes = await axios.get(`${GATEWAY_URL}/api/v1/subscriptions/organisation/${organisationId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const subs = Array.isArray(subRes.data) ? subRes.data : [subRes.data];
-        // Prendre le plus récent ou actif
-        if (subs.length > 0) {
-          setSubscription(subs[0]);
+        try {
+          const subRes = await api.get(`/subscriptions/organisation/${organisationId}`);
+          const subs = Array.isArray(subRes.data) ? subRes.data : [subRes.data];
+          if (subs.length > 0) setSubscription(subs[0]);
+        } catch (subErr) {
+          setErreurAbonnement(messageFromError(subErr, "Abonnement momentanément indisponible."));
         }
       }
 
-      // Fetch recent activities
+      // Activité récente. `/notifications/recent` n'a jamais existé côté serveur :
+      // c'est `GET /notifications` qui renvoie les dernières notifications.
       try {
-        const activitiesRes = await api.get('/notifications/recent');
-        setRecentActivities(activitiesRes.data || []);
-      } catch (actErr) {
-        console.error("Impossible de récupérer les activités récentes", actErr);
+        const activitiesRes = await api.get('/notifications');
+        setRecentActivities(Array.isArray(activitiesRes.data) ? activitiesRes.data : []);
+      } catch {
+        // Information d'appoint : son absence ne justifie pas une erreur en console.
+        setRecentActivities([]);
       }
     } catch (err) {
-      console.error("Erreur de chargement des données", err);
+      setErreur(messageFromError(err, 'Impossible de charger les données de la page.'));
     } finally {
       setLoading(false);
     }
@@ -72,6 +74,24 @@ export default function Dashboard() {
 
   return (
     <div className="animate-fade-in">
+      {erreur && (
+        <div style={{
+          margin: '0 0 1rem', padding: '0.75rem 1rem', borderRadius: '0.5rem',
+          background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)',
+          color: 'var(--danger)', fontSize: '0.875rem',
+        }}>
+          {erreur}
+        </div>
+      )}
+      {erreurAbonnement && !erreur && (
+        <div style={{
+          margin: '0 0 1rem', padding: '0.75rem 1rem', borderRadius: '0.5rem',
+          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)',
+          color: 'var(--warning)', fontSize: '0.875rem',
+        }}>
+          {erreurAbonnement}
+        </div>
+      )}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl" style={{ margin: 0 }}>Tableau de bord</h1>

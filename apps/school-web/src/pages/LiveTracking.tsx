@@ -260,7 +260,7 @@ export default function LiveTracking() {
       try {
         const [carsRes, stopsRes] = await Promise.all([
           api.get('/cars').catch(() => ({ data: [] })),
-          api.get('/points').catch(() => ({ data: [] })),
+          api.get('/points-recuperation').catch(() => ({ data: [] })),
         ]);
         const cars: any[] = carsRes.data?.data || carsRes.data || [];
         const carMap: Record<string, any> = {};
