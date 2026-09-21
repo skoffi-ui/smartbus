@@ -52,11 +52,43 @@ export default function Dashboard() {
         }
       }
 
-      // Activité récente. `/notifications/recent` n'a jamais existé côté serveur :
-      // c'est `GET /notifications` qui renvoie les dernières notifications.
+      // Activité récente : les montées et descentes réellement enregistrées.
+      //
+      // Cette liste lisait `/notifications`, une table qui n'est alimentée que par
+      // certains chemins d'ingestion : le bloc restait donc vide alors que des
+      // centaines de badgeages existaient. Les montées sont la source qui fait foi,
+      // et le nom de l'élève vient des enfants déjà chargés ci-dessus.
       try {
-        const activitiesRes = await api.get('/notifications');
-        setRecentActivities(Array.isArray(activitiesRes.data) ? activitiesRes.data : []);
+        const monteesRes = await api.get('/montees');
+        const montees: any[] = Array.isArray(monteesRes.data) ? monteesRes.data : monteesRes.data?.data || [];
+        const enfants: any[] = Array.isArray(childrenRes.data) ? childrenRes.data : childrenRes.data?.data || [];
+        const nomParId = new Map(
+          enfants.map((e: any) => [e.id, `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || 'Élève']),
+        );
+
+        const recentes = montees
+          .slice()
+          .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+          .slice(0, 8)
+          .map((m: any) => {
+            const nom = nomParId.get(m.childId) || 'Élève';
+            const descente = m.sens === 'descente';
+            const refuse = m.statut === 'refuse';
+            return {
+              id: m.id,
+              title: nom,
+              // Minuscule voulue : le rendu ci-dessous reconnaît une descente en
+              // cherchant « descendu » dans le message pour choisir sa pastille.
+              message: refuse
+                ? m.validationMessage || 'Badgeage refusé.'
+                : `${descente ? 'descendu' : 'embarqué'} à ${String(m.heure ?? '').slice(0, 5)}`,
+              type: refuse ? 'WARNING' : 'INFO',
+              createdAt: m.createdAt,
+              metadata: {},
+            };
+          });
+
+        setRecentActivities(recentes);
       } catch {
         // Information d'appoint : son absence ne justifie pas une erreur en console.
         setRecentActivities([]);
