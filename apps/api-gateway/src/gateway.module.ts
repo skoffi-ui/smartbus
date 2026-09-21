@@ -6,6 +6,7 @@ import { Organisation, Subscription } from '@app/database';
 import { GatewayService } from './gateway.service';
 import { TenantGateService } from './tenant-gate.service';
 import { HealthController } from './health.controller';
+import { jwtSecretRequis } from '@app/common';
 
 @Module({
   imports: [
@@ -31,11 +32,7 @@ import { HealthController } from './health.controller';
     // Même secret que la SUPER APP : la gateway vérifie les JWT qu'elle émet
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const secret = config.get<string>('JWT_SECRET');
-        if (!secret) throw new Error('JWT_SECRET est requis pour démarrer la gateway.');
-        return { secret };
-      },
+      useFactory: (config: ConfigService) => ({ secret: jwtSecretRequis(config) }),
     }),
   ],
   controllers: [HealthController],

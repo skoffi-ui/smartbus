@@ -7,6 +7,7 @@ import { Organisation } from '@app/database';
 import { HardwareStreamService } from './hardware-stream.service';
 import { HardwareStreamController } from './hardware-stream.controller';
 import { HardwareStreamGateway } from './hardware-stream.gateway';
+import { jwtSecretRequis } from '@app/common';
 
 @Module({
   imports: [
@@ -18,7 +19,7 @@ import { HardwareStreamGateway } from './hardware-stream.gateway';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'secret'),
+        secret: jwtSecretRequis(config),
       }),
     }),
   ],

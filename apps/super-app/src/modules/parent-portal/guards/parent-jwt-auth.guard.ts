@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { jwtSecretRequis } from '@app/common';
 
 @Injectable()
 export class ParentJwtAuthGuard implements CanActivate {
@@ -18,7 +19,7 @@ export class ParentJwtAuthGuard implements CanActivate {
 
     const token = authHeader.split(' ')[1];
     try {
-      const secret = this.configService.get<string>('JWT_SECRET', 'secret');
+      const secret = jwtSecretRequis(this.configService);
       const payload = await this.jwtService.verifyAsync(token, { secret });
       
       // Validation du rôle de parent d'élève

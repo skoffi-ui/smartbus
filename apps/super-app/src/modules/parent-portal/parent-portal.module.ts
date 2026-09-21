@@ -6,6 +6,7 @@ import { Organisation, DatabaseModule } from '@app/database';
 import { ParentPortalService } from './parent-portal.service';
 import { ParentPortalController } from './parent-portal.controller';
 import { FcmService } from './fcm.service';
+import { jwtSecretRequis } from '@app/common';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { FcmService } from './fcm.service';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'secret'),
+        secret: jwtSecretRequis(configService),
         signOptions: {
           expiresIn: configService.get<string>('JWT_EXPIRES_IN', '7d') as any,
         },

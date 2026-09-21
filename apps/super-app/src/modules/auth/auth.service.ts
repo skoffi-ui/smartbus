@@ -18,6 +18,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterSchoolDto } from './dto/register-school.dto';
 import { OrganisationsService } from '../organisations/organisations.service';
 import { ProvisioningService } from '../provisioning/provisioning.service';
+import { jwtSecretRequis } from '@app/common';
 
 export interface JwtPayload {
   sub: string;
@@ -225,7 +226,7 @@ export class AuthService {
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_SECRET', 'secret'),
+        secret: jwtSecretRequis(this.configService),
         expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '7d') as any,
       }),
       this.jwtService.signAsync(payload, {

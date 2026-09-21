@@ -10,6 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { OrganisationsModule } from '../organisations/organisations.module';
 import { ProvisioningModule } from '../provisioning/provisioning.module';
+import { jwtSecretRequis } from '@app/common';
 
 @Module({
   imports: [
@@ -20,7 +21,7 @@ import { ProvisioningModule } from '../provisioning/provisioning.module';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'secret'),
+        secret: jwtSecretRequis(configService),
         signOptions: {
           expiresIn: configService.get<string>('JWT_EXPIRES_IN', '7d') as any,
         },

@@ -7,6 +7,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { Organisation, TenantConnectionService } from '@app/database';
 import { ParentLoginDto } from './dto/parent-login.dto';
 import { FcmService } from './fcm.service';
+import { jwtSecretRequis } from '@app/common';
 
 @Injectable()
 export class ParentPortalService {
@@ -74,7 +75,7 @@ export class ParentPortalService {
             };
 
             const token = await this.jwtService.signAsync(payload, {
-              secret: this.configService.get<string>('JWT_SECRET', 'secret'),
+              secret: jwtSecretRequis(this.configService),
               expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '7d') as any,
             });
 
