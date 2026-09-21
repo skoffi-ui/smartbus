@@ -446,7 +446,9 @@ export default function LiveTracking() {
                   (c: any) => c.courseId === bus.courseId || c.id === bus.deviceId,
                 ) as any;
                 return (
-                  <React.Fragment key={bus.courseId}>
+                  // Indexé sur le véhicule : `courseId` est vide quand le bus n'a
+                  // pas de course active, et plusieurs bus le partageaient alors.
+                  <React.Fragment key={bus.deviceId || bus.courseId}>
                     <AnimatedBusMarker bus={bus} />
 
                     {/* Infobulle permanente pour le bus sélectionné */}
@@ -602,7 +604,7 @@ export default function LiveTracking() {
                   const isSelected = selectedBus === bus.courseId;
                   return (
                     <div
-                      key={bus.courseId}
+                      key={bus.deviceId || bus.courseId}
                       onClick={() => setSelectedBus(isSelected ? null : bus.courseId)}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',

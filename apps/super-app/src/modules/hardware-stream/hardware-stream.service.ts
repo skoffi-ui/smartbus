@@ -434,6 +434,10 @@ export class HardwareStreamService {
         data: {
           carId: car.id,
           plateNumber: car.plateNumber,
+          // `courseId` était absent des données diffusées : il ne servait qu'à
+          // choisir le salon. Le client ne pouvait donc pas relier une position
+          // à sa course, et n'affichait pas le tracé du bus sélectionné.
+          courseId,
           lat,
           lng,
           speed,
@@ -911,6 +915,29 @@ export class HardwareStreamService {
            plateNumber: car.plateNumber,
          });
          this.logger.log(`Traccar GPS updated for car ${car.plateNumber} (Lat: ${lat}, Lng: ${lng})`);
+
+         // Ce chemin ne diffusait rien : il alimentait le cache interne sans jamais
+         // émettre d'événement. Les positions n'étaient donc visibles qu'au
+         // chargement de la page, jamais en direct — l'écran de suivi restait figé
+         // alors que les balises émettaient correctement.
+         const courseRepo = ds.getRepository(Course);
+         const activeCourse = await courseRepo.findOne({
+           where: { carId: car.id, statut: CourseStatus.ACTIVE },
+         });
+
+         this.eventEmitter.emit('hardware.gps', {
+           tenantId: org.organisationId,
+           courseId: activeCourse?.id || 'default-course',
+           data: {
+             carId: car.id,
+             plateNumber: car.plateNumber,
+             courseId: activeCourse?.id || '',
+             lat,
+             lng,
+             speed,
+             time,
+           },
+         });
       } else {
          this.logger.warn(`No car mapped to Traccar device ID ${deviceId}`);
       }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { getSocket, subscribeToCourse, disconnectSocket } from '../services/socket.service';
+import api from '../services/api';
 
 export interface BusPosition {
   courseId: string;
@@ -54,6 +55,45 @@ interface UseRealTimeTrackingReturn {
   reconnect: () => void;
 }
 
+/**
+ * Ramène une position à la forme attendue par la carte.
+ *
+ * Le serveur parle en `lat`/`lng`/`time` — c'est le vocabulaire des balises — là
+ * où ce hook expose `latitude`/`longitude`/`timestamp`. Sans cette traduction,
+ * chaque position arrivait avec des coordonnées `undefined` et aucun marqueur ne
+ * pouvait s'afficher : le suivi temps réel paraissait vide en permanence.
+ *
+ * L'indexation se fait sur le véhicule, pas sur la course : un même bus peut
+ * enchaîner plusieurs courses dans la journée, et c'est bien un marqueur par
+ * véhicule que l'on veut voir sur la carte.
+ */
+function normaliserPosition(brut: any): { cle: string; position: BusPosition } | null {
+  const latitude = Number(brut?.latitude ?? brut?.lat);
+  const longitude = Number(brut?.longitude ?? brut?.lng);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+  const cle = brut.carId || brut.deviceId || brut.courseId;
+  if (!cle) return null;
+
+  return {
+    cle,
+    position: {
+      courseId: brut.courseId || '',
+      deviceId: brut.deviceId || brut.carId || '',
+      latitude,
+      longitude,
+      speed: Number(brut.speed ?? 0),
+      heading: brut.heading,
+      timestamp: brut.timestamp || brut.time || new Date().toISOString(),
+      plateNumber: brut.plateNumber,
+      driverName: brut.driverName,
+      studentsOnBoard: brut.studentsOnBoard,
+      courseName: brut.courseName,
+      routeName: brut.routeName,
+    },
+  };
+}
+
 export function useRealTimeTracking({
   courseIds = [],
 }: UseRealTimeTrackingOptions = {}): UseRealTimeTrackingReturn {
@@ -105,14 +145,12 @@ export function useRealTimeTracking({
     // Événement GPS : mise à jour de la position du bus.
     // Le nom doit correspondre exactement à celui émis par la passerelle
     // (HardwareStreamGateway.broadcast), sinon aucune position n'arrive.
-    socket.on('gps', (payload: BusPosition) => {
+    socket.on('gps', (payload: any) => {
+      const normalisee = normaliserPosition(payload);
+      if (!normalisee) return;
       setBusPositions((prev) => {
         const next = new Map(prev);
-        next.set(payload.courseId, {
-          ...payload,
-          latitude: payload.latitude,
-          longitude: payload.longitude,
-        });
+        next.set(normalisee.cle, normalisee.position);
         return next;
       });
     });
@@ -159,6 +197,40 @@ export function useRealTimeTracking({
       ].slice(0, 50));
     });
   }
+
+  /**
+   * Positions déjà connues du serveur, chargées à l'ouverture de l'écran.
+   *
+   * Le WebSocket ne transmet que ce qui arrive APRÈS la connexion. Sans ce
+   * premier appel, ouvrir la carte affichait « aucun bus en service » jusqu'au
+   * prochain message d'une balise — plusieurs dizaines de secondes en conditions
+   * réelles, et un écran vide au moment précis où on regarde.
+   */
+  useEffect(() => {
+    let annule = false;
+
+    api
+      .get('/gps/live')
+      .then((res) => {
+        if (annule) return;
+        const liste: any[] = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        setBusPositions((prev) => {
+          const next = new Map(prev);
+          for (const brut of liste) {
+            const normalisee = normaliserPosition(brut);
+            // Une position reçue en direct pendant le chargement est plus fraîche.
+            if (normalisee && !next.has(normalisee.cle)) next.set(normalisee.cle, normalisee.position);
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        // L'absence de positions initiales n'est pas une erreur d'écran : le
+        // WebSocket prendra le relais dès la première trame reçue.
+      });
+
+    return () => { annule = true; };
+  }, []);
 
   useEffect(() => {
     setupListeners();
