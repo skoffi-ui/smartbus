@@ -25,12 +25,20 @@ export class CarsService {
     return repo.find({ order: { createdAt: 'DESC' } });
   }
 
+  /**
+   * Appareils alloués à cette école, lus dans l'inventaire central.
+   *
+   * La requête sélectionnait `d.model`, colonne qui n'existe que sur la table
+   * `devices` des bases école, pas sur celle de la base centrale interrogée ici :
+   * l'endpoint répondait donc systématiquement 500.
+   */
   async getAllocatedDevices(): Promise<any[]> {
     const orgId = this.tenantService.getTenantId();
     if (!orgId) return [];
 
     const query = `
-      SELECT d.id, d.serial_number as "serialNumber", d.type_device as "typeDevice", d.status, d.model
+      SELECT d.id, d.serial_number as "serialNumber", d.type_device as "typeDevice",
+             d.status, d.imei, d.last_seen_at as "lastSeenAt"
       FROM devices d
       INNER JOIN organisation_devices od ON od.device_id = d.id
       WHERE od.organisation_id = $1 AND od.released_at IS NULL AND d.deleted_at IS NULL
