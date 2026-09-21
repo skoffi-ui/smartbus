@@ -29,6 +29,7 @@ import {
   sensFromPunchState,
   TENANT_ENTITIES,
 } from '@app/database';
+import { INTERNAL_API_KEY_HEADER } from '@app/common';
 
 /**
  * Résultat de la résolution du propriétaire d'un appareil.
@@ -351,7 +352,13 @@ export class HardwareStreamService {
 
       // Port 3001 de school-app
       const schoolWebhookUrl = this.configService.get<string>('SCHOOL_APP_WEBHOOK_URL', 'http://localhost:3001/api/v1/notifications/internal-webhook');
-      await firstValueFrom(this.httpService.post(schoolWebhookUrl, payloadToSchool));
+      await firstValueFrom(
+        this.httpService.post(schoolWebhookUrl, payloadToSchool, {
+          headers: {
+            [INTERNAL_API_KEY_HEADER]: this.configService.get<string>('INTERNAL_API_KEY', ''),
+          },
+        }),
+      );
       this.logger.log(`[Stream Routing] Notification relayée à school-app avec succès.`);
     } catch (err) {
       this.logger.error(`[Stream Routing] Relais vers school-app : ${err.message}`);

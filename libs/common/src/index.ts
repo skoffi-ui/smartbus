@@ -7,6 +7,7 @@ export * from './decorators/api-paginated-response.decorator';
 // Guards
 export * from './guards/jwt-auth.guard';
 export * from './guards/roles.guard';
+export * from './guards/internal-api-key.guard';
 
 // Interceptors
 export * from './interceptors/logging.interceptor';
@@ -28,3 +29,4 @@ export * from './crypto/crypto.module';
 
 // Enums
 export { UserRole } from './enums/user-role.enum';
+export * from './config/jwt-secret';
