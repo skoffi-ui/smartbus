@@ -46,8 +46,14 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  // La gateway est censée être la seule porte d'entrée : elle seule vérifie le JWT,
+  // la version d'application et le statut de l'école. Or ce service écoutait sur
+  // toutes les interfaces, donc joignable directement depuis le réseau — il
+  // suffisait d'appeler le port pour contourner ces contrôles. Il n'écoute
+  // désormais que la boucle locale, sauf hôte explicitement configuré (conteneurs).
+  const host = process.env.BIND_HOST || '127.0.0.1';
   const port = process.env.SCHOOL_APP_PORT || 3001;
-  await app.listen(port);
+  await app.listen(port, host);
 
   console.log(`\n🏫 SMARTBUS School App running on: http://localhost:${port}`);
   console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs\n`);
