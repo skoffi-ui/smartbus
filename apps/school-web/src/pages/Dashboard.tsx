@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import api, { messageFromError } from '../services/api';
-import { Bus, Users, GraduationCap, ShieldCheck, Activity, CreditCard, Clock } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Bus, Users, GraduationCap, ShieldCheck, Activity, CreditCard, Clock, Plus, MapPin, Route as RouteIcon, Zap } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import CheckoutModal from '../components/CheckoutModal';
 import './Dashboard.css';
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({ cars: 0, drivers: 0, parents: 0, children: 0 });
   const [loading, setLoading] = useState(true);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -124,18 +125,33 @@ export default function Dashboard() {
           {erreurAbonnement}
         </div>
       )}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl" style={{ margin: 0 }}>Tableau de bord</h1>
-          <p className="text-secondary" style={{ marginTop: '0.25rem' }}>Aperçu de l'activité de votre établissement</p>
+          <h1 className="text-3xl font-bold" style={{ margin: 0 }}>Tableau de bord</h1>
+          <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>Aperçu de l'activité de votre établissement</p>
         </div>
-        <button 
-          onClick={() => setIsCheckoutOpen(true)}
-          className="btn-primary flex items-center gap-2"
-          style={{ padding: '0.6rem 1.2rem', fontSize: '0.9rem', fontWeight: 600 }}
-        >
-          <CreditCard size={18} /> Gérer l'abonnement
-        </button>
+
+        {/* Actions Rapides */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => navigate('/courses')}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-semibold text-sm shadow-sm"
+          >
+            <Plus size={18} /> Nouvelle Course
+          </button>
+          <button
+            onClick={() => navigate('/children')}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-all font-semibold text-sm border border-slate-200"
+          >
+            <Plus size={18} /> Ajouter Élève
+          </button>
+          <button
+            onClick={() => navigate('/live')}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-semibold text-sm shadow-sm"
+          >
+            <Zap size={18} /> Live Tracking
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -143,92 +159,66 @@ export default function Dashboard() {
           <div className="text-secondary">Chargement...</div>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          {/* Section Abonnement si existant */}
-          {subscription && (
-            <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderLeft: '4px solid var(--accent-primary)', flexWrap: 'wrap', gap: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '3rem', height: '3rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(79, 70, 229, 0.1)', color: 'var(--accent-primary)' }}>
-                  <CreditCard size={24} />
+        <div className="flex flex-col gap-4">
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
+            {/* Card 1: Élèves - Cliquable */}
+            <Link to="/children" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <GraduationCap size={28} className="text-blue-600" />
                 </div>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-                    Forfait Actuel : <span className="text-accent" style={{ fontWeight: 800 }}>{subscription.plan?.toUpperCase()}</span>
-                  </h4>
-                  <p className="text-secondary text-xs" style={{ margin: '0.2rem 0 0 0', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <Clock size={12} /> Expire le : {new Date(subscription.endDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  </p>
+                <span className="text-xs font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-600">+{stats.children > 0 ? '12%' : '0%'}</span>
+              </div>
+              <p className="text-sm text-slate-500 mb-1 font-medium">Élèves Inscrits</p>
+              <h3 className="text-3xl font-bold text-slate-900">{stats.children}</h3>
+            </Link>
+
+            {/* Card 2: Parents - Cliquable */}
+            <Link to="/parents" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-14 h-14 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Users size={28} className="text-indigo-600" />
                 </div>
+                <span className="text-xs font-bold px-2 py-1 rounded-full bg-indigo-50 text-indigo-600">+{stats.parents > 0 ? '8%' : '0%'}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{
-                  fontSize: '0.75rem', fontWeight: 700, padding: '0.25rem 0.75rem', borderRadius: '999px',
-                  background: subscription.status === 'active' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                  color: subscription.status === 'active' ? 'var(--success)' : 'var(--danger)',
-                  textTransform: 'uppercase'
-                }}>
-                  {subscription.status}
-                </span>
-                <button onClick={() => setIsCheckoutOpen(true)} className="btn btn-secondary text-xs" style={{ padding: '0.4rem 0.8rem' }}>
-                  Renouveler / Changer
-                </button>
-              </div>
-            </div>
-          )}
+              <p className="text-sm text-slate-500 mb-1 font-medium">Parents Associés</p>
+              <h3 className="text-3xl font-bold text-slate-900">{stats.parents}</h3>
+            </Link>
 
-          <div className="dashboard-grid">
-            {/* Card 1: Eleves */}
-            <div className="glass-panel dashboard-card">
-              <div className="stat-icon-wrapper stat-blue">
-                <GraduationCap size={24} />
+            {/* Card 3: Chauffeurs - Cliquable */}
+            <Link to="/drivers" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ShieldCheck size={28} className="text-emerald-600" />
+                </div>
+                <span className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">{stats.drivers > 0 ? 'Actifs' : '0'}</span>
               </div>
-              <div>
-                <p className="text-sm text-secondary mb-2" style={{ margin: 0, fontWeight: 500 }}>Élèves Inscrits</p>
-                <h3 className="text-2xl" style={{ margin: 0 }}>{stats.children}</h3>
-              </div>
-            </div>
+              <p className="text-sm text-slate-500 mb-1 font-medium">Chauffeurs</p>
+              <h3 className="text-3xl font-bold text-slate-900">{stats.drivers}</h3>
+            </Link>
 
-            {/* Card 2: Parents */}
-            <div className="glass-panel dashboard-card">
-              <div className="stat-icon-wrapper stat-indigo">
-                <Users size={24} />
+            {/* Card 4: Véhicules - Cliquable */}
+            <Link to="/cars" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-14 h-14 rounded-xl bg-amber-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Bus size={28} className="text-amber-600" />
+                </div>
+                <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-600">{stats.cars > 0 ? 'OK' : '0'}</span>
               </div>
-              <div>
-                <p className="text-sm text-secondary mb-2" style={{ margin: 0, fontWeight: 500 }}>Parents Associés</p>
-                <h3 className="text-2xl" style={{ margin: 0 }}>{stats.parents}</h3>
-              </div>
-            </div>
-
-            {/* Card 3: Chauffeurs */}
-            <div className="glass-panel dashboard-card">
-              <div className="stat-icon-wrapper stat-emerald">
-                <ShieldCheck size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-secondary mb-2" style={{ margin: 0, fontWeight: 500 }}>Chauffeurs Actifs</p>
-                <h3 className="text-2xl" style={{ margin: 0 }}>{stats.drivers}</h3>
-              </div>
-            </div>
-
-            {/* Card 4: Vehicules */}
-            <div className="glass-panel dashboard-card">
-              <div className="stat-icon-wrapper stat-amber">
-                <Bus size={24} />
-              </div>
-              <div>
-                <p className="text-sm text-secondary mb-2" style={{ margin: 0, fontWeight: 500 }}>Flotte de Bus</p>
-                <h3 className="text-2xl" style={{ margin: 0 }}>{stats.cars}</h3>
-              </div>
-            </div>
+              <p className="text-sm text-slate-500 mb-1 font-medium">Flotte de Bus</p>
+              <h3 className="text-3xl font-bold text-slate-900">{stats.cars}</h3>
+            </Link>
           </div>
 
-          <div className="dashboard-bottom-grid">
-            <div className="glass-panel" style={{ padding: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                <Activity size={24} style={{ color: 'var(--accent-primary)' }} />
-                <h3 className="text-xl" style={{ margin: 0 }}>Activité Récente</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
+            {/* Activité Récente - Plus large */}
+            <div className="glass-panel p-4">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                <Activity size={22} style={{ color: 'var(--accent-primary)' }} />
+                <h3 className="text-lg font-bold" style={{ margin: 0 }}>Activité Récente</h3>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '350px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
                 {recentActivities.length === 0 ? (
                   <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                     Aucune activité récente enregistrée.
@@ -278,20 +268,64 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-            
-            <div className="glass-panel welcome-card" style={{ padding: '2rem' }}>
-              <h3 className="text-xl" style={{ margin: '0 0 0.5rem 0' }}>Bienvenue sur votre portail</h3>
-              <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-                Gérez facilement vos élèves, parents, chauffeurs et véhicules depuis ce tableau de bord unifié. 
-                SmartBus vous permet d'assurer un suivi optimal du transport scolaire.
-              </p>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <Link to="/children" className="btn welcome-card-btn-light" style={{ textDecoration: 'none' }}>
-                  Voir les élèves
+
+
+            {/* Raccourcis Utiles - Remplace welcome card */}
+            <div className="glass-panel p-4">
+              <h3 className="text-lg font-bold mb-4">Accès Rapides</h3>
+              <div className="flex flex-col gap-3">
+                <Link to="/courses" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-indigo-50 transition-colors border border-slate-100 hover:border-indigo-200 group" style={{ textDecoration: 'none' }}>
+                  <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                    <RouteIcon size={20} className="text-indigo-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-900 text-sm">Gérer les Courses</p>
+                    <p className="text-xs text-slate-500">Planifier et éditer</p>
+                  </div>
                 </Link>
-                <Link to="/cars" className="btn welcome-card-btn" style={{ textDecoration: 'none' }}>
-                  Gérer la flotte
+
+                <Link to="/trajets" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-blue-50 transition-colors border border-slate-100 hover:border-blue-200 group" style={{ textDecoration: 'none' }}>
+                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                    <MapPin size={20} className="text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-900 text-sm">Éditer les Trajets</p>
+                    <p className="text-xs text-slate-500">Points et itinéraires</p>
+                  </div>
                 </Link>
+
+                <Link to="/affectation" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-emerald-50 transition-colors border border-slate-100 hover:border-emerald-200 group" style={{ textDecoration: 'none' }}>
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                    <Users size={20} className="text-emerald-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-900 text-sm">Affecter Élèves</p>
+                    <p className="text-xs text-slate-500">Associer aux arrêts</p>
+                  </div>
+                </Link>
+
+                <Link to="/suivi" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-purple-50 transition-colors border border-slate-100 hover:border-purple-200 group" style={{ textDecoration: 'none' }}>
+                  <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Activity size={20} className="text-purple-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-900 text-sm">Suivi des Montées</p>
+                    <p className="text-xs text-slate-500">Pointages élèves</p>
+                  </div>
+                </Link>
+
+                {subscription && (
+                  <button
+                    onClick={() => setIsCheckoutOpen(true)}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 transition-all text-white mt-2"
+                  >
+                    <CreditCard size={20} />
+                    <div className="flex-1 text-left">
+                      <p className="font-semibold text-sm">Abonnement</p>
+                      <p className="text-xs opacity-90">{subscription.plan?.toUpperCase()}</p>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
           </div>

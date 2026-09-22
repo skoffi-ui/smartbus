@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
-import { Plus, Trash2, User, Phone, Calendar, Hash, Truck } from 'lucide-react';
+import { Plus, Trash2, User, Phone, Calendar, Hash, Truck, Edit } from 'lucide-react';
 
 export default function Drivers() {
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingDriver, setEditingDriver] = useState<any>(null);
   const [formData, setFormData] = useState({ firstName: '', lastName: '', licenseNumber: '', phone: '', licenseExpiry: '' });
 
   const fetchDrivers = async () => {
@@ -27,14 +28,33 @@ export default function Drivers() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/drivers', formData);
+      if (editingDriver) {
+        // Mode édition - PATCH
+        await api.patch(`/drivers/${editingDriver.id}`, formData);
+      } else {
+        // Mode création - POST
+        await api.post('/drivers', formData);
+      }
       setShowForm(false);
+      setEditingDriver(null);
       setFormData({ firstName: '', lastName: '', licenseNumber: '', phone: '', licenseExpiry: '' });
       fetchDrivers();
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Erreur lors de l'ajout du chauffeur";
+      const errorMsg = err.response?.data?.message || (editingDriver ? "Erreur lors de la modification du chauffeur" : "Erreur lors de l'ajout du chauffeur");
       alert(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg);
     }
+  };
+
+  const handleEdit = (driver: any) => {
+    setEditingDriver(driver);
+    setFormData({
+      firstName: driver.firstName,
+      lastName: driver.lastName,
+      licenseNumber: driver.licenseNumber,
+      phone: driver.phone,
+      licenseExpiry: driver.licenseExpiry.split('T')[0] // Format YYYY-MM-DD pour input date
+    });
+    setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -109,9 +129,14 @@ export default function Drivers() {
                       </div>
                     </td>
                     <td className="text-right">
-                      <button onClick={() => handleDelete(driver.id)} className="btn-icon-danger" title="Supprimer">
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleEdit(driver)} className="btn-icon-primary" title="Modifier">
+                          <Edit size={14} />
+                        </button>
+                        <button onClick={() => handleDelete(driver.id)} className="btn-icon-danger" title="Supprimer">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -133,8 +158,8 @@ export default function Drivers() {
                 <Truck size={20} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-800">Nouveau Chauffeur</h2>
-                <p className="text-xs text-slate-500 mt-1">Saisissez les informations du conducteur.</p>
+                <h2 className="text-xl font-bold text-slate-800">{editingDriver ? 'Modifier le Chauffeur' : 'Nouveau Chauffeur'}</h2>
+                <p className="text-xs text-slate-500 mt-1">{editingDriver ? 'Modifiez les informations du conducteur.' : 'Saisissez les informations du conducteur.'}</p>
               </div>
             </div>
             
@@ -184,8 +209,8 @@ export default function Drivers() {
               </div>
               
               <div className="premium-modal-footer">
-                <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
-                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">Enregistrer</button>
+                <button type="button" onClick={() => { setShowForm(false); setEditingDriver(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
+                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">{editingDriver ? 'Modifier' : 'Enregistrer'}</button>
               </div>
             </form>
           </div>

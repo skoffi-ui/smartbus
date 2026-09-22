@@ -20,7 +20,6 @@ import AccesBloque from './pages/AccesBloque';
 // Nouveaux composants Transport
 import Courses from './pages/Courses';
 import TrajetEditor from './pages/TrajetEditor';
-import PointsRecuperation from './pages/PointsRecuperation';
 import AffectationEleves from './pages/AffectationEleves';
 import SuiviMontees from './pages/SuiviMontees';
 import AlertesTransport from './pages/AlertesTransport';
@@ -159,18 +158,6 @@ function App() {
           }
         />
         <Route
-          path="/points"
-          element={
-            isAuthenticated ? (
-              <Layout>
-                <PointsRecuperation />
-              </Layout>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
           path="/affectation"
           element={
             isAuthenticated ? (
@@ -184,18 +171,6 @@ function App() {
         />
         <Route
           path="/suivi"
-          element={
-            isAuthenticated ? (
-              <Layout>
-                <SuiviMontees />
-              </Layout>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/historique"
           element={
             isAuthenticated ? (
               <Layout>

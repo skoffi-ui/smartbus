@@ -57,3 +57,6 @@ APERCU_*.txt
 # Sauvegardes temporaires
 *.backup.tsx
 *.enhanced.tsx
+CORRECTIF_*.md
+DEBUG_*.md
+OPTIMISATIONS_*.md

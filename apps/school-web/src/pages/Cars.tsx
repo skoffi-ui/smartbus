@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
-import { Plus, Trash2, Bus, Hash, Users, Car, Settings, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Bus, Hash, Users, Car, Settings, RefreshCw, Edit } from 'lucide-react';
 
 export default function Cars() {
   const [cars, setCars] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingCar, setEditingCar] = useState<any>(null);
   const [formData, setFormData] = useState({ plateNumber: '', brand: '', model: '', capacity: 30, gpsDeviceId: '', biotimeTerminalSn: '' });
   const [devices, setDevices] = useState<any[]>([]);
 
@@ -30,14 +31,34 @@ export default function Cars() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/cars', { ...formData, capacity: Number(formData.capacity) });
+      if (editingCar) {
+        // Mode édition - PATCH
+        await api.patch(`/cars/${editingCar.id}`, { ...formData, capacity: Number(formData.capacity) });
+      } else {
+        // Mode création - POST
+        await api.post('/cars', { ...formData, capacity: Number(formData.capacity) });
+      }
       setShowForm(false);
+      setEditingCar(null);
       setFormData({ plateNumber: '', brand: '', model: '', capacity: 30, gpsDeviceId: '', biotimeTerminalSn: '' });
       fetchCars();
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || "Erreur lors de l'ajout du véhicule";
+      const errorMsg = err.response?.data?.message || (editingCar ? "Erreur lors de la modification du véhicule" : "Erreur lors de l'ajout du véhicule");
       alert(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg);
     }
+  };
+
+  const handleEdit = (car: any) => {
+    setEditingCar(car);
+    setFormData({
+      plateNumber: car.plateNumber,
+      brand: car.brand,
+      model: car.model,
+      capacity: car.capacity,
+      gpsDeviceId: car.gpsDeviceId || '',
+      biotimeTerminalSn: car.biotimeTerminalSn || ''
+    });
+    setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -134,9 +155,14 @@ export default function Cars() {
                       </div>
                     </td>
                     <td className="text-right">
-                      <button onClick={() => handleDelete(car.id)} className="btn-icon-danger" title="Supprimer">
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleEdit(car)} className="btn-icon-primary" title="Modifier">
+                          <Edit size={14} />
+                        </button>
+                        <button onClick={() => handleDelete(car.id)} className="btn-icon-danger" title="Supprimer">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -158,8 +184,8 @@ export default function Cars() {
                 <Bus size={20} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-800">Nouveau Véhicule</h2>
-                <p className="text-xs text-slate-500 mt-1">Saisissez les informations du véhicule.</p>
+                <h2 className="text-xl font-bold text-slate-800">{editingCar ? 'Modifier le Véhicule' : 'Nouveau Véhicule'}</h2>
+                <p className="text-xs text-slate-500 mt-1">{editingCar ? 'Modifiez les informations du véhicule.' : 'Saisissez les informations du véhicule.'}</p>
               </div>
             </div>
             
@@ -223,8 +249,8 @@ export default function Cars() {
               </div>
               
               <div className="premium-modal-footer">
-                <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
-                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">Enregistrer</button>
+                <button type="button" onClick={() => { setShowForm(false); setEditingCar(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
+                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">{editingCar ? 'Modifier' : 'Enregistrer'}</button>
               </div>
             </form>
           </div>

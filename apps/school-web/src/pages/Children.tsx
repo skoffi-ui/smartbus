@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Edit, Trash2, User, Key, Download, Search, CheckSquare, Square, ChevronRight } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, User, Key, Download, Search, CheckSquare, Square, ChevronRight, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react';
 import './Children.css';
 import { GATEWAY_URL } from '../config';
 
@@ -13,8 +13,9 @@ export default function Children() {
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({ 
-    firstName: '', lastName: '', className: '', empCode: '', parentId: '' 
+  const [editingChild, setEditingChild] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    firstName: '', lastName: '', className: '', empCode: '', parentId: ''
   });
 
   // Import Modal states
@@ -23,6 +24,10 @@ export default function Children() {
   const [importSearch, setImportSearch] = useState('');
   const [selectedEmpCodes, setSelectedEmpCodes] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
+
+  // Search and filter
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'complete' | 'incomplete'>('all');
 
   const fetchData = async () => {
     try {
@@ -104,9 +109,14 @@ export default function Children() {
       const payload = { ...formData };
       if (!payload.empCode) delete (payload as any).empCode;
       if (!payload.parentId) delete (payload as any).parentId;
-      
-      const res = await fetch(`${GATEWAY_URL}/api/v1/children`, {
-        method: 'POST',
+
+      const url = editingChild
+        ? `${GATEWAY_URL}/api/v1/children/${editingChild.id}`
+        : `${GATEWAY_URL}/api/v1/children`;
+      const method = editingChild ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -115,6 +125,7 @@ export default function Children() {
       });
       if (res.ok) {
         setShowModal(false);
+        setEditingChild(null);
         setFormData({ firstName: '', lastName: '', className: '', empCode: '', parentId: '' });
         fetchData();
       } else {
@@ -124,6 +135,18 @@ export default function Children() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleEdit = (child: any) => {
+    setEditingChild(child);
+    setFormData({
+      firstName: child.firstName,
+      lastName: child.lastName,
+      className: child.className || '',
+      empCode: child.empCode || '',
+      parentId: child.parentId || ''
+    });
+    setShowModal(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -140,22 +163,110 @@ export default function Children() {
     }
   };
 
+  // Filtrage des élèves
+  const filteredChildren = children.filter(child => {
+    const matchesSearch = searchQuery === '' ||
+      `${child.firstName} ${child.lastName} ${child.className || ''} ${child.empCode || ''}`
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+
+    const hasBadge = !!child.empCode;
+    const hasParent = !!child.parent;
+    const isComplete = hasBadge && hasParent;
+
+    const matchesFilter =
+      filterStatus === 'all' ||
+      (filterStatus === 'complete' && isComplete) ||
+      (filterStatus === 'incomplete' && !isComplete);
+
+    return matchesSearch && matchesFilter;
+  });
+
+  // Statistiques pour les filtres
+  const completeCount = children.filter(c => c.empCode && c.parent).length;
+  const incompleteCount = children.length - completeCount;
+
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-6" style={{ gap: '5px', flexWrap: 'wrap' }}>
-        <div style={{ marginRight: 'auto' }}>
-          <h1 className="text-2xl font-bold text-slate-800">Gestion des Élèves</h1>
-          <p className="text-slate-500 mt-1">Gérez les enfants, liez-les aux parents et aux cartes BioTime.</p>
+      <div className="flex justify-between items-start mb-6" style={{ gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ flex: 1 }}>
+          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+            <Users className="text-blue-600" size={32} />
+            Gestion des Élèves
+          </h1>
+          <p className="text-slate-500 mt-2 flex items-center gap-2 flex-wrap">
+            <span>Gérez les élèves, liez-les aux parents et aux cartes BioTime.</span>
+            {!loading && children.length > 0 && (
+              <span className="text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700">
+                {children.length} inscrit{children.length > 1 ? 's' : ''}
+              </span>
+            )}
+          </p>
         </div>
-        <div className="flex" style={{ gap: '5px', flexWrap: 'wrap' }}>
+        <div className="flex items-center gap-2">
           <button onClick={handleOpenImportModal} className="btn btn-secondary flex items-center gap-2">
-            <Download size={18} /> Importer depuis BioTime
+            <Download size={18} /> Importer
           </button>
           <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center gap-2">
-            <Plus size={18} /> Inscrire un Élève
+            <Plus size={18} /> Nouvel Élève
           </button>
         </div>
       </div>
+
+      {/* Barre de recherche et filtres */}
+      {!loading && children.length > 0 && (
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[280px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Rechercher un élève par nom, classe ou badge..."
+              className="w-full pl-10 pr-24 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {(searchQuery || filterStatus !== 'all') && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                {filteredChildren.length} résultat{filteredChildren.length > 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setFilterStatus('all')}
+              className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
+                filterStatus === 'all'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Tous ({children.length})
+            </button>
+            <button
+              onClick={() => setFilterStatus('complete')}
+              className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
+                filterStatus === 'complete'
+                  ? 'bg-green-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <CheckCircle2 size={16} />
+              Complets ({completeCount})
+            </button>
+            <button
+              onClick={() => setFilterStatus('incomplete')}
+              className={`px-4 py-2.5 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
+                filterStatus === 'incomplete'
+                  ? 'bg-orange-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <AlertCircle size={16} />
+              Incomplets ({incompleteCount})
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
@@ -177,53 +288,111 @@ export default function Children() {
             </button>
           </div>
         </div>
+      ) : filteredChildren.length === 0 ? (
+        <div className="glass-panel p-12 text-center">
+          <Search size={48} className="mx-auto mb-4 text-gray-300" />
+          <h3 className="text-xl font-bold text-gray-700 mb-2">Aucun élève trouvé</h3>
+          <p className="text-gray-500">
+            {searchQuery
+              ? 'Aucun élève ne correspond à votre recherche.'
+              : 'Aucun élève ne correspond aux filtres sélectionnés.'}
+          </p>
+        </div>
       ) : (
         <div className="children-grid">
-          {children.map(child => (
-            <div key={child.id} className="child-card">
-              <div className="child-card-header">
-                <div className="child-avatar">
-                  {child.photoUrl ? (
-                    <img src={child.photoUrl} alt="avatar" />
-                  ) : (
-                    <User size={30} className="text-slate-300" />
-                  )}
-                </div>
-                <div className="child-info">
-                  <h3 className="child-name">{child.firstName} {child.lastName}</h3>
-                  <span className="child-class-badge">{child.className || 'Sans Classe'}</span>
-                </div>
-              </div>
-              
-              <div className="child-card-body">
-                <div className="child-detail-row">
-                  <Key size={16} className="child-detail-icon" />
-                  {child.empCode ? (
-                    <span className="text-emerald-600 font-mono font-medium bg-emerald-50 px-2 py-0.5 rounded">Badge #{child.empCode}</span>
-                  ) : (
-                    <span className="italic">Aucun badge assigné</span>
-                  )}
-                </div>
-                <div className="child-detail-row">
-                  <Users size={16} className="child-detail-icon" />
-                  {child.parent ? (
-                    <span>Parent : {child.parent.firstName} {child.parent.lastName}</span>
-                  ) : (
-                    <span className="italic">Aucun parent assigné</span>
-                  )}
-                </div>
-              </div>
+          {filteredChildren.map(child => {
+            const hasBadge = !!child.empCode;
+            const hasParent = !!child.parent;
+            const isComplete = hasBadge && hasParent;
 
-              <div className="child-card-footer">
-                <button onClick={() => navigate(`/children/${child.id}`)} className="btn-profile">
-                  Voir Profil <ChevronRight size={16} />
-                </button>
-                <button onClick={() => handleDelete(child.id)} className="btn-icon-danger" title="Supprimer l'élève">
-                  <Trash2 size={18} />
-                </button>
+            return (
+              <div key={child.id} className="child-card">
+                {/* Status Badge en haut à droite */}
+                <div className="child-status-indicator">
+                  {isComplete ? (
+                    <div className="status-badge status-complete">
+                      <CheckCircle2 size={14} />
+                      <span>Complet</span>
+                    </div>
+                  ) : (
+                    <div className="status-badge status-incomplete">
+                      <AlertCircle size={14} />
+                      <span>Incomplet</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="child-card-header">
+                  <div className="child-avatar">
+                    {child.photoUrl ? (
+                      <img src={child.photoUrl} alt="avatar" />
+                    ) : (
+                      <User size={32} className="text-slate-300" />
+                    )}
+                  </div>
+                  <div className="child-info">
+                    <h3 className="child-name">{child.firstName} {child.lastName}</h3>
+                    <span className="child-class-badge">{child.className || 'Sans Classe'}</span>
+                  </div>
+                </div>
+
+                <div className="child-card-body">
+                  {/* Badge Status */}
+                  <div className="info-item">
+                    <div className="info-item-header">
+                      <Key size={16} className={hasBadge ? 'text-emerald-600' : 'text-gray-400'} />
+                      <span className="info-item-label">Badge</span>
+                    </div>
+                    {hasBadge ? (
+                      <div className="info-badge info-badge-success">
+                        <CheckCircle2 size={14} />
+                        <span className="font-mono">#{child.empCode}</span>
+                      </div>
+                    ) : (
+                      <div className="info-badge info-badge-empty">
+                        <AlertCircle size={14} />
+                        <span>Non assigné</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Parent Status */}
+                  <div className="info-item">
+                    <div className="info-item-header">
+                      <UserCheck size={16} className={hasParent ? 'text-blue-600' : 'text-gray-400'} />
+                      <span className="info-item-label">Parent</span>
+                    </div>
+                    {hasParent ? (
+                      <div className="info-badge info-badge-primary">
+                        <CheckCircle2 size={14} />
+                        <span>{child.parent.firstName} {child.parent.lastName}</span>
+                      </div>
+                    ) : (
+                      <div className="info-badge info-badge-empty">
+                        <AlertCircle size={14} />
+                        <span>Non assigné</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="child-card-footer">
+                  <button onClick={() => navigate(`/children/${child.id}`)} className="btn-profile">
+                    Profil
+                    <ChevronRight size={16} />
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => handleEdit(child)} className="btn-icon-primary" title="Modifier l'élève">
+                      <Edit size={18} />
+                    </button>
+                    <button onClick={() => handleDelete(child.id)} className="btn-icon-danger" title="Supprimer l'élève">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -239,8 +408,8 @@ export default function Children() {
                 <Users size={20} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-800">Inscrire un Élève</h2>
-                <p className="text-xs text-slate-500 mt-1">Saisissez les informations de l'élève.</p>
+                <h2 className="text-xl font-bold text-slate-800">{editingChild ? 'Modifier l\'Élève' : 'Inscrire un Élève'}</h2>
+                <p className="text-xs text-slate-500 mt-1">{editingChild ? 'Modifiez les informations de l\'élève.' : 'Saisissez les informations de l\'élève.'}</p>
               </div>
             </div>
             
@@ -294,8 +463,8 @@ export default function Children() {
               </div>
 
               <div className="premium-modal-footer">
-                <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
-                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">Enregistrer</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditingChild(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
+                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">{editingChild ? 'Modifier' : 'Enregistrer'}</button>
               </div>
             </form>
           </div>

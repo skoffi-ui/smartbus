@@ -10,6 +10,7 @@ export default function Parents() {
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
+  const [editingParent, setEditingParent] = useState<any>(null);
   const [formData, setFormData] = useState({ firstName: '', lastName: '', phone: '', email: '' });
 
   const fetchParents = async () => {
@@ -37,8 +38,13 @@ export default function Parents() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('accessToken');
-      const res = await fetch(`${GATEWAY_URL}/api/v1/parents`, {
-        method: 'POST',
+      const url = editingParent
+        ? `${GATEWAY_URL}/api/v1/parents/${editingParent.id}`
+        : `${GATEWAY_URL}/api/v1/parents`;
+      const method = editingParent ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -47,6 +53,7 @@ export default function Parents() {
       });
       if (res.ok) {
         setShowModal(false);
+        setEditingParent(null);
         setFormData({ firstName: '', lastName: '', phone: '', email: '' });
         fetchParents();
       } else {
@@ -56,6 +63,17 @@ export default function Parents() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleEdit = (parent: any) => {
+    setEditingParent(parent);
+    setFormData({
+      firstName: parent.firstName,
+      lastName: parent.lastName,
+      phone: parent.phone,
+      email: parent.email || ''
+    });
+    setShowModal(true);
   };
 
   const handleDelete = async (id: string) => {
@@ -144,9 +162,14 @@ export default function Parents() {
                       </span>
                     </td>
                     <td className="text-right">
-                      <button onClick={() => handleDelete(parent.id)} className="btn-icon-danger" title="Supprimer">
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleEdit(parent)} className="btn-icon-primary" title="Modifier">
+                          <Edit size={14} />
+                        </button>
+                        <button onClick={() => handleDelete(parent.id)} className="btn-icon-danger" title="Supprimer">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -168,8 +191,8 @@ export default function Parents() {
                 <Users size={24} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-800">Nouveau Parent</h2>
-                <p className="text-xs text-slate-500 mt-1">Saisissez les informations du contact.</p>
+                <h2 className="text-xl font-bold text-slate-800">{editingParent ? 'Modifier le Parent' : 'Nouveau Parent'}</h2>
+                <p className="text-xs text-slate-500 mt-1">{editingParent ? 'Modifiez les informations du contact.' : 'Saisissez les informations du contact.'}</p>
               </div>
             </div>
             
@@ -209,8 +232,8 @@ export default function Parents() {
               </div>
               
               <div className="premium-modal-footer">
-                <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
-                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">Enregistrer</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditingParent(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
+                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">{editingParent ? 'Modifier' : 'Enregistrer'}</button>
               </div>
             </form>
           </div>

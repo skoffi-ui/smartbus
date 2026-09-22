@@ -70,7 +70,7 @@ export default function AlertesTransport() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <AlertTriangle className="text-red-600" size={32} />
             Alertes &amp; Anomalies
           </h1>
@@ -82,14 +82,14 @@ export default function AlertesTransport() {
         <button
           onClick={charger}
           disabled={chargement}
-          className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 disabled:opacity-50"
+          className="flex items-center gap-2 text-sm font-medium text-blue-600 disabled:opacity-50"
         >
           <RefreshCw size={15} className={chargement ? 'animate-spin' : ''} /> Actualiser
         </button>
       </div>
 
       {erreur && (
-        <div className="mb-6 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-700 dark:text-red-300">
+        <div className="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
           {erreur}
         </div>
       )}
@@ -97,7 +97,7 @@ export default function AlertesTransport() {
       {/* Filtres, affichés seulement s'il y a de quoi filtrer */}
       {types.length > 1 && (
         <div className="mb-6 flex flex-wrap items-center gap-2">
-          <span className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 mr-1">
+          <span className="flex items-center gap-1.5 text-sm text-gray-500 mr-1">
             <Filter size={14} /> Type
           </span>
           {['toutes', ...types].map((t) => (
@@ -107,7 +107,7 @@ export default function AlertesTransport() {
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
                 typeFiltre === t
                   ? 'bg-blue-600 border-blue-600 text-white'
-                  : 'bg-transparent border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  : 'bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50
               }`}
             >
               {t === 'toutes' ? `Toutes (${alertes.length})` : libelle(t)}
@@ -117,21 +117,21 @@ export default function AlertesTransport() {
       )}
 
       {chargement && (
-        <p className="text-center text-gray-500 dark:text-gray-400 py-10">
+        <p className="text-center text-gray-500 py-10">
           Chargement des anomalies…
         </p>
       )}
 
       {/* Aucune anomalie : c'est une bonne nouvelle, et on explique ce qui les produit */}
       {!chargement && alertes.length === 0 && !erreur && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-10 text-center">
-          <div className="inline-flex p-3 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
+          <div className="inline-flex p-3 rounded-full bg-green-100 text-green-600 mb-4">
             <ShieldCheck size={28} />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">
             Aucune anomalie enregistrée
           </h2>
-          <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+          <p className="text-gray-500 max-w-md mx-auto">
             Une anomalie apparaît ici lorsqu'un élève badge dans un bus qui n'est pas le sien, à un
             arrêt qui n'est pas le sien, sans course active, ou trop loin de son arrêt. Tant
             qu'aucun badgeage n'a été refusé, cette page reste vide.
@@ -140,7 +140,7 @@ export default function AlertesTransport() {
       )}
 
       {!chargement && alertes.length > 0 && visibles.length === 0 && (
-        <p className="text-center text-gray-500 dark:text-gray-400 py-10">
+        <p className="text-center text-gray-500 py-10">
           Aucune anomalie de ce type.
         </p>
       )}
@@ -151,15 +151,15 @@ export default function AlertesTransport() {
           return (
             <div
               key={alerte.id ?? idx}
-              className={`bg-white dark:bg-gray-800 p-5 rounded-xl shadow-sm border-l-4 flex items-start gap-4 ${
+              className={`bg-white p-5 rounded-xl shadow-sm border-l-4 flex items-start gap-4 ${
                 haute ? 'border-red-500' : 'border-amber-500'
               }`}
             >
               <div
                 className={`p-2 rounded-full mt-1 ${
                   haute
-                    ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                    ? 'bg-red-100 text-red-600
+                    : 'bg-amber-100 text-amber-600
                 }`}
               >
                 <AlertTriangle size={24} />
@@ -167,7 +167,7 @@ export default function AlertesTransport() {
 
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap justify-between items-start gap-2 mb-1">
-                  <h3 className="font-bold text-gray-900 dark:text-white text-lg">
+                  <h3 className="font-bold text-gray-900 text-lg">
                     {libelle(alerte.type)}
                   </h3>
                   {(alerte.date || alerte.heure) && (
@@ -179,23 +179,23 @@ export default function AlertesTransport() {
                   )}
                 </div>
 
-                <p className="text-gray-700 dark:text-gray-300 mb-3">
+                <p className="text-gray-700 mb-3">
                   {alerte.description ?? alerte.message ?? 'Aucun détail enregistré.'}
                 </p>
 
                 <div className="flex flex-wrap gap-2 text-sm">
                   {alerte.child && (
-                    <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 flex items-center gap-1">
+                    <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-600 flex items-center gap-1">
                       <User size={14} /> {alerte.child.firstName} {alerte.child.lastName}
                     </span>
                   )}
                   {alerte.course?.nom && (
-                    <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 flex items-center gap-1">
+                    <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-600 flex items-center gap-1">
                       <Bus size={14} /> {alerte.course.nom}
                     </span>
                   )}
                   {alerte.car?.plateNumber && (
-                    <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300">
+                    <span className="px-3 py-1 bg-gray-100 rounded-full text-gray-600">
                       {alerte.car.plateNumber}
                     </span>
                   )}

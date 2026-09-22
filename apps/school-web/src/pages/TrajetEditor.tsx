@@ -410,7 +410,29 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
   }, [map, readOnly]);
 
   useEffect(() => {
-    if (!routingControlRef.current || !waypoints) return;
+    console.log('🔄 useEffect waypoints déclenché. waypoints:', waypoints?.length, 'routingControl:', !!routingControlRef.current);
+
+    // Si le RoutingControl n'est pas encore créé, attendre un peu puis réessayer
+    if (!routingControlRef.current) {
+      console.log('⚠️ RoutingControl pas encore créé, on attend...');
+      const timeout = setTimeout(() => {
+        if (routingControlRef.current && waypoints && waypoints.length > 0) {
+          console.log('🔄 RoutingControl maintenant disponible, application des waypoints');
+          try {
+            routingControlRef.current.setWaypoints(waypoints);
+          } catch (err) {
+            console.error('❌ Erreur lors de la mise à jour des waypoints (retry)', err);
+          }
+        }
+      }, 100);
+      return () => clearTimeout(timeout);
+    }
+
+    if (!waypoints || waypoints.length === 0) {
+      console.log('🗑️ Effacement des waypoints du RoutingMachine');
+      routingControlRef.current.setWaypoints([]);
+      return;
+    }
 
     try {
       // Ne rien pousser si le contrôle a déjà exactement ces points.
@@ -425,16 +447,25 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
         .map((w: any) => w.latLng)
         .filter(Boolean);
 
+      console.log('📊 Waypoints actuels dans le contrôle:', actuels.length);
+      console.log('📊 Nouveaux waypoints à appliquer:', waypoints.length);
+
       const identiques =
         actuels.length === waypoints.length &&
         waypoints.every((wp: any, i: number) =>
+          actuels[i] &&
           Math.abs(actuels[i].lat - Number(wp.lat)) < 1e-6 &&
           Math.abs(actuels[i].lng - Number(wp.lng)) < 1e-6,
         );
 
-      if (!identiques) routingControlRef.current.setWaypoints(waypoints);
+      if (!identiques) {
+        console.log('✅ Mise à jour des waypoints dans le RoutingMachine');
+        routingControlRef.current.setWaypoints(waypoints);
+      } else {
+        console.log('✓ Waypoints identiques, pas de mise à jour');
+      }
     } catch (err) {
-      console.error('Erreur lors de la mise à jour des waypoints', err);
+      console.error('❌ Erreur lors de la mise à jour des waypoints', err);
     }
   }, [waypoints]);
 
@@ -485,6 +516,10 @@ export default function TrajetEditor() {
   const [trajets, setTrajets] = useState<any[]>([]);
   const [selectedTrajetId, setSelectedTrajetId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ nom: '', description: '', sens: 'aller' });
+
+  // États pour le loader
+  const [loadingTrajet, setLoadingTrajet] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   const [waypoints, setWaypoints] = useState<any[]>([]);
   const [pointsRecup, setPointsRecup] = useState<PointRecup[]>([]);
@@ -587,6 +622,8 @@ export default function TrajetEditor() {
   // Synchroniser les waypoints avec pointsRecup pour que les marqueurs s'affichent correctement
   // Vérification d'égalité pour éviter les boucles infinies et les re-renders inutiles
   useEffect(() => {
+    console.log('🔄 Synchronisation pointsRecup → waypoints. Points:', pointsRecup.length);
+
     const newWaypoints = pointsRecup.map(p => ({
       lat: Number(p.latitude),
       lng: Number(p.longitude)
@@ -601,7 +638,10 @@ export default function TrajetEditor() {
       );
 
     if (!areEqual) {
+      console.log('✅ Mise à jour des waypoints (pointsRecup → waypoints)');
       setWaypoints(newWaypoints);
+    } else {
+      console.log('✓ Waypoints déjà à jour');
     }
   }, [pointsRecup]); // Ne pas inclure waypoints dans les dépendances pour éviter la boucle
 
@@ -622,6 +662,12 @@ export default function TrajetEditor() {
   };
 
   const handleSelectTrajet = async (trajet: any) => {
+    console.log('🎯 Sélection du trajet:', trajet.nom, 'ID:', trajet.id);
+
+    // Activer le loader
+    setLoadingTrajet(true);
+    setLoadingMessage('Chargement des points...');
+
     setSelectedTrajetId(trajet.id);
     setFormData({ nom: trajet.nom, description: trajet.description || '', sens: trajet.sens || 'aller' });
     setDistanceKm(trajet.distanceKm || 0);
@@ -629,31 +675,55 @@ export default function TrajetEditor() {
     setGeoJson(trajet.geoJson || null);
 
     try {
+      // ⚡ ÉTAPE 1 : Charger les points (rapide)
       const points = await getPoints(trajet.id);
-      const pointsWithAffectations = await Promise.all(
-        points.map(async (p: any, index: number) => {
-          try {
-            const affectations = await getAffectationsByPoint(p.id);
-            const type = p.type || (index === 0 ? 'depart' : (index === points.length - 1 ? 'arrivee' : 'arret'));
-            return { ...p, affectations, type };
-          } catch {
-            const type = p.type || (index === 0 ? 'depart' : (index === points.length - 1 ? 'arrivee' : 'arret'));
-            return { ...p, affectations: [], type };
-          }
-        })
-      );
-      setPointsRecup(pointsWithAffectations);
+      console.log('📍 Points chargés:', points.length, 'points');
 
-      // CORRECTION : Reconstruire les waypoints à partir des points chargés
-      const reconstructedWaypoints = pointsWithAffectations.map((p: any) => ({
-        lat: Number(p.latitude),
-        lng: Number(p.longitude)
+      // ⚡ AFFICHAGE IMMÉDIAT : Créer les points sans affectations pour un affichage instantané
+      const quickPoints = points.map((p: any, index: number) => {
+        const type = p.type || (index === 0 ? 'depart' : (index === points.length - 1 ? 'arrivee' : 'arret'));
+        return {
+          ...p,
+          type,
+          affectations: [] // Vide temporairement pour affichage rapide
+        };
+      });
+
+      // ✅ AFFICHER LES POINTS IMMÉDIATEMENT (sans attendre les affectations)
+      // Les waypoints seront automatiquement mis à jour via le useEffect de synchronisation
+      setPointsRecup(quickPoints);
+      setLoadingMessage('Calcul de l\'itinéraire...');
+
+      console.log('🗺️ Points définis, waypoints seront synchronisés automatiquement');
+
+      // ⏳ ÉTAPE 2 : Charger les affectations en arrière-plan
+      setLoadingMessage('Chargement des affectations...');
+
+      const affectationsResults = await Promise.allSettled(
+        points.map((p: any) => getAffectationsByPoint(p.id))
+      );
+
+      // ✅ METTRE À JOUR AVEC LES AFFECTATIONS
+      const pointsWithAffectations = quickPoints.map((p: any, index: number) => ({
+        ...p,
+        affectations: affectationsResults[index].status === 'fulfilled'
+          ? affectationsResults[index].value
+          : []
       }));
-      setWaypoints(reconstructedWaypoints);
+
+      setPointsRecup(pointsWithAffectations);
+      console.log('✅ Affectations chargées');
+
     } catch (err) {
-      console.error('Load points failed', err);
+      console.error('❌ Load points failed', err);
       setPointsRecup([]);
       setWaypoints([]);
+    } finally {
+      // Désactiver le loader après un court délai (pour laisser le temps à OSRM de calculer)
+      setTimeout(() => {
+        setLoadingTrajet(false);
+        setLoadingMessage('');
+      }, 800); // 800ms pour laisser OSRM terminer
     }
   };
 
@@ -710,6 +780,7 @@ export default function TrajetEditor() {
     }
 
     setIsSaving(true);
+    setLoadingMessage('Sauvegarde du trajet...');
 
     // Nettoyer et valider les waypoints
     const cleanWaypoints = waypoints.map(wp => {
@@ -756,6 +827,8 @@ export default function TrajetEditor() {
       }
 
       if (trajetId) {
+        setLoadingMessage('Sauvegarde des points...');
+
         const currentPointIds = pointsRecup.filter(p => p.id).map(p => p.id);
         const existingPoints = await getPoints(trajetId);
         for (const oldPoint of existingPoints) {
@@ -765,7 +838,12 @@ export default function TrajetEditor() {
         }
 
         const updatedPoints = [];
-        for (const point of pointsRecup) {
+        const totalPoints = pointsRecup.length;
+
+        for (let i = 0; i < pointsRecup.length; i++) {
+          const point = pointsRecup[i];
+          setLoadingMessage(`Sauvegarde des points... (${i + 1}/${totalPoints})`);
+
           const pointPayload = {
             trajetId,
             nom: point.nom || `Point ${point.ordrePassage}`,
@@ -798,6 +876,7 @@ export default function TrajetEditor() {
         setWaypoints(syncedWaypoints);
       }
 
+      setLoadingMessage('');
       alert('Trajet et points sauvegardés avec succès !');
     } catch (err: any) {
       console.error('Erreur complète:', err);
@@ -806,6 +885,7 @@ export default function TrajetEditor() {
       alert('Erreur lors de la sauvegarde:\n' + errorMessage);
     } finally {
       setIsSaving(false);
+      setLoadingMessage('');
     }
   };
 
@@ -1157,7 +1237,6 @@ export default function TrajetEditor() {
 
             <div className="flex-1 relative z-0">
               <MapContainer
-                key={selectedTrajetId || 'new'}
                 center={ABIDJAN}
                 zoom={13}
                 style={{ height: '100%', width: '100%' }}
@@ -1186,6 +1265,34 @@ export default function TrajetEditor() {
                   readOnly={false}
                 />
               </MapContainer>
+
+              {/* Loader pendant le chargement ou la sauvegarde */}
+              {(loadingTrajet || isSaving) && (
+                <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50">
+                  <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 border border-slate-200">
+                    {/* Spinner */}
+                    <div className="relative">
+                      <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200"></div>
+                      <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-600 border-t-transparent absolute top-0"></div>
+                    </div>
+
+                    {/* Message */}
+                    <div className="text-center">
+                      <p className="text-lg font-semibold text-slate-800 mb-1">
+                        {isSaving ? 'Sauvegarde en cours' : 'Chargement du trajet'}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        {loadingMessage || 'Veuillez patienter...'}
+                      </p>
+                    </div>
+
+                    {/* Barre de progression animée */}
+                    <div className="w-48 h-1 bg-slate-200 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 animate-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

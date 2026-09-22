@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Bus, Users, LogOut, Settings, Sun, Moon, Map, MapPin, ListOrdered, CheckSquare, History, AlertTriangle, Shield } from 'lucide-react';
+import { LayoutDashboard, Bus, Users, LogOut, Settings, Map, MapPin, ListOrdered, CheckSquare, AlertTriangle, Shield } from 'lucide-react';
 import { socketService } from '../services/socket.service';
 
 interface LayoutProps {
@@ -20,22 +20,15 @@ export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const margeSousBandeau = PAGES_SANS_MARGE_SOUS_BANDEAU.includes(location.pathname) ? 0 : '2rem';
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
+  // Forcer le thème light et nettoyer les anciennes préférences
   useEffect(() => {
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
-  };
+    document.documentElement.classList.remove('dark');
+    localStorage.removeItem('theme');
+  }, []);
 
   const handleLogout = () => {
+    if (!confirm('Voulez-vous vraiment vous déconnecter ?')) return;
     localStorage.removeItem('accessToken');
     navigate('/login');
   };
@@ -60,10 +53,8 @@ export default function Layout({ children }: LayoutProps) {
     // Nouveaux menus Transport Scolaire
     { name: 'Courses', path: '/courses', icon: Bus },
     { name: 'Trajets', path: '/trajets', icon: Map },
-    { name: 'Points de récupération', path: '/points', icon: MapPin },
     { name: 'Affectation des élèves', path: '/affectation', icon: ListOrdered },
     { name: 'Suivi des montées', path: '/suivi', icon: CheckSquare },
-    { name: 'Historique', path: '/historique', icon: History },
     { name: 'Alertes', path: '/alertes', icon: AlertTriangle },
     { name: 'Centre d\'Alertes', path: '/centre-alertes', icon: Shield, badge: criticalCount },
   ];
@@ -71,12 +62,17 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="flex" style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
       {/* Sidebar */}
-      <aside className="glass-panel" style={{ 
-        width: '260px', 
-        borderRadius: 0, 
+      <aside className="glass-panel" style={{
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        width: '260px',
+        height: '100vh',
+        borderRadius: 0,
         borderRight: '1px solid var(--glass-border)',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        zIndex: 100
       }}>
         <div style={{ padding: '2rem 1.5rem', borderBottom: '1px solid var(--glass-border)' }}>
           <h1 className="text-xl text-accent" style={{ fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -86,19 +82,19 @@ export default function Layout({ children }: LayoutProps) {
           <p className="text-sm text-secondary mt-1">Espace École</p>
         </div>
 
-        <nav style={{ flex: 1, padding: '1.5rem 1rem' }}>
+        <nav className="sidebar-nav" style={{ flex: 1, padding: '1.5rem 1rem' }}>
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {navItems.map((item) => {
               const Icon = item.icon;
               return (
                 <li key={item.path}>
-                  <NavLink 
+                  <NavLink
                     to={item.path}
                     style={({ isActive }) => ({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.75rem',
-                      padding: '0.75rem 1rem',
+                      padding: '10px 10px',
                       borderRadius: 'var(--radius-md)',
                       color: isActive ? 'white' : 'var(--text-secondary)',
                       background: isActive ? 'var(--accent-primary)' : 'transparent',
@@ -131,11 +127,8 @@ export default function Layout({ children }: LayoutProps) {
       </aside>
 
       {/* Main Content */}
-      <main style={{ flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column' }}>
+      <main style={{ flex: 1, marginLeft: '260px', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
         <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: margeSousBandeau, gap: '1rem' }}>
-          <button onClick={toggleTheme} className="glass-panel" style={{ padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', border: 'none', background: 'var(--bg-glass)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Changer le thème">
-            {theme === 'dark' ? <Sun size={20} style={{ color: '#fbbf24' }} /> : <Moon size={20} style={{ color: '#4f46e5' }} />}
-          </button>
           <div className="glass-panel" style={{ padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Settings size={20} className="text-secondary" />
           </div>
