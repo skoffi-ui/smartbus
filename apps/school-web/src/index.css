@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
 
 /*
  * Tailwind est déclaré ICI, tout en haut, volontairement.
@@ -32,7 +32,7 @@
   --warning: #f59e0b;
   
   /* Typography */
-  --font-sans: 'Inter', sans-serif;
+  --font-sans: 'Poppins', sans-serif;
   
   /* Borders & Shadows */
   --radius-md: 0.5rem;
@@ -551,7 +551,7 @@ body {
   width: 95%; 
   height: 100%;
   background: transparent;
-  font-family: 'Inter', sans-serif; /* Belle police */
+  font-family: var(--font-sans);
   font-size: 14px;
   color: #1e293b;
 }

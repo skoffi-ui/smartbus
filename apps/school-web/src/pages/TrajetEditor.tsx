@@ -33,6 +33,18 @@ function routage(): any {
 
 type MarkerType = 'depart' | 'arret' | 'arrivee';
 
+/**
+ * Apparence des points sur la carte : une lettre et une couleur par nature.
+ *
+ * Source unique pour les marqueurs et pour la légende sous la carte, afin que
+ * les deux ne puissent pas diverger au fil des retouches.
+ */
+const MARQUEURS: Record<MarkerType, { lettre: string; couleur: string; libelle: string }> = {
+  depart:  { lettre: 'D', couleur: '#10B981', libelle: 'Départ' },
+  arret:   { lettre: 'A', couleur: '#3B82F6', libelle: 'Arrêt' },
+  arrivee: { lettre: 'F', couleur: '#EF4444', libelle: 'Fin / Arrivée' },
+};
+
 // Composant pour gérer le curseur dynamique de la carte
 function MapCursorController({ cursorType }: { cursorType: MarkerType | null }) {
   const map = useMap();
@@ -178,6 +190,15 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
   const map = useMap();
   const routingControlRef = useRef<any>(null);
 
+  // `createMarker` est une fermeture construite une seule fois, à l'initialisation
+  // du contrôle : elle capturerait les valeurs de ce premier rendu, quand aucun
+  // point n'existe encore. Tous les marqueurs retomberaient alors sur le type par
+  // défaut. Ces références lui donnent accès aux valeurs courantes.
+  const pointsTypesRef = useRef<MarkerType[]>(pointsTypes || []);
+  const highlightedRef = useRef<number | null>(highlightedIndex ?? null);
+  useEffect(() => { pointsTypesRef.current = pointsTypes || []; }, [pointsTypes]);
+  useEffect(() => { highlightedRef.current = highlightedIndex ?? null; }, [highlightedIndex]);
+
   useEffect(() => {
     if (!map) return;
     let annule = false;
@@ -223,9 +244,10 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
             styles: [{ color: '#94a3b8', weight: 5, opacity: 0.6 }]
           },
           createMarker: function(i: number, wp: any) {
-            const pointType = pointsTypes && pointsTypes[i] ? pointsTypes[i] : 'arret';
+            const typesCourants = pointsTypesRef.current;
+            const pointType = typesCourants && typesCourants[i] ? typesCourants[i] : 'arret';
 
-            const isHighlighted = highlightedIndex === i;
+            const isHighlighted = highlightedRef.current === i;
             const pulseAnimation = isHighlighted ? `
               @keyframes marker-pulse {
                 0%, 100% {
@@ -239,98 +261,44 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
               }
             ` : '';
 
-            let iconConfig: L.DivIconOptions;
-            if (pointType === 'depart') {
-              iconConfig = {
-                html: `
-                  <style>${pulseAnimation}</style>
-                  <div style="position: relative; width: 40px; height: 40px;">
-                    <div style="
-                      width: 40px;
-                      height: 40px;
-                      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-                      border-radius: 50% 50% 50% 0;
-                      transform: rotate(-45deg);
-                      border: 3px solid ${isHighlighted ? '#ffc107' : 'white'};
-                      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      ${isHighlighted ? 'animation: marker-pulse 1.5s ease-in-out infinite;' : ''}
-                    ">
-                      <span style="
-                        transform: rotate(45deg);
-                        font-size: 20px;
-                        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-                      ">🚀</span>
-                    </div>
+            // Design retenu : une lettre par nature de point, sur la couleur associée.
+            // Les trois variantes étaient auparavant trois blocs de code quasi
+            // identiques ne différant que par l'emoji et la teinte.
+            const { lettre, couleur } = MARQUEURS[pointType as MarkerType] ?? MARQUEURS.arret;
+
+            const iconConfig: L.DivIconOptions = {
+              html: `
+                <style>${pulseAnimation}</style>
+                <div style="position: relative; width: 40px; height: 40px;">
+                  <div style="
+                    width: 40px;
+                    height: 40px;
+                    background: ${couleur};
+                    border-radius: 50% 50% 50% 0;
+                    transform: rotate(-45deg);
+                    border: 3px solid ${isHighlighted ? '#ffc107' : 'white'};
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    ${isHighlighted ? 'animation: marker-pulse 1.5s ease-in-out infinite;' : ''}
+                  ">
+                    <span style="
+                      transform: rotate(45deg);
+                      font-family: 'Poppins', sans-serif;
+                      font-size: 17px;
+                      font-weight: 700;
+                      line-height: 1;
+                      color: white;
+                      text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+                    ">${lettre}</span>
                   </div>
-                `,
-                className: '',
-                iconSize: [40, 40] as [number, number],
-                iconAnchor: [20, 40] as [number, number]
-              };
-            } else if (pointType === 'arrivee') {
-              iconConfig = {
-                html: `
-                  <style>${pulseAnimation}</style>
-                  <div style="position: relative; width: 40px; height: 40px;">
-                    <div style="
-                      width: 40px;
-                      height: 40px;
-                      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-                      border-radius: 50% 50% 50% 0;
-                      transform: rotate(-45deg);
-                      border: 3px solid ${isHighlighted ? '#ffc107' : 'white'};
-                      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      ${isHighlighted ? 'animation: marker-pulse 1.5s ease-in-out infinite;' : ''}
-                    ">
-                      <span style="
-                        transform: rotate(45deg);
-                        font-size: 20px;
-                        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-                      ">🎯</span>
-                    </div>
-                  </div>
-                `,
-                className: '',
-                iconSize: [40, 40] as [number, number],
-                iconAnchor: [20, 40] as [number, number]
-              };
-            } else {
-              iconConfig = {
-                html: `
-                  <style>${pulseAnimation}</style>
-                  <div style="position: relative; width: 40px; height: 40px;">
-                    <div style="
-                      width: 40px;
-                      height: 40px;
-                      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-                      border-radius: 50% 50% 50% 0;
-                      transform: rotate(-45deg);
-                      border: 3px solid ${isHighlighted ? '#ffc107' : 'white'};
-                      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      ${isHighlighted ? 'animation: marker-pulse 1.5s ease-in-out infinite;' : ''}
-                    ">
-                      <span style="
-                        transform: rotate(45deg);
-                        font-size: 20px;
-                        filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
-                      ">📍</span>
-                    </div>
-                  </div>
-                `,
-                className: '',
-                iconSize: [40, 40] as [number, number],
-                iconAnchor: [20, 40] as [number, number]
-              };
-            }
+                </div>
+              `,
+              className: '',
+              iconSize: [40, 40] as [number, number],
+              iconAnchor: [20, 40] as [number, number]
+            };
 
             const marker = L.marker(wp.latLng, {
               draggable: false, // Désactivé pour permettre la navigation sur la carte
@@ -1036,8 +1004,202 @@ export default function TrajetEditor() {
         {/* Colonne Droite */}
         <div className="lg:col-span-9 flex flex-col gap-3 overflow-hidden">
 
-          {/* Liste des Points */}
-          <div className="bg-white rounded-[10px] shadow-sm border border-slate-100 overflow-y-auto custom-scrollbar" style={{ maxHeight: '25vh' }}>
+          {/* Carte */}
+          <div className="bg-white rounded-[10px] shadow-sm border border-slate-200 flex flex-col overflow-hidden relative flex-1 min-h-[300px]">
+            <div className="p-2 bg-white border-b z-10 relative space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Map size={18} className="text-blue-600" />
+                  <span className="text-sm font-semibold text-slate-700">Sélectionnez le type de point à placer :</span>
+                </div>
+                <button onClick={clearMap} className="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors flex items-center gap-1 text-sm font-bold">
+                  <Trash size={16}/> Effacer tout
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSelectedMarkerType(prev => prev === 'depart' ? null : 'depart')}
+                  className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
+                    selectedMarkerType === 'depart'
+                      ? 'bg-emerald-500 text-white border-emerald-300 scale-105 shadow-[0_0_15px_rgba(16,185,129,0.7)]'
+                      : 'bg-white text-emerald-600 border-emerald-500 hover:scale-105 hover:shadow-lg'
+                  }`}
+                >
+                  Départ
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMarkerType(prev => prev === 'arret' ? null : 'arret')}
+                  className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
+                    selectedMarkerType === 'arret'
+                      ? 'bg-blue-500 text-white border-blue-300 scale-105 shadow-[0_0_15px_rgba(59,130,246,0.7)]'
+                      : 'bg-white text-blue-600 border-blue-500 hover:scale-105 hover:shadow-lg'
+                  }`}
+                >
+                  Arrêt
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedMarkerType(prev => prev === 'arrivee' ? null : 'arrivee')}
+                  className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
+                    selectedMarkerType === 'arrivee'
+                      ? 'bg-red-500 text-white border-red-300 scale-105 shadow-[0_0_15px_rgba(239,68,68,0.7)]'
+                      : 'bg-white text-red-600 border-red-500 hover:scale-105 hover:shadow-lg'
+                  }`}
+                >
+                  Arrivée
+                </button>
+              </div>
+
+              {/* Bandeau indicateur du mode actif */}
+              {selectedMarkerType && (
+                <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 animate-in fade-in slide-in-from-top-2 duration-300 ${
+                  selectedMarkerType === 'depart'
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                    : selectedMarkerType === 'arret'
+                    ? 'bg-blue-50 border-blue-300 text-blue-700'
+                    : 'bg-red-50 border-red-300 text-red-700'
+                }`}>
+                  <MapPin size={16} className="flex-shrink-0" />
+                  <span className="text-xs font-semibold">
+                    Mode actif : <span className="uppercase font-bold">{selectedMarkerType}</span> — Cliquez sur la carte pour placer le point
+                    {selectedMarkerType !== 'arret' && <span className="text-xs font-normal opacity-75"> (remplace l'existant si déjà placé)</span>}
+                  </span>
+                </div>
+              )}
+
+              <div className="text-xs text-slate-600 flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-md border border-blue-100">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="font-semibold text-blue-700">Sur la carte :</span>
+                  {(Object.keys(MARQUEURS) as MarkerType[]).map((type, i) => (
+                    <React.Fragment key={type}>
+                      {i > 0 && <span className="text-slate-300">•</span>}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="inline-flex items-center justify-center rounded-full text-white font-bold"
+                          style={{
+                            background: MARQUEURS[type].couleur,
+                            width: '18px',
+                            height: '18px',
+                            fontSize: '10px',
+                            lineHeight: 1,
+                          }}
+                        >
+                          {MARQUEURS[type].lettre}
+                        </span>
+                        <span className="text-[10px] font-bold" style={{ color: MARQUEURS[type].couleur }}>
+                          {MARQUEURS[type].libelle}
+                        </span>
+                      </span>
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+
+              {/* Panneau de sélection d'itinéraire alternatif */}
+              {alternativeRoutes.length > 1 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Route size={14} className="text-blue-600" />
+                    <span className="text-xs font-semibold text-slate-700">
+                      Choisissez votre itinéraire ({alternativeRoutes.length} options) :
+                    </span>
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {alternativeRoutes.map((route, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleSelectRoute(index)}
+                        className={`flex-shrink-0 px-3 py-2 rounded-lg border-2 transition-all text-left min-w-[160px] ${
+                          selectedRouteIndex === index
+                            ? 'bg-blue-50 border-blue-500 shadow-md'
+                            : 'bg-white border-slate-200 hover:border-blue-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-bold ${
+                            selectedRouteIndex === index ? 'text-blue-700' : 'text-slate-600'
+                          }`}>
+                            {index === 0 ? '⚡ Le plus rapide' :
+                             index === 1 ? '📏 Le plus court' :
+                             `🔄 Alternatif ${index}`}
+                          </span>
+                          {selectedRouteIndex === index && (
+                            <span className="text-blue-600">✓</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-600">
+                          <span className="flex items-center gap-0.5">
+                            <Clock size={10} />
+                            {Math.round(route.duration / 60)} min
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-0.5">
+                            📏 {(route.distance / 1000).toFixed(1)} km
+                          </span>
+                        </div>
+                        {index === 0 && (
+                          <div className="mt-1 text-[9px] text-green-600 font-semibold">
+                            Recommandé
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex-1 relative z-0">
+              <MapContainer
+                key={selectedTrajetId || 'new'}
+                center={ABIDJAN}
+                zoom={13}
+                style={{ height: '100%', width: '100%' }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; OpenStreetMap'
+                />
+                <MapCursorController cursorType={selectedMarkerType} />
+                <SearchControl />
+                {/*
+                  Pas de `key` dérivée des coordonnées ici : elle changeait à chaque
+                  point placé, ce qui démontait et reconstruisait tout le contrôle de
+                  routage — nouveau contrôle, nouveau recadrage, nouvelles requêtes
+                  OSRM. Le composant se met à jour seul quand `waypoints` change.
+                */}
+                <RoutingMachine
+                  waypoints={waypoints}
+                  pointsTypes={pointsRecup.map(p => p.type)}
+                  onRouteFound={handleRouteFound}
+                  onRoutesFound={handleRoutesFound}
+                  onDeleteMarker={handleDeletePoint}
+                  highlightedIndex={highlightedPointIndex}
+                  selectedRouteIndex={selectedRouteIndex}
+                  selectedMarkerType={selectedMarkerType}
+                  readOnly={false}
+                />
+              </MapContainer>
+            </div>
+          </div>
+
+          {/*
+            Liste des Points — sous la carte, et seulement quand il y a des points.
+
+            Placée sous la carte, elle se lit dans le prolongement du tracé : on
+            regarde un point sur la carte, puis ses informations juste en dessous.
+            Elle occupait auparavant le haut de la colonne, où son état vide prenait
+            un quart de la hauteur pour expliquer les trois natures de point — ce que
+            fait déjà la légende dans l'en-tête de la carte.
+          */}
+          {pointsRecup.length > 0 && (
+          <div className="bg-white rounded-[10px] shadow-sm border border-slate-100 overflow-y-auto custom-scrollbar shrink-0" style={{ maxHeight: '25vh' }}>
             <div className="p-4 border-b bg-slate-50 sticky top-0 z-10">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2">
@@ -1061,41 +1223,7 @@ export default function TrajetEditor() {
               </div>
             </div>
 
-            {pointsRecup.length === 0 ? (
-              <div className="p-8 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-50 mb-3">
-                  <MapPin className="text-blue-500" size={32} />
-                </div>
-                <p className="text-sm font-semibold text-slate-700 mb-2">Aucun point configuré</p>
-                <p className="text-xs text-slate-500 mb-4">
-                  Sélectionnez un type de point ci-dessous, puis cliquez sur la carte
-                </p>
-                <div className="inline-flex flex-col gap-2 text-xs text-left bg-slate-50 border border-slate-200 rounded-lg p-3">
-                  <div className="flex items-start gap-2">
-                    <span className="text-base">🚀</span>
-                    <div>
-                      <span className="font-semibold text-green-700">Départ</span>
-                      <span className="text-slate-600"> : Point de départ du trajet</span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-base">📍</span>
-                    <div>
-                      <span className="font-semibold text-blue-700">Arrêt</span>
-                      <span className="text-slate-600"> : Où récupérer les enfants</span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <span className="text-base">🎯</span>
-                    <div>
-                      <span className="font-semibold text-red-700">Arrivée</span>
-                      <span className="text-slate-600"> : Destination finale (école)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-2">
+            <div className="p-2">
                 {pointsRecup.map((point, index) => {
                   const isExpanded = expandedPoint === `${index}`;
 
@@ -1243,185 +1371,8 @@ export default function TrajetEditor() {
                   );
                 })}
               </div>
-            )}
           </div>
-
-          {/* Carte */}
-          <div className="bg-white rounded-[10px] shadow-sm border border-slate-200 flex flex-col overflow-hidden relative flex-1 min-h-[600px]">
-            <div className="p-2 bg-white border-b z-10 relative space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Map size={18} className="text-blue-600" />
-                  <span className="text-sm font-semibold text-slate-700">Sélectionnez le type de point à placer :</span>
-                </div>
-                <button onClick={clearMap} className="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors flex items-center gap-1 text-sm font-bold">
-                  <Trash size={16}/> Effacer tout
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSelectedMarkerType(prev => prev === 'depart' ? null : 'depart')}
-                  className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
-                    selectedMarkerType === 'depart'
-                      ? 'bg-emerald-500 text-white border-emerald-300 scale-105 shadow-[0_0_15px_rgba(16,185,129,0.7)]'
-                      : 'bg-white text-emerald-600 border-emerald-500 hover:scale-105 hover:shadow-lg'
-                  }`}
-                >
-                  Départ
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedMarkerType(prev => prev === 'arret' ? null : 'arret')}
-                  className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
-                    selectedMarkerType === 'arret'
-                      ? 'bg-blue-500 text-white border-blue-300 scale-105 shadow-[0_0_15px_rgba(59,130,246,0.7)]'
-                      : 'bg-white text-blue-600 border-blue-500 hover:scale-105 hover:shadow-lg'
-                  }`}
-                >
-                  Arrêt
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedMarkerType(prev => prev === 'arrivee' ? null : 'arrivee')}
-                  className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
-                    selectedMarkerType === 'arrivee'
-                      ? 'bg-red-500 text-white border-red-300 scale-105 shadow-[0_0_15px_rgba(239,68,68,0.7)]'
-                      : 'bg-white text-red-600 border-red-500 hover:scale-105 hover:shadow-lg'
-                  }`}
-                >
-                  Arrivée
-                </button>
-              </div>
-
-              {/* Bandeau indicateur du mode actif */}
-              {selectedMarkerType && (
-                <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 animate-in fade-in slide-in-from-top-2 duration-300 ${
-                  selectedMarkerType === 'depart'
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                    : selectedMarkerType === 'arret'
-                    ? 'bg-blue-50 border-blue-300 text-blue-700'
-                    : 'bg-red-50 border-red-300 text-red-700'
-                }`}>
-                  <MapPin size={16} className="flex-shrink-0" />
-                  <span className="text-xs font-semibold">
-                    Mode actif : <span className="uppercase font-bold">{selectedMarkerType}</span> — Cliquez sur la carte pour placer le point
-                    {selectedMarkerType !== 'arret' && <span className="text-xs font-normal opacity-75"> (remplace l'existant si déjà placé)</span>}
-                  </span>
-                </div>
-              )}
-
-              <div className="text-xs text-slate-600 flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-md border border-blue-100">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-blue-700">Sur la carte :</span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="text-base">🚀</span>
-                    <span className="text-[10px] text-green-700 font-bold">Vert = Départ</span>
-                  </span>
-                  <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="text-base">📍</span>
-                    <span className="text-[10px] text-blue-700 font-bold">Bleu = Arrêt</span>
-                  </span>
-                  <span className="text-slate-300">•</span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="text-base">🎯</span>
-                    <span className="text-[10px] text-red-700 font-bold">Rouge = Arrivée</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* Panneau de sélection d'itinéraire alternatif */}
-              {alternativeRoutes.length > 1 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Route size={14} className="text-blue-600" />
-                    <span className="text-xs font-semibold text-slate-700">
-                      Choisissez votre itinéraire ({alternativeRoutes.length} options) :
-                    </span>
-                  </div>
-                  <div className="flex gap-2 overflow-x-auto pb-2">
-                    {alternativeRoutes.map((route, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => handleSelectRoute(index)}
-                        className={`flex-shrink-0 px-3 py-2 rounded-lg border-2 transition-all text-left min-w-[160px] ${
-                          selectedRouteIndex === index
-                            ? 'bg-blue-50 border-blue-500 shadow-md'
-                            : 'bg-white border-slate-200 hover:border-blue-300'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className={`text-xs font-bold ${
-                            selectedRouteIndex === index ? 'text-blue-700' : 'text-slate-600'
-                          }`}>
-                            {index === 0 ? '⚡ Le plus rapide' :
-                             index === 1 ? '📏 Le plus court' :
-                             `🔄 Alternatif ${index}`}
-                          </span>
-                          {selectedRouteIndex === index && (
-                            <span className="text-blue-600">✓</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-[10px] text-slate-600">
-                          <span className="flex items-center gap-0.5">
-                            <Clock size={10} />
-                            {Math.round(route.duration / 60)} min
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-0.5">
-                            📏 {(route.distance / 1000).toFixed(1)} km
-                          </span>
-                        </div>
-                        {index === 0 && (
-                          <div className="mt-1 text-[9px] text-green-600 font-semibold">
-                            Recommandé
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex-1 relative z-0">
-              <MapContainer
-                key={selectedTrajetId || 'new'}
-                center={ABIDJAN}
-                zoom={13}
-                style={{ height: '100%', width: '100%' }}
-              >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; OpenStreetMap'
-                />
-                <MapCursorController cursorType={selectedMarkerType} />
-                <SearchControl />
-                {/*
-                  Pas de `key` dérivée des coordonnées ici : elle changeait à chaque
-                  point placé, ce qui démontait et reconstruisait tout le contrôle de
-                  routage — nouveau contrôle, nouveau recadrage, nouvelles requêtes
-                  OSRM. Le composant se met à jour seul quand `waypoints` change.
-                */}
-                <RoutingMachine
-                  waypoints={waypoints}
-                  pointsTypes={pointsRecup.map(p => p.type)}
-                  onRouteFound={handleRouteFound}
-                  onRoutesFound={handleRoutesFound}
-                  onDeleteMarker={handleDeletePoint}
-                  highlightedIndex={highlightedPointIndex}
-                  selectedRouteIndex={selectedRouteIndex}
-                  selectedMarkerType={selectedMarkerType}
-                  readOnly={false}
-                />
-              </MapContainer>
-            </div>
-          </div>
+          )}
         </div>
 
       </div>

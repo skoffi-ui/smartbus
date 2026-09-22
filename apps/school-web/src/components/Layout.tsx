@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Bus, Users, LogOut, Settings, Sun, Moon, Map, MapPin, ListOrdered, CheckSquare, History, AlertTriangle, Shield } from 'lucide-react';
 import { socketService } from '../services/socket.service';
 
@@ -8,8 +8,18 @@ interface LayoutProps {
   children: ReactNode;
 }
 
+/**
+ * Pages dont le contenu doit toucher le bandeau du haut.
+ *
+ * L'éditeur de trajet occupe toute la hauteur disponible : les 2 rem sous le
+ * bandeau lui étaient prises sur la carte.
+ */
+const PAGES_SANS_MARGE_SOUS_BANDEAU = ['/trajets'];
+
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const margeSousBandeau = PAGES_SANS_MARGE_SOUS_BANDEAU.includes(location.pathname) ? 0 : '2rem';
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
 
   useEffect(() => {
@@ -122,7 +132,7 @@ export default function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main style={{ flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column' }}>
-        <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '2rem', gap: '1rem' }}>
+        <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: margeSousBandeau, gap: '1rem' }}>
           <button onClick={toggleTheme} className="glass-panel" style={{ padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', border: 'none', background: 'var(--bg-glass)', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Changer le thème">
             {theme === 'dark' ? <Sun size={20} style={{ color: '#fbbf24' }} /> : <Moon size={20} style={{ color: '#4f46e5' }} />}
           </button>
