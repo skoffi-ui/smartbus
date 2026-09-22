@@ -49,4 +49,13 @@ export class CreatePointDto {
   @IsOptional()
   @IsString()
   commentaire?: string;
+
+  @ApiPropertyOptional({
+    description: 'Type de point: depart, arret, ou arrivee',
+    enum: ['depart', 'arret', 'arrivee'],
+    default: 'arret'
+  })
+  @IsOptional()
+  @IsString()
+  type?: string;
 }
