@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Bus, Users, LogOut, Settings, Map, MapPin, ListOrdered, CheckSquare, AlertTriangle, Shield } from 'lucide-react';
+import { LayoutDashboard, Bus, Users, LogOut, Settings, Map, MapPin, ListOrdered, CheckSquare, AlertTriangle, Shield, Fingerprint, SlidersHorizontal } from 'lucide-react';
 import { socketService } from '../services/socket.service';
 
 interface LayoutProps {
@@ -57,6 +57,9 @@ export default function Layout({ children }: LayoutProps) {
     { name: 'Suivi des montées', path: '/suivi', icon: CheckSquare },
     { name: 'Alertes', path: '/alertes', icon: AlertTriangle },
     { name: 'Centre d\'Alertes', path: '/centre-alertes', icon: Shield, badge: criticalCount },
+    // BioTime
+    { name: 'Annuaire BioTime', path: '/biotime-employes', icon: Fingerprint },
+    { name: 'Config BioTime', path: '/biotime-config', icon: SlidersHorizontal },
   ];
 
   return (

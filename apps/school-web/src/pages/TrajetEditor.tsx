@@ -77,6 +77,74 @@ function MapCursorController({ cursorType }: { cursorType: MarkerType | null }) 
   return null;
 }
 
+// Composant pour recentrer automatiquement la carte sur le trajet
+function FitBoundsOnWaypoints({ waypoints }: { waypoints: any[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !waypoints || waypoints.length === 0) return;
+
+    // Petit délai pour s'assurer que la carte est prête
+    const timer = setTimeout(() => {
+      try {
+        console.log('🎯 Recentrage de la carte sur', waypoints.length, 'points');
+
+        // Convertir les waypoints en LatLng si nécessaire
+        const latLngs = waypoints.map((wp: any) => {
+          if (wp && wp.lat !== undefined && wp.lng !== undefined) {
+            return L.latLng(wp.lat, wp.lng);
+          } else if (wp && wp.latLng) {
+            return wp.latLng;
+          }
+          return null;
+        }).filter(Boolean);
+
+        if (latLngs.length === 0) return;
+
+        // Calculer les bounds de tous les points
+        const bounds = L.latLngBounds(latLngs);
+
+        // Recentrer la carte avec animation
+        map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 15,
+          animate: true,
+          duration: 0.8
+        });
+
+        console.log('✅ Carte recentrée avec succès');
+      } catch (err) {
+        console.error('❌ Erreur lors du recentrage de la carte:', err);
+      }
+    }, 300); // Délai de 300ms pour laisser le temps à OSRM de calculer
+
+    return () => clearTimeout(timer);
+  }, [map, waypoints]);
+
+  return null;
+}
+
+// Composant pour centrer la carte sur un point spécifique
+function FlyToPoint({ point }: { point: { lat: number; lng: number } | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || !point) return;
+
+    try {
+      // Centrer la carte sur le point avec animation
+      map.flyTo([point.lat, point.lng], 16, {
+        animate: true,
+        duration: 0.8
+      });
+    } catch (err) {
+      console.error('❌ Erreur lors du centrage sur le point:', err);
+    }
+  }, [map, point]);
+
+  return null;
+}
+
 // Composant de recherche géographique
 function SearchControl() {
   const map = useMap();
@@ -180,7 +248,9 @@ interface PointRecup {
   nom: string;
   latitude: number;
   longitude: number;
-  tempsArret: string;
+  tempsArret: string; // Obsolète, gardé pour compatibilité
+  heurePassage?: string; // Heure estimée de passage (HH:mm)
+  dureeArretMin?: number; // Durée d'arrêt en minutes (par défaut 2)
   ordrePassage: number;
   type: MarkerType;
   affectations?: any[];
@@ -515,7 +585,12 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
 export default function TrajetEditor() {
   const [trajets, setTrajets] = useState<any[]>([]);
   const [selectedTrajetId, setSelectedTrajetId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ nom: '', description: '', sens: 'aller' });
+  const [formData, setFormData] = useState({
+    nom: '',
+    description: '',
+    sens: 'aller',
+    heureDepart: '07:00' // Heure de départ par défaut
+  });
 
   // États pour le loader
   const [loadingTrajet, setLoadingTrajet] = useState(false);
@@ -535,6 +610,7 @@ export default function TrajetEditor() {
 
   const [selectedMarkerType, setSelectedMarkerType] = useState<MarkerType | null>(null);
   const [highlightedPointIndex, setHighlightedPointIndex] = useState<number | null>(null);
+  const [focusedPoint, setFocusedPoint] = useState<{ lat: number; lng: number } | null>(null);
   const [alternativeRoutes, setAlternativeRoutes] = useState<any[]>([]);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
 
@@ -669,7 +745,12 @@ export default function TrajetEditor() {
     setLoadingMessage('Chargement des points...');
 
     setSelectedTrajetId(trajet.id);
-    setFormData({ nom: trajet.nom, description: trajet.description || '', sens: trajet.sens || 'aller' });
+    setFormData({
+      nom: trajet.nom,
+      description: trajet.description || '',
+      sens: trajet.sens || 'aller',
+      heureDepart: trajet.heureDepart || '07:00'
+    });
     setDistanceKm(trajet.distanceKm || 0);
     setDureeMin(trajet.dureeEstimative || 0);
     setGeoJson(trajet.geoJson || null);
@@ -690,11 +771,17 @@ export default function TrajetEditor() {
       });
 
       // ✅ AFFICHER LES POINTS IMMÉDIATEMENT (sans attendre les affectations)
-      // Les waypoints seront automatiquement mis à jour via le useEffect de synchronisation
       setPointsRecup(quickPoints);
-      setLoadingMessage('Calcul de l\'itinéraire...');
 
-      console.log('🗺️ Points définis, waypoints seront synchronisés automatiquement');
+      // ✅ CRÉER LES WAYPOINTS IMMÉDIATEMENT pour affichage sur la carte
+      const newWaypoints = quickPoints.map((p: any) => ({
+        lat: Number(p.latitude),
+        lng: Number(p.longitude)
+      }));
+      setWaypoints(newWaypoints);
+
+      setLoadingMessage('Calcul de l\'itinéraire...');
+      console.log('🗺️ Points et waypoints définis:', newWaypoints.length, 'points');
 
       // ⏳ ÉTAPE 2 : Charger les affectations en arrière-plan
       setLoadingMessage('Chargement des affectations...');
@@ -729,7 +816,7 @@ export default function TrajetEditor() {
 
   const handleNew = () => {
     setSelectedTrajetId(null);
-    setFormData({ nom: '', description: '', sens: 'aller' });
+    setFormData({ nom: '', description: '', sens: 'aller', heureDepart: '07:00' });
     setWaypoints([]);
     setPointsRecup([]);
     setGeoJson(null);
@@ -770,6 +857,46 @@ export default function TrajetEditor() {
     }
   };
 
+  /**
+   * Calcule automatiquement les heures de passage pour chaque arrêt.
+   * Basé sur l'heure de départ + durée OSRM + temps d'arrêt.
+   */
+  const calculerHoraires = () => {
+    if (pointsRecup.length === 0 || !formData.heureDepart) return;
+
+    // Parse heure de départ
+    const [heures, minutes] = formData.heureDepart.split(':').map(Number);
+    let tempsAccumule = heures * 60 + minutes; // En minutes depuis minuit
+
+    const updatedPoints = pointsRecup.map((point, index) => {
+      let heurePassage = '';
+
+      if (index === 0) {
+        // Premier point = heure de départ
+        heurePassage = formData.heureDepart;
+      } else {
+        // Calculer le temps depuis le point précédent
+        // On utilise la durée totale divisée par le nombre de segments
+        const dureeSegmentMin = dureeMin > 0 ? dureeMin / pointsRecup.length : 5;
+        const dureeArret = pointsRecup[index - 1].dureeArretMin || 2;
+
+        tempsAccumule += dureeSegmentMin + dureeArret;
+
+        const h = Math.floor(tempsAccumule / 60) % 24;
+        const m = Math.floor(tempsAccumule % 60);
+        heurePassage = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      }
+
+      return {
+        ...point,
+        heurePassage,
+        dureeArretMin: point.dureeArretMin || 2 // 2 minutes par défaut
+      };
+    });
+
+    setPointsRecup(updatedPoints);
+  };
+
   // handleWaypointsChange supprimé - waypoints sont maintenant automatiquement synchronisés avec pointsRecup
 
   const handleSave = async (e: React.FormEvent) => {
@@ -805,6 +932,7 @@ export default function TrajetEditor() {
       nom: formData.nom || 'Trajet sans nom',
       description: formData.description || '',
       sens: formData.sens || 'aller',
+      heureDepart: formData.heureDepart || '07:00',
       distanceKm: Number(distanceKm) || 0,
       dureeEstimative: Number(dureeMin) || 0,
       ...(cleanGeoJson && { geoJson: cleanGeoJson }),
@@ -849,7 +977,9 @@ export default function TrajetEditor() {
             nom: point.nom || `Point ${point.ordrePassage}`,
             latitude: Number(point.latitude),
             longitude: Number(point.longitude),
-            tempsArret: point.tempsArret || '08:00',
+            tempsArret: point.tempsArret || '08:00', // Gardé pour compatibilité
+            heurePassage: point.heurePassage || null,
+            dureeArretMin: point.dureeArretMin || 2,
             ordrePassage: Number(point.ordrePassage),
             type: point.type || 'arret'
           };
@@ -1045,6 +1175,25 @@ export default function TrajetEditor() {
                 </div>
               </div>
 
+              <div className="uiverse-flex-column mb-4">
+                <label className="flex items-center gap-2">
+                  <Clock size={16} className="text-blue-600" />
+                  Heure de départ
+                </label>
+                <div className="uiverse-inputForm mt-1">
+                  <input
+                    type="time"
+                    required
+                    value={formData.heureDepart}
+                    onChange={e => setFormData({...formData, heureDepart: e.target.value})}
+                    className="uiverse-input"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Les horaires de passage seront calculés automatiquement pour chaque arrêt
+                </p>
+              </div>
+
               <div className="uiverse-flex-column mb-6 flex-1">
                 <label>Description / Notes</label>
                 <div className="uiverse-inputForm mt-1 h-full">
@@ -1054,17 +1203,37 @@ export default function TrajetEditor() {
               </div>
 
               <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 mb-6">
-                <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2">Statistiques (OSRM)</h4>
+                <h4 className="font-bold text-blue-900 mb-2 flex items-center gap-2">
+                  <Route size={16} />
+                  Statistiques
+                </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-blue-600 block">Distance totale</span>
                     <span className="font-bold text-blue-900 text-lg">{distanceKm.toFixed(2)} km</span>
                   </div>
                   <div>
-                    <span className="text-blue-600 block">Durée sans arrêts</span>
+                    <span className="text-blue-600 block">Durée route</span>
                     <span className="font-bold text-blue-900 text-lg">{dureeMin} min</span>
                   </div>
                 </div>
+
+                {pointsRecup.length > 0 && pointsRecup[0]?.heurePassage && pointsRecup[pointsRecup.length - 1]?.heurePassage && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-green-600" />
+                        <span className="text-blue-600">Départ</span>
+                        <span className="font-bold text-blue-900">{pointsRecup[0].heurePassage}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-red-600" />
+                        <span className="text-blue-600">Arrivée</span>
+                        <span className="font-bold text-blue-900">{pointsRecup[pointsRecup.length - 1].heurePassage}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-2 mt-auto">
@@ -1247,6 +1416,8 @@ export default function TrajetEditor() {
                 />
                 <MapCursorController cursorType={selectedMarkerType} />
                 <SearchControl />
+                <FitBoundsOnWaypoints waypoints={waypoints} />
+                <FlyToPoint point={focusedPoint} />
                 {/*
                   Pas de `key` dérivée des coordonnées ici : elle changeait à chaque
                   point placé, ce qui démontait et reconstruisait tout le contrôle de
@@ -1307,7 +1478,7 @@ export default function TrajetEditor() {
           */}
           {pointsRecup.length > 0 && (
           <div className="bg-white rounded-[10px] shadow-sm border border-slate-100 overflow-y-auto custom-scrollbar shrink-0" style={{ maxHeight: '25vh' }}>
-            <div className="p-4 border-b bg-slate-50 sticky top-0 z-10">
+            <div className="p-4 border-b bg-slate-50 sticky top-0 z-10 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-900 flex items-center gap-2">
                   <MapPin size={16} className="text-blue-600"/>
@@ -1328,6 +1499,17 @@ export default function TrajetEditor() {
                   </span>
                 </div>
               </div>
+
+              {pointsRecup.length >= 2 && (
+                <button
+                  type="button"
+                  onClick={calculerHoraires}
+                  className="w-full flex items-center justify-center gap-2 p-[10px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm text-sm font-semibold"
+                >
+                  <Clock size={16} />
+                  Calculer les horaires automatiquement
+                </button>
+              )}
             </div>
 
             <div className="p-2">
@@ -1360,7 +1542,13 @@ export default function TrajetEditor() {
                       <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100/50 flex items-center gap-3">
                         <button
                           type="button"
-                          onClick={() => setHighlightedPointIndex(highlightedPointIndex === index ? null : index)}
+                          onClick={() => {
+                            const newIndex = highlightedPointIndex === index ? null : index;
+                            setHighlightedPointIndex(newIndex);
+                            if (newIndex !== null) {
+                              setFocusedPoint({ lat: point.latitude, lng: point.longitude });
+                            }
+                          }}
                           className={`p-[3px] relative cursor-pointer ${highlightedPointIndex === index ? 'ring-4 ring-yellow-400 rounded-lg' : ''}`}
                           title="Cliquer pour localiser sur la carte"
                         >
@@ -1371,16 +1559,33 @@ export default function TrajetEditor() {
                             </span>
                           </div>
                         </button>
-                        <input
-                          type="text"
-                          value={point.nom}
-                          onChange={(e) => handleUpdatePointName(index, e.target.value)}
-                          className="flex-1 px-2 py-1 text-sm border border-slate-200 rounded"
-                          placeholder="Nom du point"
-                        />
+                        <div className="flex-1 flex flex-col gap-1">
+                          <input
+                            type="text"
+                            value={point.nom}
+                            onChange={(e) => handleUpdatePointName(index, e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-slate-200 rounded"
+                            placeholder="Nom du point"
+                          />
+                          {point.heurePassage && (
+                            <div className="flex items-center gap-1 text-xs text-blue-600 font-semibold">
+                              <Clock size={12} />
+                              {point.heurePassage}
+                              {point.dureeArretMin && point.type === 'arret' && (
+                                <span className="text-gray-500">• Arrêt {point.dureeArretMin}min</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <button
                           type="button"
-                          onClick={() => setHighlightedPointIndex(highlightedPointIndex === index ? null : index)}
+                          onClick={() => {
+                            const newIndex = highlightedPointIndex === index ? null : index;
+                            setHighlightedPointIndex(newIndex);
+                            if (newIndex !== null) {
+                              setFocusedPoint({ lat: point.latitude, lng: point.longitude });
+                            }
+                          }}
                           className={`p-1.5 hover:bg-blue-100 rounded transition-colors ${highlightedPointIndex === index ? 'bg-blue-100 text-blue-600' : 'text-slate-500'}`}
                           title="Localiser sur la carte"
                         >
@@ -1404,16 +1609,40 @@ export default function TrajetEditor() {
 
                       {isExpanded && (
                         <div className="p-3 bg-white border-t space-y-3">
-                          <div>
-                            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                              <Clock size={12}/> Heure estimée
-                            </label>
-                            <input
-                              type="time"
-                              value={point.tempsArret}
-                              onChange={(e) => handleUpdatePointTime(index, e.target.value)}
-                              className="w-full mt-1 px-2 py-1 text-sm border border-slate-200 rounded"
-                            />
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                                <Clock size={12}/> Heure de passage
+                              </label>
+                              <input
+                                type="time"
+                                value={point.heurePassage || ''}
+                                onChange={(e) => {
+                                  const updated = [...pointsRecup];
+                                  updated[index] = {...updated[index], heurePassage: e.target.value};
+                                  setPointsRecup(updated);
+                                }}
+                                className="w-full mt-1 px-2 py-1 text-sm border border-slate-200 rounded"
+                                placeholder="Calculé auto"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                                <Clock size={12}/> Temps d'arrêt (min)
+                              </label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="30"
+                                value={point.dureeArretMin || 2}
+                                onChange={(e) => {
+                                  const updated = [...pointsRecup];
+                                  updated[index] = {...updated[index], dureeArretMin: parseInt(e.target.value) || 2};
+                                  setPointsRecup(updated);
+                                }}
+                                className="w-full mt-1 px-2 py-1 text-sm border border-slate-200 rounded"
+                              />
+                            </div>
                           </div>
 
                           {/* Affectation d'enfants uniquement pour les arrêts */}

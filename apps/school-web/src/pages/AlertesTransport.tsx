@@ -107,7 +107,7 @@ export default function AlertesTransport() {
               className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
                 typeFiltre === t
                   ? 'bg-blue-600 border-blue-600 text-white'
-                  : 'bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50
+                  : 'bg-transparent border-gray-300 text-gray-600 hover:bg-gray-50'
               }`}
             >
               {t === 'toutes' ? `Toutes (${alertes.length})` : libelle(t)}
@@ -158,8 +158,8 @@ export default function AlertesTransport() {
               <div
                 className={`p-2 rounded-full mt-1 ${
                   haute
-                    ? 'bg-red-100 text-red-600
-                    : 'bg-amber-100 text-amber-600
+                    ? 'bg-red-100 text-red-600'
+                    : 'bg-amber-100 text-amber-600'
                 }`}
               >
                 <AlertTriangle size={24} />

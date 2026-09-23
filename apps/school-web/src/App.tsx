@@ -24,6 +24,8 @@ import AffectationEleves from './pages/AffectationEleves';
 import SuiviMontees from './pages/SuiviMontees';
 import AlertesTransport from './pages/AlertesTransport';
 import CentreAlertes from './pages/CentreAlertes';
+import BiotimeEmployees from './pages/BiotimeEmployees';
+import BiotimeConfig from './pages/BiotimeConfig';
 
 function App() {
   // Vérifie si un jeton est présent dans le navigateur
@@ -199,6 +201,31 @@ function App() {
             isAuthenticated ? (
               <Layout>
                 <CentreAlertes />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+
+        <Route
+          path="/biotime-employes"
+          element={
+            isAuthenticated ? (
+              <Layout>
+                <BiotimeEmployees />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/biotime-config"
+          element={
+            isAuthenticated ? (
+              <Layout>
+                <BiotimeConfig />
               </Layout>
             ) : (
               <Navigate to="/login" />
