@@ -113,6 +113,45 @@ export class BiotimeService {
     }
   }
 
+  /** POST / PATCH / DELETE authentifié sur le serveur BioTime d'une école. */
+  private async appelBiotime(
+    organisationId: string,
+    methode: 'post' | 'patch' | 'delete',
+    chemin: string,
+    donnees?: any,
+  ): Promise<any> {
+    const { url } = await this.configService.obtenirIdentifiants(organisationId);
+    const token = await this.getAuthToken(organisationId);
+
+    const envoyer = (jeton: string) => {
+      const options = {
+        headers: { 'Content-Type': 'application/json', Authorization: `JWT ${jeton}` },
+        timeout: 30000,
+      };
+      const cible = `${url}${chemin}`;
+      switch (methode) {
+        case 'post':
+          return firstValueFrom(this.httpService.post(cible, donnees, options));
+        case 'patch':
+          return firstValueFrom(this.httpService.patch(cible, donnees, options));
+        case 'delete':
+          return firstValueFrom(this.httpService.delete(cible, options));
+      }
+    };
+
+    try {
+      const response = await envoyer(token);
+      return response.data;
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        this.jetons.delete(organisationId);
+        const response = await envoyer(await this.getAuthToken(organisationId));
+        return response.data;
+      }
+      throw error;
+    }
+  }
+
   /** Vérifie qu'une configuration répond, sans rien synchroniser. */
   async testerConnexion(organisationId: string): Promise<{ ok: boolean; message: string }> {
     try {
@@ -186,6 +225,73 @@ export class BiotimeService {
       throw new HttpException(
         `Synchronisation de l'annuaire impossible : ${message}`,
         HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // ÉCRITURE VERS BIOTIME : EMPLOYÉS (PHASE 1)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async createEmployee(
+    organisationId: string,
+    donnees: { emp_code: string; first_name: string; last_name: string; department?: number; card_no?: string },
+  ): Promise<any> {
+    try {
+      const resultat = await this.appelBiotime(
+        organisationId, 'post', '/personnel/api/employees/', donnees,
+      );
+      this.logger.log(
+        `[BioTime] Employé ${donnees.emp_code} créé sur le serveur de l'école ${organisationId}`,
+      );
+      return resultat;
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      this.logger.error(`[BioTime] Création employé échouée : ${JSON.stringify(detail)}`);
+      throw new HttpException(
+        { message: 'Création impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async updateEmployee(
+    organisationId: string,
+    biotimeId: number,
+    donnees: Record<string, any>,
+  ): Promise<any> {
+    try {
+      const resultat = await this.appelBiotime(
+        organisationId, 'patch', `/personnel/api/employees/${biotimeId}/`, donnees,
+      );
+      this.logger.log(
+        `[BioTime] Employé #${biotimeId} mis à jour pour l'école ${organisationId}`,
+      );
+      return resultat;
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      this.logger.error(`[BioTime] Modification employé échouée : ${JSON.stringify(detail)}`);
+      throw new HttpException(
+        { message: 'Modification impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async deleteEmployee(organisationId: string, biotimeId: number): Promise<void> {
+    try {
+      await this.appelBiotime(
+        organisationId, 'delete', `/personnel/api/employees/${biotimeId}/`,
+      );
+      this.logger.log(
+        `[BioTime] Employé #${biotimeId} supprimé du serveur de l'école ${organisationId}`,
+      );
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      this.logger.error(`[BioTime] Suppression employé échouée : ${JSON.stringify(detail)}`);
+      throw new HttpException(
+        { message: 'Suppression impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
       );
     }
   }
@@ -497,6 +603,53 @@ export class BiotimeService {
   }
 
   // ───────────────────────────────────────────────────────────────────────────
+  // SUPERVISION DES BADGEUSES VIA L'API BIOTIME (PHASE 1)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async getBiotimeTerminals(organisationId: string): Promise<any[]> {
+    try {
+      const data = await this.lire(organisationId, '/iclock/api/terminals/?page_size=500');
+      const terminaux = data?.data;
+      if (!Array.isArray(terminaux)) return [];
+
+      return terminaux.map((t: any) => ({
+        sn: t.sn,
+        alias: t.alias,
+        ipAddress: t.ip_address,
+        isOnline: !!t.is_online,
+        lastActivity: t.last_activity,
+        fwVersion: t.fw_version,
+        pushVersion: t.push_ver,
+        platform: t.platform,
+      }));
+    } catch (error: any) {
+      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      this.logger.error(`[BioTime] Lecture terminaux école ${organisationId} : ${message}`);
+      throw new HttpException(
+        `Lecture des terminaux BioTime impossible : ${message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // PROXY LECTURE DIRECTE DEPUIS BIOTIME (retourne les ID internes BioTime)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async getBiotimeEmployees(organisationId: string): Promise<any[]> {
+    try {
+      const data = await this.lire(organisationId, '/personnel/api/employees/?page_size=5000');
+      return data?.data ?? [];
+    } catch (error: any) {
+      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      throw new HttpException(
+        `Lecture des employés BioTime impossible : ${message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
   // LECTURES POUR LA SUPERVISION (toujours limitées à une école)
   // ───────────────────────────────────────────────────────────────────────────
 
@@ -621,5 +774,236 @@ export class BiotimeService {
     return this.childRepository.find({
       where: { organisationId, empCode: In(empCodes) },
     });
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // GESTION DES DÉPARTEMENTS (CLASSES) SUR BIOTIME (PHASE 2)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async getDepartments(organisationId: string): Promise<any[]> {
+    try {
+      const data = await this.lire(organisationId, '/personnel/api/departments/?page_size=500');
+      return data?.data ?? [];
+    } catch (error: any) {
+      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      throw new HttpException(
+        `Lecture des départements impossible : ${message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async createDepartment(
+    organisationId: string,
+    donnees: { dept_name: string; parent_dept?: number },
+  ): Promise<any> {
+    try {
+      const resultat = await this.appelBiotime(
+        organisationId, 'post', '/personnel/api/departments/', donnees,
+      );
+      this.logger.log(
+        `[BioTime] Département "${donnees.dept_name}" créé pour l'école ${organisationId}`,
+      );
+      return resultat;
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Création du département impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async updateDepartment(
+    organisationId: string,
+    deptId: number,
+    donnees: Record<string, any>,
+  ): Promise<any> {
+    try {
+      const resultat = await this.appelBiotime(
+        organisationId, 'patch', `/personnel/api/departments/${deptId}/`, donnees,
+      );
+      this.logger.log(
+        `[BioTime] Département #${deptId} mis à jour pour l'école ${organisationId}`,
+      );
+      return resultat;
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Modification du département impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async deleteDepartment(organisationId: string, deptId: number): Promise<void> {
+    try {
+      await this.appelBiotime(
+        organisationId, 'delete', `/personnel/api/departments/${deptId}/`,
+      );
+      this.logger.log(
+        `[BioTime] Département #${deptId} supprimé pour l'école ${organisationId}`,
+      );
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Suppression du département impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // GESTION DES ZONES (AREAS) SUR BIOTIME (PHASE 2)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async getAreas(organisationId: string): Promise<any[]> {
+    try {
+      const data = await this.lire(organisationId, '/personnel/api/areas/?page_size=500');
+      return data?.data ?? [];
+    } catch (error: any) {
+      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      throw new HttpException(
+        `Lecture des zones impossible : ${message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async createArea(
+    organisationId: string,
+    donnees: { area_name: string; description?: string },
+  ): Promise<any> {
+    try {
+      const resultat = await this.appelBiotime(
+        organisationId, 'post', '/personnel/api/areas/', donnees,
+      );
+      this.logger.log(
+        `[BioTime] Zone "${donnees.area_name}" créée pour l'école ${organisationId}`,
+      );
+      return resultat;
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Création de la zone impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async updateArea(
+    organisationId: string,
+    areaId: number,
+    donnees: Record<string, any>,
+  ): Promise<any> {
+    try {
+      const resultat = await this.appelBiotime(
+        organisationId, 'patch', `/personnel/api/areas/${areaId}/`, donnees,
+      );
+      this.logger.log(
+        `[BioTime] Zone #${areaId} mise à jour pour l'école ${organisationId}`,
+      );
+      return resultat;
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Modification de la zone impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async deleteArea(organisationId: string, areaId: number): Promise<void> {
+    try {
+      await this.appelBiotime(
+        organisationId, 'delete', `/personnel/api/areas/${areaId}/`,
+      );
+      this.logger.log(
+        `[BioTime] Zone #${areaId} supprimée pour l'école ${organisationId}`,
+      );
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Suppression de la zone impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // GESTION DES POSTES (POSITIONS) SUR BIOTIME (PHASE 3)
+  // ───────────────────────────────────────────────────────────────────────────
+
+  async getPositions(organisationId: string): Promise<any[]> {
+    try {
+      const data = await this.lire(organisationId, '/personnel/api/positions/?page_size=500');
+      return data?.data ?? [];
+    } catch (error: any) {
+      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      throw new HttpException(
+        `Lecture des postes impossible : ${message}`,
+        HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async createPosition(
+    organisationId: string,
+    donnees: { position_name: string },
+  ): Promise<any> {
+    try {
+      const resultat = await this.appelBiotime(
+        organisationId, 'post', '/personnel/api/positions/', donnees,
+      );
+      this.logger.log(
+        `[BioTime] Poste "${donnees.position_name}" créé pour l'école ${organisationId}`,
+      );
+      return resultat;
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Création du poste impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async updatePosition(
+    organisationId: string,
+    posId: number,
+    donnees: Record<string, any>,
+  ): Promise<any> {
+    try {
+      const resultat = await this.appelBiotime(
+        organisationId, 'patch', `/personnel/api/positions/${posId}/`, donnees,
+      );
+      this.logger.log(
+        `[BioTime] Poste #${posId} mis à jour pour l'école ${organisationId}`,
+      );
+      return resultat;
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Modification du poste impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
+  }
+
+  async deletePosition(organisationId: string, posId: number): Promise<void> {
+    try {
+      await this.appelBiotime(
+        organisationId, 'delete', `/personnel/api/positions/${posId}/`,
+      );
+      this.logger.log(
+        `[BioTime] Poste #${posId} supprimé pour l'école ${organisationId}`,
+      );
+    } catch (error: any) {
+      const detail = error?.response?.data ?? error.message;
+      throw new HttpException(
+        { message: 'Suppression du poste impossible sur BioTime', detail },
+        error?.response?.status ?? HttpStatus.BAD_GATEWAY,
+      );
+    }
   }
 }
