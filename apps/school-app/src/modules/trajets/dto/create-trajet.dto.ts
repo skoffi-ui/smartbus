@@ -43,6 +43,11 @@ export class CreateTrajetDto {
   @Min(0)
   dureeEstimative?: number;
 
+  @ApiPropertyOptional({ description: 'Heure de départ du trajet (format HH:mm)' })
+  @IsOptional()
+  @IsString()
+  heureDepart?: string;
+
   @ApiPropertyOptional({
     description: 'Points de passage cliqués sur la carte',
     example: [{ lat: 5.36, lng: -3.99 }],

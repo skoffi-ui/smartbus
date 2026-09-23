@@ -51,7 +51,7 @@ async function bootstrap() {
   // toutes les interfaces, donc joignable directement depuis le réseau — il
   // suffisait d'appeler le port pour contourner ces contrôles. Il n'écoute
   // désormais que la boucle locale, sauf hôte explicitement configuré (conteneurs).
-  const host = process.env.BIND_HOST || '127.0.0.1';
+  const host = process.env.BIND_HOST || '127.0.0.0' ;
   const port = process.env.SCHOOL_APP_PORT || 3001;
   await app.listen(port, host);
 

@@ -31,6 +31,9 @@ export class Trajet extends SoftDeleteEntityModel {
   @Column({ name: 'distance_km', type: 'float', nullable: true, comment: 'Distance totale calculée (OSRM)' })
   distanceKm: number;
 
+  @Column({ name: 'heure_depart', type: 'varchar', length: 5, nullable: true, comment: 'Heure de départ du trajet (format HH:mm)' })
+  heureDepart: string;
+
   // Stockage du GeoJSON complet (Ligne générée par OSRM)
   @Column({ type: 'jsonb', nullable: true })
   geoJson: any;

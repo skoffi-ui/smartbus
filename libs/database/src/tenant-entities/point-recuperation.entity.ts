@@ -24,8 +24,14 @@ export class PointRecuperation extends BaseEntityModel {
   @Column({ name: 'ordre_passage', default: 0 })
   ordrePassage: number;
 
-  @Column({ name: 'temps_arret', nullable: true })
+  @Column({ name: 'temps_arret', nullable: true, comment: 'Obsolète - utiliser heurePassage' })
   tempsArret: string;
+
+  @Column({ name: 'heure_passage', type: 'varchar', length: 5, nullable: true, comment: 'Heure de passage calculée (HH:mm)' })
+  heurePassage: string;
+
+  @Column({ name: 'duree_arret_min', type: 'int', nullable: true, default: 2, comment: 'Durée d\'arrêt en minutes' })
+  dureeArretMin: number;
 
   @Column({ type: 'text', nullable: true })
   commentaire: string;

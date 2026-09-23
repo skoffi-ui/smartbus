@@ -39,11 +39,29 @@ export class CreatePointDto {
   rayonDetection?: number;
 
   @ApiPropertyOptional({
-    description: "Heure théorique de passage à cet arrêt (ex: 07:30)",
+    description: "Heure théorique de passage à cet arrêt (ex: 07:30) - Obsolète, utiliser heurePassage",
   })
   @IsOptional()
   @IsString()
   tempsArret?: string;
+
+  @ApiPropertyOptional({
+    description: "Heure de passage calculée automatiquement (format HH:mm)",
+  })
+  @IsOptional()
+  @IsString()
+  heurePassage?: string;
+
+  @ApiPropertyOptional({
+    description: "Durée d'arrêt en minutes (défaut: 2)",
+    example: 2
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0)
+  @Max(30)
+  dureeArretMin?: number;
 
   @ApiPropertyOptional({ description: "Commentaire libre sur l'arrêt" })
   @IsOptional()
