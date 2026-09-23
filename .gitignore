@@ -59,4 +59,5 @@ APERCU_*.txt
 *.enhanced.tsx
 CORRECTIF_*.md
 DEBUG_*.md
-OPTIMISATIONS_*.mdskills-lock.json 
+OPTIMISATIONS_*.md
+skills-lock.json
