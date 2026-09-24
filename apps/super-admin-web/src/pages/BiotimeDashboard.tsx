@@ -1,282 +1,543 @@
-import { useEffect, useState, useMemo } from 'react';
-import { Bus, CheckCircle, Search, Download, RefreshCw } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  Server,
+  Wifi,
+  WifiOff,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  AlertTriangle,
+  Activity,
+  Clock,
+  Cpu,
+  Shield,
+} from 'lucide-react';
 import api, { messageFromError } from '../services/api';
 
+interface Config {
+  organisationId: string;
+  organisationName?: string;
+  url: string;
+  username: string;
+  isActive: boolean;
+  lastSyncedAt: string | null;
+  lastSyncCount: number | null;
+  lastError: string | null;
+  lastErrorAt: string | null;
+}
+
+interface Terminal {
+  sn: string;
+  alias: string;
+  ipAddress: string;
+  isOnline: boolean;
+  lastActivity: string | null;
+  fwVersion: string | null;
+}
+
+interface SchoolDiag {
+  config: Config;
+  connexionOk: boolean | null;
+  connexionMessage: string;
+  terminaux: Terminal[];
+  loading: boolean;
+}
 
 export default function BiotimeDashboard() {
-  const [punchesMap, setPunchesMap] = useState<Record<string, any[]>>({});
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loadingPunches, setLoadingPunches] = useState(true);
-  const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [configs, setConfigs] = useState<Config[]>([]);
+  const [diags, setDiags] = useState<Record<string, SchoolDiag>>({});
+  const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState('');
 
-  // Nouveaux états de configuration
-  const [serverUrl, setServerUrl] = useState('http://160.120.143.20:8080');
-  const [savingConfig, setSavingConfig] = useState(false);
-
-  const fetchConfig = async () => {
+  const chargerConfigs = useCallback(async () => {
+    setLoading(true);
+    setErreur('');
     try {
-      const res = await api.get('/biotime/config');
-      if (res.data && res.data.url) {
-        setServerUrl(res.data.url);
+      const res = await api.get('/biotime/configs');
+      const liste: Config[] = Array.isArray(res.data) ? res.data : [];
+      setConfigs(liste);
+
+      const initial: Record<string, SchoolDiag> = {};
+      for (const c of liste) {
+        initial[c.organisationId] = {
+          config: c,
+          connexionOk: null,
+          connexionMessage: '',
+          terminaux: [],
+          loading: false,
+        };
       }
+      setDiags(initial);
     } catch (err) {
-      console.error("Erreur de chargement de la config BioTime", err);
-    }
-  };
-
-  const handleSaveConfig = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavingConfig(true);
-    try {
-      await api.post('/biotime/config', { url: serverUrl });
-      alert("Configuration serveur sauvegardée avec succès.");
-    } catch (err: any) {
-      alert(messageFromError(err, 'Erreur lors de la sauvegarde de la configuration.'));
+      setErreur(messageFromError(err, 'Impossible de charger les configurations BioTime.'));
     } finally {
-      setSavingConfig(false);
+      setLoading(false);
     }
-  };
-
-
-
-  const fetchPunches = async () => {
-    setLoadingPunches(true);
-    try {
-      const res = await api.get('/biotime/punches', { params: { date: filterDate } });
-      setPunchesMap(res.data);
-    } catch (err) {
-      console.error("Erreur de chargement des pointages", err);
-    } finally {
-      setLoadingPunches(false);
-    }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchConfig();
-    fetchPunches();
+    chargerConfigs();
+  }, [chargerConfigs]);
 
-    // Auto refresh every 3 seconds
-    const interval = setInterval(() => {
-      fetchPunches();
-    }, 3000);
+  const diagnostiquer = async (organisationId: string) => {
+    setDiags((prev) => ({
+      ...prev,
+      [organisationId]: { ...prev[organisationId], loading: true },
+    }));
 
-    return () => clearInterval(interval);
-  }, [filterDate]);
+    let connexionOk: boolean | null = null;
+    let connexionMessage = '';
+    let terminaux: Terminal[] = [];
 
-  const totalPunches = useMemo(() => {
-    let count = 0;
-    Object.values(punchesMap).forEach(arr => { count += arr.length; });
-    return count;
-  }, [punchesMap]);
-
-  const exportCSV = () => {
-    let csvContent = "Date,Heure,Statut,Matricule,Nom,Prenom,Classe,Terminal\n";
-
-    for (const [dateStr, punches] of Object.entries(punchesMap)) {
-      punches.forEach((p: any) => {
-        const child = p.child || {};
-        const row = [
-          `"${dateStr}"`,
-          `"${p.time}"`,
-          `"${p.stateLabel}"`,
-          `"${child.empCode || ''}"`,
-          `"${child.lastName || ''}"`,
-          `"${child.firstName || ''}"`,
-          `"${child.className || ''}"`,
-          `"${p.terminal || ''}"`
-        ];
-        csvContent += row.join(",") + "\n";
-      });
+    try {
+      const testRes = await api.post(`/biotime/configs/${organisationId}/test`);
+      connexionOk = testRes.data?.ok ?? false;
+      connexionMessage = testRes.data?.message ?? 'Test terminé';
+    } catch (err) {
+      connexionOk = false;
+      connexionMessage = messageFromError(err, 'Serveur injoignable');
     }
 
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `rapport_pointages_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (connexionOk) {
+      try {
+        const termRes = await api.get(`/biotime/${organisationId}/biotime-terminals`);
+        terminaux = Array.isArray(termRes.data) ? termRes.data : [];
+      } catch {
+        terminaux = [];
+      }
+    }
+
+    setDiags((prev) => ({
+      ...prev,
+      [organisationId]: {
+        ...prev[organisationId],
+        connexionOk,
+        connexionMessage,
+        terminaux,
+        loading: false,
+      },
+    }));
   };
 
+  const diagnostiquerTout = async () => {
+    for (const c of configs) {
+      diagnostiquer(c.organisationId);
+    }
+  };
 
+  const totalTerminaux = Object.values(diags).reduce((s, d) => s + d.terminaux.length, 0);
+  const totalEnLigne = Object.values(diags).reduce(
+    (s, d) => s + d.terminaux.filter((t) => t.isOnline).length,
+    0,
+  );
+  const totalHorsLigne = totalTerminaux - totalEnLigne;
+  const serveursOk = Object.values(diags).filter((d) => d.connexionOk === true).length;
+  const serveursKo = Object.values(diags).filter((d) => d.connexionOk === false).length;
+
+  if (loading) {
+    return <div className="text-center text-navy-300 py-10">Chargement des configurations BioTime...</div>;
+  }
 
   return (
     <div className="animate-fade-in">
-      {/* HEADER ACTIONS */}
-      <div className="flex justify-between items-center mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">BioTime - Supervision Matérielle</h1>
-          <p className="text-navy-300 mt-1">Affichage en temps réel des flux et de l'état des badgeuses physiques.</p>
+          <h1 className="text-2xl font-bold text-white">Supervision BioTime</h1>
+          <p className="text-navy-300 mt-1">
+            Diagnostic infrastructure : connectivite des serveurs et etat des badgeuses par ecole.
+          </p>
         </div>
+        <button
+          onClick={diagnostiquerTout}
+          disabled={configs.length === 0}
+          className="btn-primary flex items-center gap-2 disabled:opacity-40"
+        >
+          <Activity size={18} />
+          Diagnostiquer tout
+        </button>
       </div>
 
-      {/* BioTime Settings & Devices configuration */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem', marginBottom: '2rem' }}>
-        {/* URL configuration */}
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <h3 className="text-lg text-white" style={{ fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            ⚙️ Serveur BioTime
-          </h3>
-          <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            <div>
-              <label className="text-navy-300 text-xs font-semibold block mb-1">Adresse IP / Hôte</label>
-              <input
-                type="text"
-                required
-                value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                style={{ width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '0.375rem', padding: '0.5rem', color: 'var(--text-primary)', outline: 'none', fontSize: '0.9rem' }}
-                placeholder="Ex: http://160.120.143.20:8080"
-              />
+      {erreur && (
+        <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-300 text-sm">
+          {erreur}
+        </div>
+      )}
+
+      {configs.length === 0 ? (
+        <div className="glass-panel p-10 text-center">
+          <Server size={48} className="mx-auto mb-4" style={{ color: 'var(--text-secondary)', opacity: 0.5 }} />
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Aucun serveur BioTime configure. Rendez-vous sur{' '}
+            <a href="/biotime-serveurs" style={{ color: 'var(--accent-primary)', textDecoration: 'underline' }}>
+              Serveurs BioTime
+            </a>{' '}
+            pour ajouter une ecole.
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* Indicateurs globaux */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <StatCard
+              icon={<Server size={22} />}
+              label="Serveurs configures"
+              value={configs.length}
+              color="var(--accent-primary)"
+              bgColor="var(--accent-primary)"
+            />
+            <StatCard
+              icon={<CheckCircle size={22} />}
+              label="Serveurs OK"
+              value={serveursOk}
+              color="var(--success)"
+              bgColor="var(--success)"
+              muted={serveursOk === 0}
+            />
+            <StatCard
+              icon={<Wifi size={22} />}
+              label="Badgeuses en ligne"
+              value={totalEnLigne}
+              color="var(--success)"
+              bgColor="var(--success)"
+              muted={totalEnLigne === 0}
+            />
+            <StatCard
+              icon={<WifiOff size={22} />}
+              label="Badgeuses hors ligne"
+              value={totalHorsLigne}
+              color="var(--danger)"
+              bgColor="var(--danger)"
+              muted={totalHorsLigne === 0}
+            />
+          </div>
+
+          {/* Alerte serveurs en erreur */}
+          {serveursKo > 0 && (
+            <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl border text-sm font-medium"
+              style={{ background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)', color: 'var(--danger)' }}>
+              <AlertTriangle size={18} />
+              {serveursKo} serveur{serveursKo > 1 ? 's' : ''} injoignable{serveursKo > 1 ? 's' : ''} — verifiez la connectivite reseau.
             </div>
-            <button
-              type="submit"
-              disabled={savingConfig}
-              className="btn-primary"
-              style={{ width: '100%', padding: '0.5rem', fontSize: '0.85rem' }}
-            >
-              {savingConfig ? 'Sauvegarde...' : 'Mettre à jour'}
-            </button>
-          </form>
+          )}
+
+          {/* Cartes par ecole */}
+          <div className="flex flex-col gap-4">
+            {configs.map((config) => {
+              const diag = diags[config.organisationId];
+              if (!diag) return null;
+              return (
+                <SchoolCard
+                  key={config.organisationId}
+                  diag={diag}
+                  onDiagnostiquer={() => diagnostiquer(config.organisationId)}
+                />
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+  bgColor,
+  muted,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  color: string;
+  bgColor: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="glass-panel flex items-center gap-3" style={{ padding: '1rem' }}>
+      <div
+        style={{
+          width: '2.75rem',
+          height: '2.75rem',
+          borderRadius: '0.75rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: `color-mix(in srgb, ${bgColor} 15%, transparent)`,
+          color: muted ? 'var(--text-secondary)' : color,
+          opacity: muted ? 0.5 : 1,
+        }}
+      >
+        {icon}
+      </div>
+      <div>
+        <div className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+        <div className="text-xl font-bold" style={{ color: muted ? 'var(--text-secondary)' : 'var(--text-primary)' }}>
+          {value}
         </div>
       </div>
+    </div>
+  );
+}
 
-      {/* Search and Filter */}
-      <div className="flex justify-between items-center mb-6">
-        <div style={{ display: 'flex', gap: '1rem', width: '50%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.5rem 1rem', flex: 1 }}>
-            <Search size={18} className="text-secondary" style={{ marginRight: '0.75rem' }} />
-            <input
-              type="text"
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', width: '100%', fontFamily: 'var(--font-sans)' }}
-              placeholder="Rechercher un enfant, un terminal..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.5rem 1rem' }}>
-            <input
-              type="date"
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontFamily: 'var(--font-sans)' }}
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-            />
-          </div>
-        </div>
+function SchoolCard({ diag, onDiagnostiquer }: { diag: SchoolDiag; onDiagnostiquer: () => void }) {
+  const { config, connexionOk, connexionMessage, terminaux, loading } = diag;
+  const enLigne = terminaux.filter((t) => t.isOnline).length;
+  const horsLigne = terminaux.length - enLigne;
+
+  const statusIcon =
+    connexionOk === null ? (
+      <div
+        className="flex items-center justify-center"
+        style={{
+          width: '2.5rem',
+          height: '2.5rem',
+          borderRadius: '0.75rem',
+          background: 'var(--surface-wash)',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        <Server size={20} />
       </div>
+    ) : connexionOk ? (
+      <div
+        className="flex items-center justify-center"
+        style={{
+          width: '2.5rem',
+          height: '2.5rem',
+          borderRadius: '0.75rem',
+          background: 'color-mix(in srgb, var(--success) 15%, transparent)',
+          color: 'var(--success)',
+        }}
+      >
+        <CheckCircle size={20} />
+      </div>
+    ) : (
+      <div
+        className="flex items-center justify-center"
+        style={{
+          width: '2.5rem',
+          height: '2.5rem',
+          borderRadius: '0.75rem',
+          background: 'color-mix(in srgb, var(--danger) 15%, transparent)',
+          color: 'var(--danger)',
+        }}
+      >
+        <XCircle size={20} />
+      </div>
+    );
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
-        <div className="glass-panel flex items-center" style={{ padding: '1rem' }}>
-          <div style={{ width: '3rem', height: '3rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem', background: 'rgba(16, 185, 129, 0.2)', color: '#10b981' }}>
-            <CheckCircle size={24} />
-          </div>
+  return (
+    <div className="glass-panel" style={{ overflow: 'hidden' }}>
+      {/* En-tete ecole */}
+      <div className="flex items-center justify-between" style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--glass-border)' }}>
+        <div className="flex items-center gap-3">
+          {statusIcon}
           <div>
-            <h3 className="text-secondary text-sm" style={{ fontWeight: 500 }}>
-              Pointages le {new Date(filterDate).toLocaleDateString('fr-FR')}
+            <h3 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
+              {config.organisationName ?? config.organisationId}
             </h3>
-            <p className="text-2xl" style={{ fontWeight: 700 }}>{totalPunches}</p>
+            <div className="flex items-center gap-3 mt-0.5">
+              <span className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>{config.url}</span>
+              <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                — {config.username}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="glass-panel flex items-center" style={{ padding: '1rem' }}>
-          <div style={{ width: '3rem', height: '3rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '1rem', background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b' }}>
-            <Bus size={24} />
-          </div>
-          <div>
-            <h3 className="text-secondary text-sm" style={{ fontWeight: 500 }}>Bus Actifs</h3>
-            <p className="text-2xl" style={{ fontWeight: 700 }}>
-              {(() => {
-                const terms = new Set();
-                Object.values(punchesMap).forEach(arr => arr.forEach(p => terms.add(p.terminal)));
-                return terms.size;
-              })()}
-            </p>
-          </div>
+        <div className="flex items-center gap-2">
+          {connexionOk !== null && (
+            <span
+              className="text-xs font-medium px-2.5 py-1 rounded-full"
+              style={{
+                background: connexionOk
+                  ? 'color-mix(in srgb, var(--success) 15%, transparent)'
+                  : 'color-mix(in srgb, var(--danger) 15%, transparent)',
+                color: connexionOk ? 'var(--success)' : 'var(--danger)',
+              }}
+            >
+              {connexionOk ? 'Connecte' : 'Injoignable'}
+            </span>
+          )}
+          {!config.isActive && (
+            <span
+              className="text-xs font-medium px-2.5 py-1 rounded-full"
+              style={{
+                background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
+                color: 'var(--warning)',
+              }}
+            >
+              Desactive
+            </span>
+          )}
+          <button
+            onClick={onDiagnostiquer}
+            disabled={loading}
+            className="btn-secondary flex items-center gap-2 disabled:opacity-40"
+            style={{ minHeight: '36px', padding: '0.4rem 1rem', fontSize: '0.8rem' }}
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            {connexionOk === null ? 'Tester' : 'Re-tester'}
+          </button>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.5rem' }}>
-        {/* Activity Section */}
-        <section className="glass-panel" style={{ display: 'flex', flexDirection: 'column', height: '600px' }}>
-          <div className="flex justify-between items-center" style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--glass-border)' }}>
-            <h2 className="text-xl">Activité en Direct</h2>
-            <div className="flex gap-2">
-              <button onClick={exportCSV} className="btn btn-secondary" style={{ padding: '0.4rem', border: 'none', background: 'transparent' }} title="Exporter CSV">
-                <Download size={18} />
-              </button>
-              <button onClick={fetchPunches} className="btn btn-secondary" style={{ padding: '0.4rem', border: 'none', background: 'transparent' }} title="Rafraîchir">
-                <RefreshCw size={18} />
-              </button>
-            </div>
-          </div>
+      {/* Message de connexion */}
+      {connexionMessage && (
+        <div
+          className="text-xs px-6 py-2 flex items-center gap-2"
+          style={{
+            borderBottom: '1px solid var(--glass-border)',
+            color: connexionOk ? 'var(--success)' : connexionOk === false ? 'var(--danger)' : 'var(--text-secondary)',
+            background: 'var(--surface-wash)',
+          }}
+        >
+          <Shield size={12} />
+          {connexionMessage}
+        </div>
+      )}
 
-          <div style={{ overflowY: 'auto', padding: '1rem', flex: 1 }}>
-            {loadingPunches ? (
-              <p className="text-center text-secondary">Chargement de l'historique...</p>
-            ) : totalPunches === 0 ? (
-              <p className="text-center text-secondary">Aucun pointage aujourd'hui</p>
-            ) : (
-              (() => {
-                const allPunches: any[] = [];
-                Object.values(punchesMap).forEach(arr => allPunches.push(...arr));
-                
-                const filteredPunches = allPunches.filter(p => {
-                  const term = searchTerm.toLowerCase();
-                  const childName = p.child ? `${p.child.firstName} ${p.child.lastName}`.toLowerCase() : '';
-                  const terminal = (p.terminal || '').toLowerCase();
-                  return childName.includes(term) || terminal.includes(term);
-                });
+      {/* Derniere synchro */}
+      {config.lastSyncedAt && (
+        <div
+          className="text-xs px-6 py-2 flex items-center gap-2"
+          style={{
+            borderBottom: terminaux.length > 0 ? '1px solid var(--glass-border)' : 'none',
+            color: 'var(--text-secondary)',
+            background: 'var(--surface-wash)',
+          }}
+        >
+          <Clock size={12} />
+          Derniere synchro : {new Date(config.lastSyncedAt).toLocaleString('fr-FR')}
+          {config.lastSyncCount !== null && ` — ${config.lastSyncCount} element(s)`}
+        </div>
+      )}
 
-                if (filteredPunches.length === 0) return <p className="text-center text-secondary">Aucun résultat trouvé.</p>;
+      {/* Erreur stockee */}
+      {config.lastError && !connexionMessage && (
+        <div
+          className="text-xs px-6 py-2 flex items-center gap-2"
+          style={{
+            borderBottom: terminaux.length > 0 ? '1px solid var(--glass-border)' : 'none',
+            color: 'var(--danger)',
+            background: 'color-mix(in srgb, var(--danger) 5%, transparent)',
+          }}
+        >
+          <AlertTriangle size={12} />
+          {config.lastError}
+          {config.lastErrorAt && (
+            <span style={{ color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+              ({new Date(config.lastErrorAt).toLocaleString('fr-FR')})
+            </span>
+          )}
+        </div>
+      )}
 
-                // Regroupement par badgeuse
-                const groupedByTerminal = filteredPunches.reduce((acc, punch) => {
-                  const term = punch.terminal || 'Terminal Inconnu';
-                  if (!acc[term]) acc[term] = [];
-                  acc[term].push(punch);
-                  return acc;
-                }, {} as Record<string, any[]>);
-
-                return Object.entries(groupedByTerminal as Record<string, any[]>).map(([terminalName, punches]) => (
-                  <div key={terminalName} className="mb-6">
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-primary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center' }}>
-                      <Bus size={14} style={{ marginRight: '0.5rem' }} /> {terminalName} 
-                      <span className="text-secondary ml-2 text-xs" style={{ background: 'rgba(255,255,255,0.1)', padding: '0.1rem 0.4rem', borderRadius: '1rem' }}>
-                        {punches.length} pointages
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      {punches.map((punch: any, idx: number) => {
-                        const isOut = punch.stateLabel === 'DESCENTE';
-                        const childName = punch.child ? `${punch.child.firstName} ${punch.child.lastName}` : 'Enfant Inconnu';
-                        
-                        return (
-                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.75rem' }}>
-                            <div className="text-secondary" style={{ fontSize: '0.875rem', fontFamily: 'monospace', flexShrink: 0 }}>{punch.time}</div>
-                            <div style={{ width: '4px', height: '2rem', borderRadius: '2px', flexShrink: 0, background: isOut ? 'var(--warning)' : 'var(--accent-primary)' }}></div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <h4 style={{ fontWeight: 500, fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: 0 }}>{childName}</h4>
-                                <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.3rem', borderRadius: '0.25rem', flexShrink: 0, background: isOut ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)', color: isOut ? 'var(--warning)' : 'var(--accent-primary)' }}>
-                                  {punch.stateLabel}
-                                </span>
-                              </div>
-                              <div className="text-navy-300" style={{ fontSize: '0.7rem', marginTop: '0.2rem' }}>
-                                ID: {punch.child ? punch.child.empCode : 'N/A'}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ));
-              })()
+      {/* Terminaux */}
+      {connexionOk && terminaux.length > 0 && (
+        <div style={{ padding: '1rem 1.5rem' }}>
+          {/* Resume badgeuses */}
+          <div className="flex items-center gap-4 mb-3">
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {terminaux.length} badgeuse{terminaux.length > 1 ? 's' : ''}
+            </span>
+            <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--success)' }}>
+              <Wifi size={12} /> {enLigne} en ligne
+            </span>
+            {horsLigne > 0 && (
+              <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--danger)' }}>
+                <WifiOff size={12} /> {horsLigne} hors ligne
+              </span>
             )}
           </div>
-        </section>
-      </div>
+
+          {/* Liste des terminaux */}
+          <div className="grid gap-2">
+            {terminaux.map((t) => (
+              <div
+                key={t.sn}
+                className="flex items-center gap-3"
+                style={{
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '0.5rem',
+                  background: 'var(--surface-wash)',
+                  border: '1px solid var(--glass-border)',
+                }}
+              >
+                {/* Indicateur status */}
+                <div
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    flexShrink: 0,
+                    background: t.isOnline ? 'var(--success)' : 'var(--danger)',
+                    boxShadow: t.isOnline ? '0 0 6px var(--success)' : 'none',
+                  }}
+                />
+
+                {/* Info terminal */}
+                <Cpu size={14} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+                <span className="font-mono text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                  {t.sn}
+                </span>
+                {t.alias && (
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {t.alias}
+                  </span>
+                )}
+
+                <div style={{ flex: 1 }} />
+
+                {/* IP */}
+                {t.ipAddress && (
+                  <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    {t.ipAddress}
+                  </span>
+                )}
+
+                {/* Derniere activite */}
+                {t.lastActivity && (
+                  <span className="text-xs flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+                    <Clock size={10} />
+                    {new Date(t.lastActivity).toLocaleString('fr-FR')}
+                  </span>
+                )}
+
+                {/* Firmware */}
+                {t.fwVersion && (
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded"
+                    style={{ background: 'var(--surface-wash-strong)', color: 'var(--text-secondary)', fontSize: '0.65rem' }}
+                  >
+                    FW {t.fwVersion}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Connexion OK mais aucun terminal */}
+      {connexionOk && terminaux.length === 0 && (
+        <div className="text-center py-6" style={{ color: 'var(--text-secondary)' }}>
+          <Cpu size={24} className="mx-auto mb-2" style={{ opacity: 0.4 }} />
+          <p className="text-sm">Serveur connecte — aucun terminal enregistre</p>
+        </div>
+      )}
+
+      {/* En cours de diagnostic */}
+      {loading && (
+        <div className="text-center py-6" style={{ color: 'var(--text-secondary)' }}>
+          <RefreshCw size={20} className="mx-auto mb-2 animate-spin" />
+          <p className="text-sm">Diagnostic en cours...</p>
+        </div>
+      )}
     </div>
   );
 }

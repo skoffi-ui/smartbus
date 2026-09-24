@@ -132,6 +132,71 @@ export class BiotimeController {
     return { message: "Synchronisation de l'annuaire mise en file.", jobId: job.id };
   }
 
+  @Post('mon-ecole/push-child')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Pousse un élève vers le serveur BioTime de sa propre école" })
+  @ApiBody({
+    schema: {
+      example: {
+        empCode: '10042',
+        firstName: 'Aya',
+        lastName: 'Konan',
+        className: '6ème A',
+        biotimeId: null,
+      },
+    },
+  })
+  pushMonChild(
+    @CurrentUser() user: { organisationId?: string },
+    @Body() body: { empCode: string; firstName: string; lastName: string; className?: string; biotimeId?: number },
+  ) {
+    return this.biotimeService.pushChild(this.ecoleDe(user), body);
+  }
+
+  @Post('mon-ecole/push-children-batch')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Pousse un lot d'élèves vers BioTime (async via BullMQ)" })
+  @ApiBody({
+    schema: {
+      example: {
+        enfants: [
+          { childId: 'uuid', empCode: '10042', firstName: 'Aya', lastName: 'Konan', className: '6ème A' },
+        ],
+      },
+    },
+  })
+  async pushMonChildrenBatch(
+    @CurrentUser() user: { organisationId?: string },
+    @Body('enfants') enfants: Array<{
+      childId: string; empCode: string; firstName: string; lastName: string;
+      className?: string; biotimeId?: number;
+    }>,
+  ) {
+    const organisationId = this.ecoleDe(user);
+    const job = await this.biotimeQueue.add('push-children-batch', {
+      organisationId,
+      enfants: enfants ?? [],
+    });
+    return {
+      message: `Push de ${enfants?.length ?? 0} élève(s) mis en file.`,
+      jobId: job.id,
+    };
+  }
+
+  @Post('mon-ecole/sync-departments')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Synchronise les classes vers les départements BioTime" })
+  @ApiBody({ schema: { example: { classNames: ['6ème A', '5ème B', 'CM2'] } } })
+  syncMonDepartments(
+    @CurrentUser() user: { organisationId?: string },
+    @Body('classNames') classNames: string[],
+  ) {
+    return this.biotimeService.syncDepartmentsFromClasses(this.ecoleDe(user), classNames ?? []);
+  }
+
   @Get('mon-ecole/directory')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
   @ApiOperation({ summary: "Répertoire BioTime de sa propre école" })

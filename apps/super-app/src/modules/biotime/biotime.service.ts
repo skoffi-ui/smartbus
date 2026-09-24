@@ -30,6 +30,10 @@ export class BiotimeService {
   /** Un jeton par école : les serveurs sont distincts, les sessions aussi. */
   private readonly jetons = new Map<string, JetonEnCache>();
 
+  /** Cache des départements BioTime par école. TTL = 10 min. Évite de refetcher à chaque push. */
+  private readonly deptCache = new Map<string, { data: Map<string, number>; expireLe: Date }>();
+  private static readonly DEPT_CACHE_TTL_MS = 10 * 60 * 1000;
+
   constructor(
     private readonly httpService: HttpService,
     @InjectRepository(SuperAppChild)
@@ -928,6 +932,236 @@ export class BiotimeService {
         error?.response?.status ?? HttpStatus.BAD_GATEWAY,
       );
     }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // SYNCHRONISATION BIDIRECTIONNELLE : SMARTBUS → BIOTIME
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Charge (ou renvoie depuis le cache) la table className→deptId pour une école.
+   * Un seul GET /departments par tranche de 10 min, même pour 3000 pushes.
+   */
+  private async getDeptMap(organisationId: string): Promise<Map<string, number>> {
+    const cached = this.deptCache.get(organisationId);
+    if (cached && cached.expireLe > new Date()) return cached.data;
+
+    const depts = await this.getDepartments(organisationId);
+    const map = new Map<string, number>();
+    for (const d of depts) {
+      if (d.dept_name) map.set(d.dept_name.toLowerCase(), d.id);
+    }
+
+    this.deptCache.set(organisationId, {
+      data: map,
+      expireLe: new Date(Date.now() + BiotimeService.DEPT_CACHE_TTL_MS),
+    });
+    return map;
+  }
+
+  private invalidateDeptCache(organisationId: string): void {
+    this.deptCache.delete(organisationId);
+  }
+
+  /**
+   * Résout un nom de classe vers un ID de département BioTime.
+   * Utilise le cache, crée le département s'il est absent, met à jour le cache.
+   */
+  async resolveDepartmentId(organisationId: string, className: string): Promise<number | null> {
+    if (!className) return null;
+
+    try {
+      const map = await this.getDeptMap(organisationId);
+      const existant = map.get(className.toLowerCase());
+      if (existant) return existant;
+
+      const nouveau = await this.createDepartment(organisationId, { dept_name: className });
+      const newId = nouveau?.id ?? null;
+      if (newId) map.set(className.toLowerCase(), newId);
+
+      this.logger.log(
+        `[BioTime→] Département "${className}" créé automatiquement pour l'école ${organisationId}`,
+      );
+      return newId;
+    } catch (error: any) {
+      this.logger.warn(
+        `[BioTime→] Résolution du département "${className}" impossible : ${error.message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Pousse un enfant SMARTBUS vers BioTime.
+   *
+   * - Si `biotimeId` est fourni → PATCH (mise à jour)
+   * - Sinon → POST (création)
+   *
+   * Retourne `{ biotimeId, action, error? }` pour que l'appelant puisse
+   * mettre à jour le statut de sync.
+   */
+  async pushChild(
+    organisationId: string,
+    donnees: {
+      empCode: string;
+      firstName: string;
+      lastName: string;
+      className?: string;
+      biotimeId?: number;
+    },
+  ): Promise<{ biotimeId: number | null; action: 'created' | 'updated' | 'skipped'; error?: string }> {
+    try {
+      await this.getAuthToken(organisationId);
+    } catch {
+      return {
+        biotimeId: donnees.biotimeId ?? null,
+        action: 'skipped',
+        error: 'Serveur BioTime injoignable',
+      };
+    }
+
+    try {
+      const departmentId = donnees.className
+        ? await this.resolveDepartmentId(organisationId, donnees.className)
+        : null;
+
+      if (donnees.biotimeId) {
+        const patchData: Record<string, any> = {
+          first_name: donnees.firstName,
+          last_name: donnees.lastName,
+        };
+        if (departmentId !== null) patchData.department = departmentId;
+
+        await this.updateEmployee(organisationId, donnees.biotimeId, patchData);
+        return { biotimeId: donnees.biotimeId, action: 'updated' };
+      }
+
+      const emp_code = donnees.empCode || `SM-${Date.now()}`;
+      const payload: Record<string, any> = {
+        emp_code,
+        first_name: donnees.firstName,
+        last_name: donnees.lastName,
+      };
+      if (departmentId !== null) payload.department = departmentId;
+
+      const resultat = await this.createEmployee(organisationId, payload as any);
+      return { biotimeId: resultat?.id ?? null, action: 'created' };
+    } catch (error: any) {
+      const message = error?.response?.data?.detail
+        ? JSON.stringify(error.response.data.detail)
+        : error.message;
+      this.logger.warn(
+        `[BioTime→] Push échoué pour ${donnees.empCode} (école ${organisationId}) : ${message}`,
+      );
+      return { biotimeId: donnees.biotimeId ?? null, action: 'skipped', error: message };
+    }
+  }
+
+  /**
+   * Pousse un lot d'enfants vers BioTime, séquentiellement (serveurs école modestes)
+   * mais avec un seul chargement de départements pour tout le batch.
+   *
+   * Conçu pour le bulk-import : 3000 élèves = 1 GET departments + 3000 POST employees.
+   */
+  async pushChildrenBatch(
+    organisationId: string,
+    enfants: Array<{
+      childId: string;
+      empCode: string;
+      firstName: string;
+      lastName: string;
+      className?: string;
+      biotimeId?: number;
+    }>,
+  ): Promise<Array<{ childId: string; biotimeId: number | null; action: string; error?: string }>> {
+    const resultats: Array<{ childId: string; biotimeId: number | null; action: string; error?: string }> = [];
+
+    try {
+      await this.getAuthToken(organisationId);
+    } catch {
+      return enfants.map((e) => ({
+        childId: e.childId,
+        biotimeId: e.biotimeId ?? null,
+        action: 'skipped',
+        error: 'Serveur BioTime injoignable',
+      }));
+    }
+
+    // Pré-charger le cache de départements une seule fois pour tout le batch
+    try {
+      await this.getDeptMap(organisationId);
+    } catch {
+      this.logger.warn(`[BioTime→] Impossible de charger les départements, push sans département.`);
+    }
+
+    for (const enfant of enfants) {
+      const resultat = await this.pushChild(organisationId, enfant);
+      resultats.push({ childId: enfant.childId, ...resultat });
+
+      // Pause de 50ms entre chaque appel pour ne pas saturer le serveur BioTime
+      if (enfants.length > 10) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    }
+
+    const stats = {
+      created: resultats.filter((r) => r.action === 'created').length,
+      updated: resultats.filter((r) => r.action === 'updated').length,
+      skipped: resultats.filter((r) => r.action === 'skipped').length,
+    };
+    this.logger.log(
+      `[BioTime→] Batch push école ${organisationId} : ${enfants.length} enfant(s) → ` +
+        `${stats.created} créé(s), ${stats.updated} mis à jour, ${stats.skipped} ignoré(s)`,
+    );
+
+    return resultats;
+  }
+
+  /**
+   * Synchronise toutes les classes d'une école vers les départements BioTime.
+   * Crée les départements manquants, ne supprime rien.
+   */
+  async syncDepartmentsFromClasses(
+    organisationId: string,
+    classNames: string[],
+  ): Promise<{ created: string[]; existing: string[] }> {
+    const created: string[] = [];
+    const existing: string[] = [];
+
+    this.invalidateDeptCache(organisationId);
+
+    let map: Map<string, number>;
+    try {
+      map = await this.getDeptMap(organisationId);
+    } catch {
+      this.logger.warn(
+        `[BioTime→] École ${organisationId} : impossible de lire les départements.`,
+      );
+      return { created, existing };
+    }
+
+    for (const name of classNames) {
+      if (!name) continue;
+      if (map.has(name.toLowerCase())) {
+        existing.push(name);
+        continue;
+      }
+
+      try {
+        const nouveau = await this.createDepartment(organisationId, { dept_name: name });
+        if (nouveau?.id) map.set(name.toLowerCase(), nouveau.id);
+        created.push(name);
+      } catch (error: any) {
+        this.logger.warn(
+          `[BioTime→] Création du département "${name}" échouée : ${error.message}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `[BioTime→] Sync départements école ${organisationId} : ${created.length} créé(s), ${existing.length} existant(s)`,
+    );
+    return { created, existing };
   }
 
   // ───────────────────────────────────────────────────────────────────────────

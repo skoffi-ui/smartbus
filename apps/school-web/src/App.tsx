@@ -26,6 +26,7 @@ import AlertesTransport from './pages/AlertesTransport';
 import CentreAlertes from './pages/CentreAlertes';
 import BiotimeEmployees from './pages/BiotimeEmployees';
 import BiotimeConfig from './pages/BiotimeConfig';
+import Settings from './pages/Settings';
 
 function App() {
   // Vérifie si un jeton est présent dans le navigateur
@@ -226,6 +227,18 @@ function App() {
             isAuthenticated ? (
               <Layout>
                 <BiotimeConfig />
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            isAuthenticated ? (
+              <Layout>
+                <Settings />
               </Layout>
             ) : (
               <Navigate to="/login" />

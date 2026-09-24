@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, ConflictException, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { Child } from '@app/database/tenant-entities/child.entity';
+import { Child, BiotimeSyncStatus } from '@app/database/tenant-entities/child.entity';
 import { CreateChildDto, UpdateChildDto } from './dto/children.dto';
 import { TenantService } from '../tenant/tenant.service';
 import { Parent } from '@app/database/tenant-entities/parent.entity';
@@ -10,19 +10,14 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class ChildrenService {
+  private readonly logger = new Logger(ChildrenService.name);
+
   constructor(
     private readonly tenantService: TenantService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {}
 
-  /**
-   * Appel aux routes « mon-ecole » de la super-app.
-   *
-   * Le jeton de l'utilisateur est relayé tel quel : la super-app en déduit
-   * l'école et ne renvoie que l'annuaire BioTime de cet établissement. Chaque
-   * école ayant son propre serveur BioTime, un appel anonyme n'a plus de sens.
-   */
   private urlSuperApp(chemin: string): string {
     const base = this.configService.get<string>('SUPER_APP_URL', 'http://localhost:3000');
     return `${base}/api/v1/biotime/mon-ecole${chemin}`;
@@ -54,7 +49,6 @@ export class ChildrenService {
       throw new NotFoundException(`Élève ${id} introuvable.`);
     }
 
-    // Auto-sync photo from super-app if we don't have it locally
     if (!child.photoUrl && child.empCode) {
       try {
         const response = await firstValueFrom(
@@ -82,10 +76,9 @@ export class ChildrenService {
     return child;
   }
 
-  async create(createChildDto: CreateChildDto): Promise<Child> {
+  async create(createChildDto: CreateChildDto, accessToken?: string): Promise<Child> {
     const repo = await this.getRepo();
-    
-    // Check if empCode is unique
+
     if (createChildDto.empCode) {
       const existing = await repo.findOne({ where: { empCode: createChildDto.empCode } });
       if (existing) {
@@ -93,12 +86,14 @@ export class ChildrenService {
       }
     }
 
-    // Set default date of birth if omitted (as it is required in the DB schema)
     if (!createChildDto.dateOfBirth) {
       createChildDto.dateOfBirth = '2015-01-01';
     }
 
-    const child = repo.create(createChildDto);
+    const child = repo.create({
+      ...createChildDto,
+      biotimeSyncStatus: BiotimeSyncStatus.PENDING,
+    });
 
     if (createChildDto.parentId) {
       const parentRepo = await this.getParentRepo();
@@ -109,13 +104,17 @@ export class ChildrenService {
       child.parent = parent;
     }
 
-    return repo.save(child);
+    const saved = await repo.save(child);
+
+    this.pushSingleToBiotime(repo, saved, accessToken);
+
+    return saved;
   }
 
-  async update(id: string, updateChildDto: UpdateChildDto): Promise<Child> {
+  async update(id: string, updateChildDto: UpdateChildDto, accessToken?: string): Promise<Child> {
     const repo = await this.getRepo();
     const child = await this.findOne(id);
-    
+
     if (updateChildDto.empCode && updateChildDto.empCode !== child.empCode) {
       const existing = await repo.findOne({ where: { empCode: updateChildDto.empCode } });
       if (existing) {
@@ -134,13 +133,25 @@ export class ChildrenService {
       child.parent = null;
     }
 
+    const ancienneClasse = child.className;
     Object.assign(child, updateChildDto);
-    // don't overwrite parent with string id if Object.assign did it
     if (updateChildDto.parentId) {
-      delete (child as any).parentId; 
+      delete (child as any).parentId;
     }
 
-    return repo.save(child);
+    const saved = await repo.save(child);
+
+    const champsBiotime = ['firstName', 'lastName', 'className', 'empCode'];
+    const aChange = champsBiotime.some((k) => updateChildDto[k as keyof UpdateChildDto] !== undefined);
+    const classeChangee = updateChildDto.className !== undefined && updateChildDto.className !== ancienneClasse;
+
+    if (aChange || classeChangee) {
+      await repo.update(saved.id, { biotimeSyncStatus: BiotimeSyncStatus.PENDING });
+      saved.biotimeSyncStatus = BiotimeSyncStatus.PENDING;
+      this.pushSingleToBiotime(repo, saved, accessToken);
+    }
+
+    return saved;
   }
 
   async remove(id: string): Promise<void> {
@@ -149,14 +160,106 @@ export class ChildrenService {
     await repo.remove(child);
   }
 
+  // ─── Synchronisation SMARTBUS → BioTime ───────────────────────────────────
+
+  /**
+   * Push unitaire fire-and-forget vers BioTime via la super-app.
+   * Met à jour le biotimeId et le statut de sync après réponse.
+   */
+  private pushSingleToBiotime(repo: Repository<Child>, child: Child, accessToken?: string): void {
+    if (!accessToken) return;
+
+    firstValueFrom(
+      this.httpService.post(
+        this.urlSuperApp('/push-child'),
+        {
+          empCode: child.empCode,
+          firstName: child.firstName,
+          lastName: child.lastName,
+          className: child.className,
+          biotimeId: child.biotimeId ?? null,
+        },
+        this.enTetes(accessToken),
+      ),
+    )
+      .then(async (response) => {
+        const { biotimeId, action, error } = response.data ?? {};
+        if (action === 'skipped' && error) {
+          await repo.update(child.id, {
+            biotimeSyncStatus: BiotimeSyncStatus.FAILED,
+            biotimeSyncError: error,
+          });
+          return;
+        }
+        await repo.update(child.id, {
+          ...(biotimeId ? { biotimeId } : {}),
+          biotimeSyncStatus: BiotimeSyncStatus.SYNCED,
+          biotimeSyncError: null as any,
+        });
+        this.logger.log(
+          `[BioTime→] ${child.firstName} ${child.lastName} → ${action} (biotimeId=${biotimeId})`,
+        );
+      })
+      .catch(async (err) => {
+        await repo.update(child.id, {
+          biotimeSyncStatus: BiotimeSyncStatus.FAILED,
+          biotimeSyncError: err.message?.slice(0, 255),
+        }).catch(() => {});
+        this.logger.warn(`[BioTime→] Push échoué pour ${child.id} : ${err.message}`);
+      });
+  }
+
+  /**
+   * Resynchronise vers BioTime tous les enfants en statut PENDING ou FAILED.
+   * Utilise l'endpoint batch (BullMQ) pour ne pas saturer.
+   */
+  async retryFailedSync(accessToken?: string): Promise<{ enqueued: number }> {
+    if (!accessToken) return { enqueued: 0 };
+
+    const repo = await this.getRepo();
+    const aSync = await repo.find({
+      where: [
+        { biotimeSyncStatus: BiotimeSyncStatus.PENDING },
+        { biotimeSyncStatus: BiotimeSyncStatus.FAILED },
+      ],
+    });
+
+    if (aSync.length === 0) return { enqueued: 0 };
+
+    const enfants = aSync.map((c) => ({
+      childId: c.id,
+      empCode: c.empCode,
+      firstName: c.firstName,
+      lastName: c.lastName,
+      className: c.className,
+      biotimeId: c.biotimeId ?? undefined,
+    }));
+
+    try {
+      await firstValueFrom(
+        this.httpService.post(
+          this.urlSuperApp('/push-children-batch'),
+          { enfants },
+          this.enTetes(accessToken),
+        ),
+      );
+      this.logger.log(`[BioTime→] Batch retry de ${enfants.length} enfant(s) mis en file.`);
+      return { enqueued: enfants.length };
+    } catch (err: any) {
+      this.logger.warn(`[BioTime→] Batch retry échoué : ${err.message}`);
+      return { enqueued: 0 };
+    }
+  }
+
+  // ─── Lecture BioTime ──────────────────────────────────────────────────────
+
   async getPunches(id: string, accessToken?: string): Promise<any[]> {
     const child = await this.findOne(id);
     if (!child.empCode) {
       return [];
     }
-    
+
     try {
-      // Appel du super-app pour récupérer l'historique
       const response = await firstValueFrom(
         this.httpService.get(
           this.urlSuperApp(`/punches/empcode/${child.empCode}`),
@@ -166,7 +269,7 @@ export class ChildrenService {
       return response.data;
     } catch (error) {
       console.error(`Erreur lors de la récupération des pointages pour l'enfant ${id}`, error);
-      return []; // Return empty array on failure instead of crashing
+      return [];
     }
   }
 
@@ -188,7 +291,6 @@ export class ChildrenService {
     }
 
     try {
-      // 1. Fetch details from super-app
       const response = await firstValueFrom(
         this.httpService.post(
           this.urlSuperApp('/directory/bulk'),
@@ -197,25 +299,23 @@ export class ChildrenService {
         ),
       );
       const employees = response.data || [];
-      
+
       const repo = await this.getRepo();
       let importedCount = 0;
 
       for (const emp of employees) {
-        // 2. Check if already exists in this school
         const existing = await repo.findOne({ where: { empCode: emp.empCode } });
         if (!existing) {
-          // 3. Create child
           const child = repo.create({
             firstName: emp.firstName,
             lastName: emp.lastName,
             empCode: emp.empCode,
             className: emp.departmentName,
-            dateOfBirth: '2015-01-01', // Default required
-            isActive: true
+            dateOfBirth: '2015-01-01',
+            isActive: true,
+            biotimeSyncStatus: BiotimeSyncStatus.SYNCED,
           });
 
-          // Process photo
           if (emp.photo) {
             const photo = emp.photo;
             if (photo.startsWith('http')) {
@@ -239,10 +339,6 @@ export class ChildrenService {
     }
   }
 
-  /**
-   * Corrige les photoUrl existantes en base pour y ajouter le port :8080 manquant.
-   * Nécessaire après la migration du BIOTIME_URL vers http://160.120.143.20:8080
-   */
   async resyncPhotos(accessToken?: string): Promise<{ updated: number }> {
     const repo = await this.getRepo();
     const allChildren = await repo.find();
@@ -251,13 +347,11 @@ export class ChildrenService {
     for (const child of allChildren) {
       let needsUpdate = false;
 
-      // Corriger les URLs sans port (http://160.120.143.20/...)
       if (child.photoUrl && child.photoUrl.includes('160.120.143.20') && !child.photoUrl.includes(':8080')) {
         child.photoUrl = child.photoUrl.replace('http://160.120.143.20', 'http://160.120.143.20:8080');
         needsUpdate = true;
       }
 
-      // Si toujours pas de photo et que l'enfant a un empCode, tenter la récupération
       if (!child.photoUrl && child.empCode) {
         try {
           const response = await firstValueFrom(
@@ -287,5 +381,36 @@ export class ChildrenService {
     }
 
     return { updated };
+  }
+
+  /**
+   * Synchronise les noms de classes locaux vers les départements BioTime.
+   */
+  async syncClassesToBiotime(accessToken?: string): Promise<any> {
+    if (!accessToken) {
+      return { message: 'Jeton requis', created: [], existing: [] };
+    }
+
+    const repo = await this.getRepo();
+    const children = await repo.find({ select: { className: true } });
+    const classNames = [...new Set(children.map((c) => c.className).filter(Boolean))];
+
+    if (classNames.length === 0) {
+      return { message: 'Aucune classe à synchroniser', created: [], existing: [] };
+    }
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          this.urlSuperApp('/sync-departments'),
+          { classNames },
+          this.enTetes(accessToken),
+        ),
+      );
+      return response.data;
+    } catch (err: any) {
+      this.logger.warn(`[BioTime→] Sync des classes échouée : ${err.message}`);
+      return { message: 'Synchronisation échouée', error: err.message };
+    }
   }
 }

@@ -10,6 +10,13 @@ export enum ChildGender {
   FEMALE = 'F',
 }
 
+export enum BiotimeSyncStatus {
+  PENDING = 'PENDING',
+  SYNCED = 'SYNCED',
+  FAILED = 'FAILED',
+  NOT_CONFIGURED = 'NOT_CONFIGURED',
+}
+
 /**
  * Entité Child – enfant scolarisé dans l'établissement.
  * Contient les données biométriques (hash de l'empreinte digitale).
@@ -40,6 +47,20 @@ export class Child extends SoftDeleteEntityModel {
 
   @Column({ name: 'emp_code', nullable: true })
   empCode: string;
+
+  @Column({ name: 'biotime_id', type: 'int', nullable: true })
+  biotimeId: number;
+
+  @Column({
+    name: 'biotime_sync_status',
+    type: 'enum',
+    enum: BiotimeSyncStatus,
+    default: BiotimeSyncStatus.NOT_CONFIGURED,
+  })
+  biotimeSyncStatus: BiotimeSyncStatus;
+
+  @Column({ name: 'biotime_sync_error', nullable: true })
+  biotimeSyncError: string;
 
   @Column({ name: 'class_name', nullable: true })
   className: string;

@@ -1,16 +1,20 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, UserCircle, Cpu, Server, Calendar, Wifi } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Activity, Cpu, Server, Calendar, Wifi, Settings } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 export default function Sidebar() {
-  const links = [
-    { name: 'Écoles', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'Équipe', path: '/users', icon: Users },
-    { name: 'Abonnements', path: '/subscriptions', icon: Calendar },
-    { name: 'Facturation', path: '/billing', icon: CreditCard },
-    { name: 'BioTime', path: '/biotime', icon: UserCircle },
-    { name: 'Serveurs BioTime', path: '/biotime-serveurs', icon: Server },
-    { name: 'Badgeuses', path: '/biotime-terminaux', icon: Wifi },
-    { name: 'Matériel', path: '/devices', icon: Cpu },
+  const { t } = useI18n();
+
+  const liens = [
+    { nom: t('sidebar.ecoles'), chemin: '/dashboard', icone: LayoutDashboard },
+    { nom: t('sidebar.equipe'), chemin: '/users', icone: Users },
+    { nom: t('sidebar.abonnements'), chemin: '/subscriptions', icone: Calendar },
+    { nom: t('sidebar.facturation'), chemin: '/billing', icone: CreditCard },
+    { nom: t('sidebar.diagnostic'), chemin: '/biotime', icone: Activity },
+    { nom: t('sidebar.serveurs'), chemin: '/biotime-serveurs', icone: Server },
+    { nom: t('sidebar.badgeuses'), chemin: '/biotime-terminaux', icone: Wifi },
+    { nom: t('sidebar.materiel'), chemin: '/devices', icone: Cpu },
+    { nom: t('sidebar.parametres'), chemin: '/settings', icone: Settings },
   ];
 
   return (
@@ -29,12 +33,12 @@ export default function Sidebar() {
       </div>
 
       <div className="space-y-2 flex-1">
-        {links.map((link) => {
-          const Icon = link.icon;
+        {liens.map((lien) => {
+          const Icone = lien.icone;
           return (
             <NavLink
-              key={link.name}
-              to={link.path}
+              key={lien.nom}
+              to={lien.chemin}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
                   isActive
@@ -44,8 +48,8 @@ export default function Sidebar() {
               }
               style={({ isActive }) => (isActive ? { color: '#fff' } : undefined)}
             >
-              <Icon size={20} className="shrink-0" />
-              {link.name}
+              <Icone size={20} className="shrink-0" />
+              {lien.nom}
             </NavLink>
           );
         })}
@@ -53,9 +57,9 @@ export default function Sidebar() {
 
       <div className="mt-auto">
         <div className="glass-panel p-4 text-center">
-          <p className="text-sm font-medium text-white mb-1">Besoin d'aide ?</p>
-          <p className="text-xs text-navy-300 mb-3">Consultez la documentation technique</p>
-          <button className="btn-secondary w-full text-xs">Documentation</button>
+          <p className="text-sm font-medium text-white mb-1">{t('sidebar.aide')}</p>
+          <p className="text-xs text-navy-300 mb-3">{t('sidebar.aide_desc')}</p>
+          <button className="btn-secondary w-full text-xs">{t('sidebar.documentation')}</button>
         </div>
       </div>
     </div>

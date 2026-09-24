@@ -8,6 +8,7 @@ import BiotimeDashboard from './pages/BiotimeDashboard';
 import Devices from './pages/Devices';
 import BiotimeServeurs from './pages/BiotimeServeurs';
 import BiotimeTerminaux from './pages/BiotimeTerminaux';
+import Settings from './pages/Settings';
 import AdminLayout from './layouts/AdminLayout';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
           <Route path="biotime-serveurs" element={<BiotimeServeurs />} />
           <Route path="biotime-terminaux" element={<BiotimeTerminaux />} />
           <Route path="devices" element={<Devices />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </Router>

@@ -13,16 +13,15 @@ import { UserRole } from '@app/database';
 export class ChildrenController {
   constructor(private readonly childrenService: ChildrenService) {}
 
-  /** Jeton de l'appelant, relayé à la super-app pour qu'elle identifie l'école. */
   private jeton(req: { headers: Record<string, string | undefined> }): string {
     return (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   }
 
   @Post()
-  @ApiOperation({ summary: 'Créer un élève' })
-  async create(@Body() createChildDto: CreateChildDto) {
+  @ApiOperation({ summary: 'Créer un élève (synchronisé automatiquement vers BioTime)' })
+  async create(@Body() createChildDto: CreateChildDto, @Req() req: any) {
     try {
-      return await this.childrenService.create(createChildDto);
+      return await this.childrenService.create(createChildDto, this.jeton(req));
     } catch (e: any) {
       throw new HttpException({
         message: e.message,
@@ -55,6 +54,18 @@ export class ChildrenController {
     return this.childrenService.bulkImport(empCodes, this.jeton(req));
   }
 
+  @Post('sync-classes')
+  @ApiOperation({ summary: 'Synchroniser les classes locales vers les départements BioTime' })
+  async syncClasses(@Req() req: any) {
+    return this.childrenService.syncClassesToBiotime(this.jeton(req));
+  }
+
+  @Post('retry-sync')
+  @ApiOperation({ summary: 'Resynchroniser vers BioTime les élèves en échec ou en attente' })
+  async retrySync(@Req() req: any) {
+    return this.childrenService.retryFailedSync(this.jeton(req));
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Récupérer un élève par ID' })
   findOne(@Param('id') id: string, @Req() req: any) {
@@ -62,9 +73,9 @@ export class ChildrenController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Mettre à jour un élève' })
-  update(@Param('id') id: string, @Body() updateChildDto: UpdateChildDto) {
-    return this.childrenService.update(id, updateChildDto);
+  @ApiOperation({ summary: 'Mettre à jour un élève (synchronisé automatiquement vers BioTime)' })
+  update(@Param('id') id: string, @Body() updateChildDto: UpdateChildDto, @Req() req: any) {
+    return this.childrenService.update(id, updateChildDto, this.jeton(req));
   }
 
   @Delete(':id')
