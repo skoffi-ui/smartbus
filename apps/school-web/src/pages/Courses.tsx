@@ -247,7 +247,7 @@ export default function Courses() {
   const waypoints = selectedTrajet?.waypoints || [];
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#F8FAFC] p-6 font-sans text-[#1E293B]">
+    <div className="min-h-[calc(100vh-4rem)] bg-[var(--bg-primary)] p-6 font-sans text-[var(--text-primary)]">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-[30px] lg:h-[calc(100vh-8rem)]">
         
         {/* Colonne Gauche : Liste des courses */}
@@ -261,7 +261,7 @@ export default function Courses() {
                 </span>
               )}
             </div>
-            <p className="text-[#64748B] text-[14px] mb-4">Planification des horaires</p>
+            <p className="text-[var(--text-secondary)] text-[14px] mb-4">Planification des horaires</p>
 
             <div className="uiverse-search-group">
               <Search className="uiverse-search-icon" />
@@ -329,7 +329,7 @@ export default function Courses() {
           <div className="bg-white rounded-[10px] shadow-sm border border-slate-200 flex flex-col overflow-hidden h-[50vh] min-h-[350px] shrink-0">
             <div className="p-4 border-b border-slate-100 bg-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Navigation size={18} className="text-[#2563EB]" />
+                <Navigation size={18} className="text-[var(--accent-primary)]" />
                 <div>
                   <h3 className="text-[16px] font-bold text-slate-900">
                     Aperçu du trajet <span className="font-normal text-slate-500">(lecture seule)</span>

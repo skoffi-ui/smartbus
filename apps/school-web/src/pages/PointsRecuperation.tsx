@@ -152,13 +152,13 @@ export default function PointsRecuperation() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#F8FAFC] p-6 font-sans text-[#1E293B]">
+    <div className="min-h-[calc(100vh-4rem)] bg-[var(--bg-primary)] p-6 font-sans text-[var(--text-primary)]">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* En-tête */}
         <div>
           <h1 className="text-[28px] font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <MapPin size={28} className="text-[#2563EB]" />
+            <MapPin size={28} className="text-[var(--accent-primary)]" />
             Points de Récupération
           </h1>
           <p className="mt-2 text-base text-gray-600">
@@ -175,7 +175,7 @@ export default function PointsRecuperation() {
             <div className="bg-white rounded-[16px] shadow-sm border border-slate-200 p-5">
               <label className="block text-[14px] font-bold text-slate-900 mb-3">Course active</label>
               <select 
-                className="w-full h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-[14px] font-medium outline-none focus:ring-2 focus:ring-[#2563EB]/20 transition-all"
+                className="w-full h-11 rounded-lg border border-slate-200 bg-slate-50 px-3 text-[14px] font-medium outline-none focus:ring-2 focus:ring-[rgba(138,180,255,0.2)] transition-all"
                 value={selectedCourse?.id || ''}
                 onChange={(e) => {
                   const course = courses.find(c => c.id === e.target.value);
@@ -191,11 +191,11 @@ export default function PointsRecuperation() {
 
             {/* Formulaire Nouvel Arrêt (Affiché si clique sur la carte) */}
             {tempPoint && (
-              <div className="bg-white rounded-[16px] shadow-lg border border-[#2563EB]/30 p-5 ring-1 ring-[#2563EB]/10 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-1 h-full bg-[#2563EB]"></div>
+              <div className="bg-white rounded-[16px] shadow-lg border border-[rgba(138,180,255,0.35)] p-5 ring-1 ring-[rgba(138,180,255,0.15)] relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-1 h-full bg-[var(--accent-container)]"></div>
                 
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-[15px] text-[#2563EB] flex items-center gap-2">
+                  <h3 className="font-bold text-[15px] text-[var(--accent-primary)] flex items-center gap-2">
                     <MapPin size={16} /> Nouvel Arrêt
                   </h3>
                   <button onClick={() => setTempPoint(null)} className="text-gray-400 hover:text-gray-700">
@@ -210,7 +210,7 @@ export default function PointsRecuperation() {
                       required 
                       type="text" 
                       placeholder="Ex: Croisement Pasteur"
-                      className="w-full h-10 rounded-lg border border-slate-200 px-3 text-[14px] outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
+                      className="w-full h-10 rounded-lg border border-slate-200 px-3 text-[14px] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
                       value={newPointData.nom}
                       onChange={e => setNewPointData({...newPointData, nom: e.target.value})}
                     />
@@ -222,7 +222,7 @@ export default function PointsRecuperation() {
                       <input 
                         required 
                         type="time" 
-                        className="w-full h-10 rounded-lg border border-slate-200 pl-9 pr-3 text-[14px] outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
+                        className="w-full h-10 rounded-lg border border-slate-200 pl-9 pr-3 text-[14px] outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)]"
                         value={newPointData.tempsArret}
                         onChange={e => setNewPointData({...newPointData, tempsArret: e.target.value})}
                       />
@@ -231,7 +231,7 @@ export default function PointsRecuperation() {
                   <button 
                     type="submit" 
                     disabled={saving}
-                    className="w-full h-10 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                    className="w-full h-10 bg-[var(--accent-container)] hover:bg-[var(--accent-container-hover)] text-white font-semibold rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     {saving ? 'Enregistrement...' : 'Valider ce point'}
@@ -244,14 +244,14 @@ export default function PointsRecuperation() {
             <div className="bg-white rounded-[16px] shadow-sm border border-slate-200 flex-1 flex flex-col overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h3 className="font-bold text-[15px] text-slate-900">Arrêts configurés</h3>
-                <span className="bg-[#DBEAFE] text-[#1E40AF] text-[12px] font-bold px-2.5 py-0.5 rounded-full">
+                <span className="bg-[rgba(138,180,255,0.14)] text-[var(--accent-primary)] text-[12px] font-bold px-2.5 py-0.5 rounded-full">
                   {points.length} arrêts
                 </span>
               </div>
               
               <div className="p-2 overflow-y-auto max-h-[400px]">
                 {loadingPoints ? (
-                  <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-[#2563EB]" /></div>
+                  <div className="p-8 flex justify-center"><Loader2 className="animate-spin text-[var(--accent-primary)]" /></div>
                 ) : points.length === 0 ? (
                   <div className="p-8 text-center text-[13px] text-gray-500">
                     Aucun arrêt configuré pour cette course.<br/>
@@ -266,7 +266,7 @@ export default function PointsRecuperation() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-[14px] text-slate-900 truncate">{p.nom}</div>
-                          <div className="flex items-center gap-1 text-[12px] text-[#64748B] mt-0.5">
+                          <div className="flex items-center gap-1 text-[12px] text-[var(--text-secondary)] mt-0.5">
                             <Clock size={12} /> {p.tempsArret || '--:--'}
                           </div>
                         </div>

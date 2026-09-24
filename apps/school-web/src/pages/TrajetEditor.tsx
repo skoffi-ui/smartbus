@@ -1111,7 +1111,7 @@ export default function TrajetEditor() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 font-sans text-[#1E293B]">
+    <div className="min-h-screen bg-[var(--bg-primary)] p-4 font-sans text-[var(--text-primary)]">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-6rem)]">
 
         {/* Colonne Gauche */}
@@ -1121,7 +1121,7 @@ export default function TrajetEditor() {
             <h2 className="text-[28px] font-bold text-slate-900 mb-1 leading-tight flex items-center gap-2">
               <Route className="text-blue-600" /> Éditeur de Trajet
             </h2>
-            <p className="text-[#64748B] text-[13px] mb-4">
+            <p className="text-[var(--text-secondary)] text-[13px] mb-4">
               {trajets.length === 0
                 ? "Créez un trajet, placez des points sur la carte, et affectez des enfants."
                 : `${trajets.length} trajet${trajets.length > 1 ? 's' : ''} enregistré${trajets.length > 1 ? 's' : ''}.`}
@@ -1439,7 +1439,7 @@ export default function TrajetEditor() {
 
               {/* Loader pendant le chargement ou la sauvegarde */}
               {(loadingTrajet || isSaving) && (
-                <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50">
+                <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50">
                   <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-4 border border-slate-200">
                     {/* Spinner */}
                     <div className="relative">
@@ -1553,7 +1553,7 @@ export default function TrajetEditor() {
                           title="Cliquer pour localiser sur la carte"
                         >
                           <div className={`absolute inset-0 bg-gradient-to-r ${badgeConfig.gradient} rounded-lg`} />
-                          <div className="px-4 py-2 bg-black rounded-[6px] relative group transition duration-200 text-white hover:bg-transparent">
+                          <div className="px-4 py-2 bg-[var(--bg-secondary)] rounded-[6px] relative group transition duration-200 text-white hover:bg-transparent">
                             <span className="font-bold tracking-wide text-sm uppercase">
                               {badgeConfig.label}
                             </span>

@@ -269,7 +269,7 @@ export default function Trajets() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#F8FAFC] p-6 font-sans text-[#1E293B]">
+    <div className="min-h-[calc(100vh-4rem)] bg-[var(--bg-primary)] p-6 font-sans text-[var(--text-primary)]">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-[30px] lg:h-[calc(100vh-8rem)]">
         
         {/* Colonne Gauche : Formulaire & Liste */}
@@ -279,8 +279,8 @@ export default function Trajets() {
             <h2 className="text-[28px] font-bold text-slate-900 mb-1 leading-tight flex items-center gap-2">
               <Route className="text-blue-600" /> Trajets
             </h2>
-            <p className="text-[#64748B] text-[14px] mb-1">Itinéraires géographiques (OSRM)</p>
-            <p className="text-[#64748B] text-[13px] mb-4">
+            <p className="text-[var(--text-secondary)] text-[14px] mb-1">Itinéraires géographiques (OSRM)</p>
+            <p className="text-[var(--text-secondary)] text-[13px] mb-4">
               {trajets.length === 0
                 ? "Aucun trajet pour l'instant. Nommez-le, choisissez son sens, puis cliquez sur la carte pour placer le départ, les étapes et l'arrivée."
                 : `${trajets.length} trajet${trajets.length > 1 ? 's' : ''} enregistré${trajets.length > 1 ? 's' : ''}.`}

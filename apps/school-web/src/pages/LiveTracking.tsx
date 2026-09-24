@@ -140,13 +140,13 @@ function ConnectionBadge({ status, onReconnect }: { status: string; onReconnect:
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string | number; color: string }) {
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.9)',
+      background: 'var(--bg-secondary)',
       border: '1px solid var(--glass-border)',
       borderRadius: '0.75rem',
       padding: '0.85rem 1.1rem',
       display: 'flex', alignItems: 'center', gap: '0.75rem',
       minWidth: 120,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
     }}>
       <div style={{ color, display: 'flex', padding: '0.5rem', background: `${color}15`, borderRadius: '0.5rem' }}>
         {icon}
@@ -172,7 +172,7 @@ function EventCard({ event }: { event: PunchEvent & { type?: string } }) {
   return (
     <div style={{
       padding: '0.85rem 1rem',
-      background: isCritical ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.7)',
+      background: isCritical ? 'var(--danger-tint)' : 'var(--surface-variant)',
       border: `1px solid ${color}30`,
       borderLeft: `3px solid ${color}`,
       borderRadius: '0.5rem',

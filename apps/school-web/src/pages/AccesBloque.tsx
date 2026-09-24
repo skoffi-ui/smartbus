@@ -73,18 +73,18 @@ export default function AccesBloque() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1rem',
-        background: '#0f172a',
+        background: 'var(--bg-primary)',
       }}
     >
       <div
         style={{
           width: '100%',
           maxWidth: 520,
-          background: '#1e293b',
+          background: 'var(--bg-secondary)',
           borderRadius: '1rem',
-          border: '1px solid rgba(239,68,68,0.3)',
+          border: '1px solid var(--danger-border-tint)',
           padding: '2rem',
-          color: '#e2e8f0',
+          color: 'var(--text-primary)',
         }}
       >
         <div
@@ -95,8 +95,8 @@ export default function AccesBloque() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(239,68,68,0.12)',
-            color: '#ef4444',
+            background: 'var(--danger-tint)',
+            color: 'var(--danger)',
             marginBottom: '1.25rem',
           }}
         >
@@ -104,14 +104,14 @@ export default function AccesBloque() {
         </div>
 
         <h1 style={{ fontSize: '1.35rem', fontWeight: 700, margin: '0 0 0.75rem' }}>{titre}</h1>
-        <p style={{ lineHeight: 1.6, color: '#94a3b8', margin: '0 0 1.5rem' }}>{detail}</p>
+        <p style={{ lineHeight: 1.6, color: 'var(--text-secondary)', margin: '0 0 1.5rem' }}>{detail}</p>
 
         {blocage.message && info && (
           <p
             style={{
               fontSize: '0.85rem',
-              color: '#64748b',
-              background: 'rgba(148,163,184,0.08)',
+              color: 'var(--text-secondary)',
+              background: 'var(--surface-variant)',
               padding: '0.75rem',
               borderRadius: '0.5rem',
               margin: '0 0 1.5rem',
@@ -125,18 +125,8 @@ export default function AccesBloque() {
           {info?.action === 'paiement' && (
             <a
               href="/dashboard"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.65rem 1.1rem',
-                borderRadius: '0.6rem',
-                background: '#4f46e5',
-                color: '#fff',
-                textDecoration: 'none',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-              }}
+              className="btn btn-primary"
+              style={{ textDecoration: 'none', fontSize: '0.9rem' }}
             >
               <CreditCard size={16} /> Régulariser mon abonnement
             </a>
@@ -144,38 +134,16 @@ export default function AccesBloque() {
 
           <button
             onClick={() => window.location.reload()}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 1.1rem',
-              borderRadius: '0.6rem',
-              background: 'rgba(148,163,184,0.12)',
-              color: '#e2e8f0',
-              border: '1px solid rgba(148,163,184,0.2)',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-            }}
+            className="btn btn-secondary"
+            style={{ fontSize: '0.9rem' }}
           >
             <RefreshCw size={16} /> Réessayer
           </button>
 
           <button
             onClick={seDeconnecter}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.65rem 1.1rem',
-              borderRadius: '0.6rem',
-              background: 'transparent',
-              color: '#94a3b8',
-              border: '1px solid rgba(148,163,184,0.2)',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-            }}
+            className="btn"
+            style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)', fontSize: '0.9rem' }}
           >
             <LogOut size={16} /> Se déconnecter
           </button>

@@ -135,19 +135,20 @@ export default function Dashboard() {
         <div className="flex items-center gap-3 flex-wrap">
           <button
             onClick={() => navigate('/courses')}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all font-semibold text-sm shadow-sm"
+            className="btn btn-primary gap-2 text-sm"
           >
             <Plus size={18} /> Nouvelle Course
           </button>
           <button
             onClick={() => navigate('/children')}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-all font-semibold text-sm border border-slate-200"
+            className="btn btn-secondary gap-2 text-sm"
           >
             <Plus size={18} /> Ajouter Élève
           </button>
           <button
             onClick={() => navigate('/live')}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all font-semibold text-sm shadow-sm"
+            className="btn gap-2 text-sm"
+            style={{ background: 'var(--success-container)', color: 'white' }}
           >
             <Zap size={18} /> Live Tracking
           </button>
@@ -230,20 +231,20 @@ export default function Dashboard() {
                     const isWarning = activity.type === 'WARNING';
                     
                     let badgeColor = 'var(--success)';
-                    let badgeBg = 'rgba(16, 185, 129, 0.1)';
+                    let badgeBg = 'var(--success-tint)';
                     let statusLabel = 'Embarqué';
 
                     if (isApproaching) {
-                      badgeColor = 'var(--warning-color, #f59e0b)';
-                      badgeBg = 'rgba(245, 158, 11, 0.1)';
+                      badgeColor = 'var(--warning)';
+                      badgeBg = 'var(--warning-tint)';
                       statusLabel = 'En approche';
                     } else if (isWarning) {
                       badgeColor = 'var(--danger)';
-                      badgeBg = 'rgba(239, 68, 68, 0.1)';
+                      badgeBg = 'var(--danger-tint)';
                       statusLabel = 'Alerte';
                     } else if (activity.message.includes('descendu')) {
                       badgeColor = 'var(--accent-primary)';
-                      badgeBg = 'rgba(79, 70, 229, 0.1)';
+                      badgeBg = 'var(--accent-tint)';
                       statusLabel = 'Descendu';
                     }
 
