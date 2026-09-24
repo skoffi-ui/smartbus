@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap');
 
 /*
  * Tailwind est déclaré ICI, tout en haut, volontairement.
@@ -16,32 +16,138 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Thème M3 (voir design.md) : clair par défaut, sombre via `:root.dark`
+ * (bascule + persistance dans theme.ts, bouton dans Layout.tsx).
+ * Toutes les règles du fichier ne consomment que ces variables : le thème se
+ * change entièrement en ne redéfinissant que ce bloc.
+ */
 :root {
-  /* Color Palette - Light Premium (Clean & Soft) */
-  --bg-primary: #f8fafc; /* Very light slate/gray */
-  --bg-secondary: #ffffff; /* Pure white */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
   --bg-glass: rgba(255, 255, 255, 0.85);
-  --glass-border: rgba(226, 232, 240, 0.8); /* slate-200 */
-  --text-primary: #0f172a; /* slate-900 */
-  --text-secondary: #64748b; /* slate-500 */
-  --accent-primary: #4f46e5; /* Indigo 600 */
-  --accent-hover: #4338ca; /* Indigo 700 */
+  --glass-border: rgba(226, 232, 240, 0.8);
+  --surface: #ffffff;
+  --surface-variant: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent-primary: #4f46e5;
+  --accent-hover: #4338ca;
+  --on-primary: #ffffff; /* texte/icônes sur un fond Primary/tonal (boutons pleins) */
   --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
-  
-  /* Typography */
-  --font-sans: 'Poppins', sans-serif;
-  
-  /* Borders & Shadows */
-  --radius-md: 0.5rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
+  /*
+   * Tons "container" M3 : pour les fonds pleins qui portent historiquement
+   * un texte blanc codé en dur (ex. `bg-blue-600 text-white`) — le texte
+   * blanc doit y rester lisible dans les deux thèmes.
+   */
+  --accent-container: #4f46e5;
+  --accent-container-hover: #4338ca;
+  --success-container: #059669;
+  --danger-container: #dc2626;
+  --warning-container: #d97706;
+  --surface-hover: rgba(15, 23, 42, 0.04); /* survol neutre */
+  --accent-tint: rgba(79, 70, 229, 0.1);
+  --accent-tint-hover: rgba(79, 70, 229, 0.16);
+  --accent-border-tint: rgba(79, 70, 229, 0.2);
+  --success-tint: rgba(16, 185, 129, 0.1);
+  --success-tint-hover: rgba(16, 185, 129, 0.16);
+  --success-border-tint: rgba(16, 185, 129, 0.2);
+  --danger-tint: rgba(239, 68, 68, 0.1);
+  --danger-tint-hover: rgba(239, 68, 68, 0.16);
+  --danger-border-tint: rgba(239, 68, 68, 0.2);
+  --warning-tint: rgba(245, 158, 11, 0.1);
+  --warning-border-tint: rgba(245, 158, 11, 0.2);
+  --accent-glow: rgba(79, 70, 229, 0.3);
+  --accent-glow-hover: rgba(79, 70, 229, 0.4);
+  --accent-focus-ring: rgba(79, 70, 229, 0.15);
+  --bg-glow-1: rgba(79, 70, 229, 0.04);
+  --bg-glow-2: rgba(59, 130, 246, 0.04);
+  /* Cartes stat du tableau de bord (4 teintes décoratives, voir Dashboard.css) */
+  --stat-blue-bg: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  --stat-blue-color: #0284c7;
+  --stat-indigo-bg: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
+  --stat-indigo-color: #4f46e5;
+  --stat-emerald-bg: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+  --stat-emerald-color: #059669;
+  --stat-amber-bg: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  --stat-amber-color: #d97706;
+  --stat-icon-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.5);
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
   --shadow-glass: 0 20px 40px -10px rgba(0, 0, 0, 0.05);
+
+  /* Typography */
+  --font-sans: 'Roboto', sans-serif;
+
+  /* Borders — rayon "pilule" (24px) réservé aux boutons/FAB, voir .btn */
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.75rem;
+  --radius-pill: 24px;
+}
+
+/*
+ * Thème sombre M3 "Android XR" (voir design.md). Pas de noir pur (#000000) :
+ * les surfaces les plus sombres restent un gris-bleu profond pour ne pas
+ * devenir transparentes en passthrough XR et pour limiter la fatigue
+ * oculaire sur fond sombre.
+ */
+:root.dark {
+  --bg-primary: #131417;
+  --bg-secondary: #1c1e22;
+  --bg-glass: rgba(28, 30, 34, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --surface: #1c1e22;
+  --surface-variant: #26282d;
+  --text-primary: #e7e8ec;
+  --text-secondary: #9a9da6;
+  --accent-primary: #8ab4ff; /* Primary — bleu désaturé, lisible sur fond sombre */
+  --accent-hover: #a7c6ff;
+  --on-primary: #10151c;
+  --accent-gradient: linear-gradient(135deg, #8ab4ff 0%, #6d9eff 100%);
+  --success: #7fd8a4;
+  --danger: #ff9a92;
+  --warning: #f6c177;
+  --accent-container: #2c4a76;
+  --accent-container-hover: #375a8c;
+  --success-container: #1f5c3f;
+  --danger-container: #8c2b23;
+  --warning-container: #7a5310;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --accent-tint: rgba(138, 180, 255, 0.14);
+  --accent-tint-hover: rgba(138, 180, 255, 0.22);
+  --accent-border-tint: rgba(138, 180, 255, 0.35);
+  --success-tint: rgba(127, 216, 164, 0.14);
+  --success-tint-hover: rgba(127, 216, 164, 0.22);
+  --success-border-tint: rgba(127, 216, 164, 0.35);
+  --danger-tint: rgba(255, 154, 146, 0.14);
+  --danger-tint-hover: rgba(255, 154, 146, 0.22);
+  --danger-border-tint: rgba(255, 154, 146, 0.35);
+  --warning-tint: rgba(246, 193, 119, 0.14);
+  --warning-border-tint: rgba(246, 193, 119, 0.35);
+  --accent-glow: rgba(138, 180, 255, 0.25);
+  --accent-glow-hover: rgba(138, 180, 255, 0.35);
+  --accent-focus-ring: rgba(138, 180, 255, 0.2);
+  --bg-glow-1: rgba(138, 180, 255, 0.06);
+  --bg-glow-2: rgba(138, 180, 255, 0.05);
+  --stat-blue-bg: linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(2, 132, 199, 0.1) 100%);
+  --stat-blue-color: #38bdf8;
+  --stat-indigo-bg: linear-gradient(135deg, rgba(138, 180, 255, 0.2) 0%, rgba(138, 180, 255, 0.1) 100%);
+  --stat-indigo-color: #8ab4ff;
+  --stat-emerald-bg: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%);
+  --stat-emerald-color: #7fd8a4;
+  --stat-amber-bg: linear-gradient(135deg, rgba(217, 119, 6, 0.2) 0%, rgba(217, 119, 6, 0.1) 100%);
+  --stat-amber-color: #f6c177;
+  --stat-icon-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.35), 0 2px 4px -1px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.25);
+  --shadow-glass: 0 20px 40px -10px rgba(0, 0, 0, 0.45);
 }
 
 * {
@@ -57,10 +163,10 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-  /* Add a subtle background glow for light mode */
-  background-image: 
-    radial-gradient(circle at 15% 50%, rgba(79, 70, 229, 0.04), transparent 25%),
-    radial-gradient(circle at 85% 30%, rgba(59, 130, 246, 0.04), transparent 25%);
+  /* Halo discret — accents limités et désaturés */
+  background-image:
+    radial-gradient(circle at 15% 50%, var(--bg-glow-1), transparent 25%),
+    radial-gradient(circle at 85% 30%, var(--bg-glow-2), transparent 25%);
   background-attachment: fixed;
 }
 
@@ -74,30 +180,45 @@ body {
   box-shadow: var(--shadow-glass);
 }
 
-/* Buttons */
+/*
+ * Buttons — M3 : forme "pilule" (24px, > moitié de la hauteur mini 48px),
+ * cible tactile >= 48x48 (hand-tracking XR / doigt), retour visuel sur
+ * chaque état (hover/focus/pressed).
+ */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.6rem 1.2rem;
+  min-height: 48px;
+  padding: 0.6rem 1.5rem;
   font-size: 0.875rem;
   font-weight: 500;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: var(--font-sans);
 }
 
+.btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
 .btn-primary {
   background: var(--accent-gradient);
-  color: white;
-  box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.3);
+  color: var(--on-primary);
+  box-shadow: 0 4px 14px 0 var(--accent-glow);
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 6px 20px var(--accent-glow-hover);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  filter: brightness(0.92);
 }
 
 .btn-secondary {
@@ -108,16 +229,18 @@ body {
 }
 
 .btn-secondary:hover {
-  background: #f1f5f9; /* slate-100 */
+  background: var(--surface-variant);
 }
 
-/* Icon Buttons */
+/* Icon Buttons — cible tactile 48x48 mini */
 .btn-icon-primary {
   color: var(--accent-primary);
-  background: rgba(79, 70, 229, 0.1);
+  background: var(--accent-tint);
   border: none;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0.5rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -127,16 +250,18 @@ body {
 
 .btn-icon-primary:hover {
   background: var(--accent-primary);
-  color: white;
+  color: var(--on-primary);
   transform: scale(1.05);
 }
 
 .btn-icon-danger {
   color: var(--danger);
-  background: rgba(239, 68, 68, 0.1);
+  background: var(--danger-tint);
   border: none;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0.5rem;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -146,7 +271,7 @@ body {
 
 .btn-icon-danger:hover {
   background: var(--danger);
-  color: white;
+  color: var(--on-primary);
   transform: scale(1.05);
 }
 
@@ -166,51 +291,162 @@ body {
 .form-input {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: #ffffff;
+  background: var(--surface-variant);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-family: var(--font-sans);
   transition: all 0.2s;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  box-shadow: 0 0 0 3px var(--accent-focus-ring);
 }
 
-/* Utilities */
+/* Utilities — échelle typographique M3 (voir design.md §2) */
 .text-center { text-align: center; }
 .text-accent { color: var(--accent-primary); }
 .text-secondary { color: var(--text-secondary); }
-.text-sm { font-size: 0.875rem; }
-.text-xs { font-size: 0.75rem; }
-.text-xl { font-size: 1.25rem; font-weight: 600; }
-.text-2xl { font-size: 1.5rem; font-weight: 700; }
+.text-label-small { font-size: 0.6875rem; font-weight: 500; } /* Label Small 11sp */
+.text-xs { font-size: 0.75rem; } /* ~ Label Medium 12sp */
+.text-sm { font-size: 0.875rem; } /* ~ Body Medium 14sp */
+.text-title-medium { font-size: 1rem; font-weight: 500; } /* Title Medium 16sp */
+.text-xl { font-size: 1.25rem; font-weight: 600; } /* ~ Title Large 22sp (rapprochée à l'échelle web existante) */
+.text-2xl { font-size: 1.5rem; font-weight: 700; } /* ~ Headline Small 24sp */
+.text-headline-medium { font-size: 1.75rem; font-weight: 600; } /* Headline Medium 28sp */
 .font-medium { font-weight: 500; }
 .font-semibold { font-weight: 600; }
 .font-bold { font-weight: 700; }
 
-/* Tailwind Polyfills for Text Colors */
-.text-slate-800 { color: var(--text-primary); }
-.text-slate-700 { color: var(--text-primary); opacity: 0.9; }
-.text-slate-600 { color: var(--text-secondary); }
-.text-slate-500 { color: var(--text-secondary); opacity: 0.8; }
-.text-slate-400 { color: var(--text-secondary); opacity: 0.6; }
-.text-indigo-600 { color: var(--accent-primary); }
-.text-indigo-400 { color: var(--accent-primary); opacity: 0.7; }
-.text-emerald-400 { color: var(--success); }
+/*
+ * Tailwind Polyfills — palette M3 sombre.
+ *
+ * Regroupées par rôle sémantique (neutre / accent / succès / danger /
+ * avertissement) plutôt que par teinte Tailwind d'origine :
+ *  - Fonds "clairs" (50-200 en light mode = léger lavis de couleur) → teinte
+ *    translucide de la couleur du rôle.
+ *  - Fonds "pleins" (400-700, historiquement pairés avec `text-white`) →
+ *    ton "container" plus sombre, pour que le texte blanc reste lisible.
+ *  - Bordures "claires" → teinte translucide ; bordures "pleines" → couleur
+ *    pleine du rôle (visible sur fond sombre).
+ *  - Textes → couleur pleine du rôle (accent/succès/danger/avertissement) ou
+ *    `--text-primary`/`--text-secondary` (neutre), selon la lisibilité
+ *    d'origine (900-600 = texte fort, 500 et moins = texte atténué).
+ */
 
-/* Tailwind Polyfills for Backgrounds */
-.bg-indigo-50 { background: rgba(79, 70, 229, 0.1); }
-.bg-emerald-50 { background: rgba(16, 185, 129, 0.1); }
-.bg-slate-100 { background: rgba(148, 163, 184, 0.1); }
+/* Texte — neutre (gray/slate) */
+.text-slate-900, .text-slate-800, .text-slate-700, .text-slate-600,
+.text-gray-900, .text-gray-800, .text-gray-700, .text-gray-600 { color: var(--text-primary); }
+.text-slate-500, .text-slate-400, .text-slate-300,
+.text-gray-500, .text-gray-400, .text-gray-300 { color: var(--text-secondary); }
 
-/* Tailwind Polyfills for Borders */
-.border-slate-200 { border-color: var(--glass-border); }
-.border-indigo-100 { border-color: rgba(79, 70, 229, 0.2); }
+/* Texte — accent (indigo/blue/purple) */
+.text-indigo-600, .text-indigo-400, .text-blue-600, .text-blue-700, .text-blue-800,
+.text-blue-900, .text-purple-600 { color: var(--accent-primary); }
+
+/* Texte — succès (emerald/green) */
+.text-emerald-400, .text-emerald-600, .text-emerald-700,
+.text-green-500, .text-green-600, .text-green-700, .text-green-800 { color: var(--success); }
+
+/* Texte — danger (red) */
+.text-red-400, .text-red-500, .text-red-600, .text-red-700, .text-red-800 { color: var(--danger); }
+
+/* Texte — avertissement (amber/yellow/orange) */
+.text-amber-600, .text-amber-800, .text-yellow-600, .text-yellow-700,
+.text-orange-600, .text-orange-700 { color: var(--warning); }
+
+/* Fonds — neutre */
+.bg-slate-50, .bg-slate-100, .bg-slate-200, .bg-slate-300,
+.bg-gray-50, .bg-gray-100, .bg-gray-200, .bg-gray-300 { background: var(--surface-variant); }
+
+/* Fonds — accent, lavis clair */
+.bg-indigo-50, .bg-indigo-100, .bg-indigo-200,
+.bg-blue-50, .bg-blue-100, .bg-blue-200,
+.bg-purple-50, .bg-purple-100, .bg-purple-200 { background: var(--accent-tint); }
+/* Fonds — accent, plein (pairé historiquement avec text-white) */
+.bg-indigo-600, .bg-indigo-700, .bg-blue-500, .bg-blue-600, .bg-blue-700,
+.bg-purple-600 { background: var(--accent-container); }
+
+/* Fonds — succès, lavis clair */
+.bg-emerald-50, .bg-emerald-100, .bg-emerald-200,
+.bg-green-50, .bg-green-100 { background: var(--success-tint); }
+/* Fonds — succès, plein */
+.bg-emerald-500, .bg-emerald-600, .bg-emerald-700,
+.bg-green-400, .bg-green-500, .bg-green-600 { background: var(--success-container); }
+
+/* Fonds — danger, lavis clair */
+.bg-red-50, .bg-red-100 { background: var(--danger-tint); }
+/* Fonds — danger, plein */
+.bg-red-500, .bg-red-600, .bg-rose-500 { background: var(--danger-container); }
+
+/* Fonds — avertissement, lavis clair */
+.bg-amber-50, .bg-amber-100, .bg-orange-100, .bg-yellow-100 { background: var(--warning-tint); }
+/* Fonds — avertissement, plein */
+.bg-amber-400, .bg-orange-500, .bg-orange-600, .bg-yellow-500 { background: var(--warning-container); }
+
+/* Bordures — neutre */
+.border-slate-100, .border-slate-200, .border-slate-300,
+.border-gray-50, .border-gray-100, .border-gray-200, .border-gray-300 { border-color: var(--glass-border); }
+
+/* Bordures — accent */
+.border-indigo-100, .border-indigo-200, .border-blue-100, .border-blue-200,
+.border-blue-300, .border-purple-200 { border-color: var(--accent-border-tint); }
+.border-indigo-600, .border-blue-400, .border-blue-500, .border-blue-600 { border-color: var(--accent-primary); }
+
+/* Bordures — succès */
+.border-emerald-100, .border-emerald-200, .border-emerald-300,
+.border-green-100, .border-green-200 { border-color: var(--success-border-tint); }
+.border-emerald-500, .border-green-400 { border-color: var(--success); }
+
+/* Bordures — danger */
+.border-red-100, .border-red-200, .border-red-300 { border-color: var(--danger-border-tint); }
+.border-red-500 { border-color: var(--danger); }
+
+/* Bordures — avertissement */
+.border-amber-200 { border-color: var(--warning-border-tint); }
+.border-amber-500 { border-color: var(--warning); }
+
+/* Fonds neutres blancs d'origine (cartes) → surface sombre */
+.bg-white { background: var(--bg-secondary); }
+
+/*
+ * Variantes `hover:` des mêmes classes.
+ *
+ * Tailwind génère une classe distincte pour chaque variante d'état
+ * (`.hover\:bg-red-50:hover`, différente de `.bg-red-50`), et cette version
+ * de Tailwind ré-émet en plus les utilitaires de variante (hover/focus...)
+ * dans une passe séparée physiquement placée APRÈS ce fichier dans le CSS
+ * compilé — contrairement aux utilitaires de base, qui restent bien avant.
+ * À spécificité égale, ces règles perdraient donc face à Tailwind sans
+ * `!important` : sans lui, l'état survolé repasse en couleur claire
+ * d'origine le temps du hover.
+ */
+.hover\:bg-gray-50:hover, .hover\:bg-gray-100:hover, .hover\:bg-gray-200:hover,
+.hover\:bg-slate-50:hover, .hover\:bg-slate-200:hover { background: var(--surface-hover) !important; }
+
+.hover\:bg-blue-50:hover, .hover\:bg-blue-100:hover, .hover\:bg-blue-200:hover,
+.hover\:bg-indigo-50:hover, .hover\:bg-indigo-200:hover,
+.hover\:bg-purple-50:hover, .hover\:bg-purple-200:hover { background: var(--accent-tint-hover) !important; }
+.hover\:bg-blue-700:hover { background: var(--accent-container-hover) !important; }
+
+.hover\:bg-emerald-50:hover, .hover\:bg-emerald-200:hover { background: var(--success-tint-hover) !important; }
+.hover\:bg-emerald-500:hover { background: var(--success-container) !important; }
+
+.hover\:bg-red-50:hover, .hover\:bg-red-100:hover { background: var(--danger-tint-hover) !important; }
+.hover\:bg-red-500:hover { background: var(--danger-container) !important; }
+
+.hover\:text-slate-600:hover, .hover\:text-slate-700:hover,
+.hover\:text-gray-600:hover, .hover\:text-gray-700:hover { color: var(--text-primary) !important; }
+.hover\:text-red-700:hover { color: var(--danger) !important; }
+
+.hover\:border-slate-100:hover, .hover\:border-slate-300:hover,
+.hover\:border-gray-300:hover { border-color: var(--glass-border) !important; }
+.hover\:border-blue-200:hover, .hover\:border-blue-300:hover,
+.hover\:border-indigo-200:hover, .hover\:border-purple-200:hover { border-color: var(--accent-border-tint) !important; }
+.hover\:border-emerald-200:hover { border-color: var(--success-border-tint) !important; }
 
 .mb-2 { margin-bottom: 0.5rem; }
 .mb-4 { margin-bottom: 1rem; }
@@ -270,16 +506,17 @@ body {
 
 /* Premium Modal Styling */
 .premium-modal {
-  background: white;
+  background: var(--bg-secondary);
   border-radius: var(--radius-2xl);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   overflow: hidden;
+  border: 1px solid var(--glass-border);
 }
 
 .premium-modal-header {
-  background: linear-gradient(135deg, rgba(248, 250, 252, 1) 0%, rgba(241, 245, 249, 1) 100%);
+  background: linear-gradient(135deg, var(--surface-variant) 0%, var(--bg-secondary) 100%);
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid rgba(226, 232, 240, 1);
+  border-bottom: 1px solid var(--glass-border);
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -288,13 +525,13 @@ body {
 .premium-modal-icon {
   width: 36px;
   height: 36px;
-  background: white;
+  background: var(--surface-variant);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  color: var(--accent-primary);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
 }
 
 .premium-modal-body {
@@ -323,16 +560,16 @@ body {
 .premium-input-icon {
   position: absolute;
   left: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
   pointer-events: none;
 }
 
 .premium-input {
   width: 100%;
   padding: 0.65rem 0.75rem 0.65rem 2.25rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  background: #f8fafc;
+  background: var(--surface-variant);
   color: var(--text-primary);
   font-size: 0.9rem;
   transition: all 0.2s;
@@ -340,19 +577,20 @@ body {
 
 .premium-input:focus {
   outline: none;
-  border-color: var(--primary);
-  background: white;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: var(--accent-primary);
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 3px var(--accent-focus-ring);
 }
 
 .premium-input::placeholder {
-  color: #cbd5e1;
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 .premium-modal-footer {
   padding: 0.75rem 1rem;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+  background: var(--surface-variant);
+  border-top: 1px solid var(--glass-border);
   display: flex;
   gap: 0.75rem;
 }
@@ -378,7 +616,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   color: var(--text-secondary);
-  background: #f8fafc;
+  background: var(--surface-variant);
   border-bottom: 1px solid var(--glass-border);
 }
 
@@ -389,7 +627,7 @@ body {
 }
 
 .premium-row:hover {
-  background: #f1f5f9;
+  background: var(--surface-variant);
 }
 
 .premium-row td {
@@ -671,7 +909,7 @@ body {
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-secondary);
 }
 
 /* Animations pour les badges premium */
@@ -722,9 +960,9 @@ body {
    =========================== */
 
 .sidebar-nav {
-  --sb-track-color: #9a9a9a;
-  --sb-thumb-color: #4f46e5;
-  --sb-size: 14px;
+  --sb-track-color: transparent;
+  --sb-thumb-color: var(--glass-border);
+  --sb-size: 8px;
   overflow-y: auto;
   overflow-x: hidden;
 }

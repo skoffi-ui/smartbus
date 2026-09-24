@@ -16,7 +16,7 @@
  */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
-  // L'application bascule en sombre via `:root.dark`, pas via l'OS.
+  // Thème M3 clair/sombre (design.md) : bascule via `:root.dark`, voir theme.ts.
   darkMode: 'class',
   corePlugins: {
     preflight: false,
@@ -32,7 +32,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Poppins', 'sans-serif'],
+        sans: ['Roboto', 'sans-serif'],
       },
     },
   },

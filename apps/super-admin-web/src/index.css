@@ -1,35 +1,184 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Thème M3 (voir apps/school-web/design.md) : clair par défaut, sombre via
+ * `:root.dark` (bascule + persistance dans theme.ts, bouton dans
+ * AdminNavbar.tsx). Même vocabulaire de variables que school-web.
+ *
+ * `--*-rgb` : triplets "R G B" (sans virgules) au lieu d'un hex, pour les
+ * teintes encore consommées par `tailwind.config.js` (`navy-800`, `navy-900`,
+ * `brand-400/500/600`) — c'est le format qu'exige la syntaxe Tailwind
+ * `rgb(var(--x) / <alpha-value>)` pour que les modificateurs d'opacité
+ * (`bg-navy-800/50`...) continuent de fonctionner tout en restant théables.
+ */
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(226, 232, 240, 0.8);
+  --glass-border-strong: rgba(148, 163, 184, 0.5);
+  --surface: #ffffff;
+  --surface-variant: #f1f5f9;
+  --surface-wash: rgba(15, 23, 42, 0.04);
+  --surface-wash-strong: rgba(15, 23, 42, 0.08);
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent-primary: #4f46e5;
+  --accent-hover: #4338ca;
+  --on-primary: #ffffff;
+  --accent-gradient: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --accent-container: #4f46e5;
+  --accent-container-hover: #4338ca;
+  --success-container: #059669;
+  --danger-container: #dc2626;
+  --warning-container: #d97706;
+  --accent-glow: rgba(79, 70, 229, 0.25);
+  --accent-glow-hover: rgba(79, 70, 229, 0.35);
+  --accent-focus-ring: rgba(79, 70, 229, 0.2);
+  --bg-glow-1: rgba(79, 70, 229, 0.06);
+  --bg-glow-2: rgba(59, 130, 246, 0.05);
+  --surface-rgb: 255 255 255;
+  --bg-primary-rgb: 248 250 252;
+  --container-rgb: 79 70 229;
+  --container-hover-rgb: 67 56 202;
+  --font-sans: 'Roboto', sans-serif;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-pill: 24px;
+}
+
+:root.dark {
+  --bg-primary: #131417;
+  --bg-secondary: #1c1e22;
+  --bg-glass: rgba(28, 30, 34, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-strong: rgba(255, 255, 255, 0.16);
+  --surface: #1c1e22;
+  --surface-variant: #26282d;
+  --surface-wash: rgba(255, 255, 255, 0.05);
+  --surface-wash-strong: rgba(255, 255, 255, 0.1);
+  --text-primary: #e7e8ec;
+  --text-secondary: #9a9da6;
+  --accent-primary: #8ab4ff;
+  --accent-hover: #a7c6ff;
+  --on-primary: #10151c;
+  --accent-gradient: linear-gradient(135deg, #8ab4ff 0%, #6d9eff 100%);
+  --success: #7fd8a4;
+  --danger: #ff9a92;
+  --warning: #f6c177;
+  --accent-container: #2c4a76;
+  --accent-container-hover: #375a8c;
+  --success-container: #1f5c3f;
+  --danger-container: #8c2b23;
+  --warning-container: #7a5310;
+  --accent-glow: rgba(138, 180, 255, 0.25);
+  --accent-glow-hover: rgba(138, 180, 255, 0.35);
+  --accent-focus-ring: rgba(138, 180, 255, 0.2);
+  --bg-glow-1: rgba(138, 180, 255, 0.08);
+  --bg-glow-2: rgba(138, 180, 255, 0.06);
+  --surface-rgb: 28 30 34;
+  --bg-primary-rgb: 19 20 23;
+  --container-rgb: 44 74 118;
+  --container-hover-rgb: 55 90 140;
+}
+
 @layer base {
   body {
-    @apply bg-navy-900 text-white font-sans antialiased min-h-screen;
-    background-image: 
-      radial-gradient(circle at 15% 50%, rgba(99, 102, 241, 0.15), transparent 25%),
-      radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.15), transparent 25%);
+    @apply font-sans antialiased min-h-screen;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    background-image:
+      radial-gradient(circle at 15% 50%, var(--bg-glow-1), transparent 25%),
+      radial-gradient(circle at 85% 30%, var(--bg-glow-2), transparent 25%);
     background-attachment: fixed;
   }
 }
 
 @layer components {
   .glass-panel {
-    @apply bg-navy-800/70 backdrop-blur-md border border-white/10 rounded-2xl shadow-glass;
+    @apply backdrop-blur-md rounded-2xl shadow-glass;
+    background: var(--bg-glass);
+    border: 1px solid var(--glass-border);
   }
-  
+
+  /* Boutons M3 : forme pilule, cible tactile >= 48px (voir design.md §3). */
   .btn-primary {
-    @apply bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-xl font-medium transition-all shadow-[0_4px_14px_0_rgba(99,102,241,0.39)] hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(99,102,241,0.23)];
+    @apply text-sm font-medium transition-all hover:-translate-y-0.5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.6rem 1.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--accent-gradient);
+    color: var(--on-primary);
+    box-shadow: 0 4px 14px 0 var(--accent-glow);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 6px 20px var(--accent-glow-hover);
+  }
+  .btn-primary:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
   }
 
   .btn-secondary {
-    @apply bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-2 rounded-xl font-medium transition-all;
+    @apply text-sm font-medium transition-all;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.6rem 1.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-wash);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+  }
+  .btn-secondary:hover {
+    background: var(--surface-wash-strong);
   }
 
   .form-label {
-    @apply block text-sm font-medium text-navy-300 mb-1;
+    @apply block text-sm font-medium mb-1;
+    color: var(--text-secondary);
   }
 
   .form-input {
-    @apply w-full px-4 py-3 bg-navy-900/60 border border-white/10 rounded-xl text-white outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all;
+    @apply w-full px-4 py-3 outline-none transition-all;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    background: var(--surface-variant);
+    color: var(--text-primary);
+  }
+  .form-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-focus-ring);
   }
 }
+
+/*
+ * Polyfills — `text-white`, `bg-white/N`, `border-white/N` étaient posés en
+ * assumant un fond toujours sombre (voir les pages). En clair, un lavis ou
+ * un texte "blanc" littéral deviendrait invisible sur fond clair : ces
+ * classes sont donc redirigées vers les tokens théables ci-dessus.
+ *
+ * Exception : les badges à fond plein (logo, avatar, nav active) qui
+ * utilisent volontairement du blanc littéral au lieu de `text-white` —
+ * inchangés par ce bloc.
+ */
+.text-white { color: var(--text-primary) !important; }
+.bg-white\/5 { background: var(--surface-wash) !important; }
+.border-white\/5, .border-white\/10 { border-color: var(--glass-border) !important; }
+.border-white\/20 { border-color: var(--glass-border-strong) !important; }
+
+.hover\:text-white:hover { color: var(--text-primary) !important; }
+.hover\:bg-white\/5:hover { background: var(--surface-wash-strong) !important; }
+.hover\:border-white\/20:hover { border-color: var(--glass-border-strong) !important; }

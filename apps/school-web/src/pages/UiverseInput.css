@@ -16,26 +16,26 @@
  border: 2px solid transparent;
  border-radius: 8px;
  outline: none;
- background-color: #f3f3f4;
- color: #0d0c22;
+ background-color: var(--surface-variant);
+ color: var(--text-primary);
  transition: .3s ease;
 }
 
 .uiverse-search-input::placeholder {
- color: #9e9ea7;
+ color: var(--text-secondary);
 }
 
 .uiverse-search-input:focus, .uiverse-search-input:hover {
  outline: none;
- border-color: rgba(37,99,235,0.4); /* Blue color adapted to SMARTBUS theme */
- background-color: #fff;
- box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+ border-color: var(--accent-border-tint);
+ background-color: var(--bg-secondary);
+ box-shadow: 0 0 0 4px var(--accent-focus-ring);
 }
 
 .uiverse-search-icon {
  position: absolute;
  left: 0.8rem;
- color: #9e9ea7;
+ color: var(--text-secondary);
  width: 1rem;
  height: 1rem;
 }
@@ -54,37 +54,31 @@ select.uiverse-input {
   width: 100%;
   min-height: 44px;
   padding: 0.65rem 0.9rem;
-  border: 1px solid var(--glass-border, #e2e8f0);
+  border: 1px solid var(--glass-border);
   border-radius: 10px;
   outline: none;
-  background-color: #fff;
-  color: var(--text-primary, #0f172a);
+  background-color: var(--surface-variant);
+  color: var(--text-primary);
   font-size: 0.95rem;
   font-family: inherit;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .uiverse-input::placeholder {
-  color: #9e9ea7;
+  color: var(--text-secondary);
 }
 
 .uiverse-input:hover {
-  border-color: #cbd5e1;
+  border-color: var(--accent-border-tint);
 }
 
 .uiverse-input:focus {
-  border-color: var(--accent-primary, #4f46e5);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
-  background-color: #fff;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-focus-ring);
+  background-color: var(--bg-secondary);
 }
 
 textarea.uiverse-input {
   resize: vertical;
   line-height: 1.5;
-}
-
-:root.dark .uiverse-input {
-  background-color: rgba(255, 255, 255, 0.04);
-  border-color: rgba(148, 163, 184, 0.25);
-  color: #e2e8f0;
 }
