@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { Plus, Trash2, Bus, Hash, Users, Car, Settings, RefreshCw, Edit } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 export default function Cars() {
+  const { t } = useI18n();
   const [cars, setCars] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -62,7 +64,7 @@ export default function Cars() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Voulez-vous vraiment supprimer ce véhicule ?")) {
+    if (window.confirm(t('cars.confirmer_suppression'))) {
       await api.delete(`/cars/${id}`);
       fetchCars();
     }
@@ -85,15 +87,15 @@ export default function Cars() {
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Flotte de Véhicules</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('cars.titre')}</h1>
           <p className="text-slate-500 mt-1">Gérez vos bus et minivans</p>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={handleSyncLibellule} disabled={syncing} className="btn btn-secondary flex items-center gap-2">
-            <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? 'Synchronisation...' : 'Sync. Libellule'}
+            <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? 'Synchronisation...' : t('cars.sync_libellule')}
           </button>
           <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
-            <Plus size={18} /> Ajouter un Véhicule
+            <Plus size={18} /> {t('cars.ajouter')}
           </button>
         </div>
       </div>
@@ -107,14 +109,14 @@ export default function Cars() {
           <div className="empty-icon">
             <Bus size={40} />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">Aucun Véhicule</h3>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">{t('cars.aucun')}</h3>
           <p className="empty-text">Commencez par ajouter des bus ou des minivans à votre flotte.</p>
           <div className="flex gap-3 justify-center mt-4">
             <button onClick={handleSyncLibellule} disabled={syncing} className="btn btn-secondary flex items-center gap-2">
-              <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? 'Synchro...' : 'Sync. Libellule'}
+              <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? 'Synchro...' : t('cars.sync_libellule')}
             </button>
             <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
-              <Plus size={18} /> Ajouter un Véhicule
+              <Plus size={18} /> {t('cars.ajouter')}
             </button>
           </div>
         </div>
@@ -124,9 +126,9 @@ export default function Cars() {
             <table className="premium-table">
               <thead>
                 <tr>
-                  <th className="w-1/3">Immatriculation</th>
-                  <th className="w-1/4">Véhicule</th>
-                  <th>Capacité</th>
+                  <th className="w-1/3">{t('cars.immatriculation')}</th>
+                  <th className="w-1/4">{t('cars.marque')}</th>
+                  <th>{t('cars.capacite')}</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -151,15 +153,15 @@ export default function Cars() {
                     </td>
                     <td>
                       <div className="flex flex-col gap-1 text-sm">
-                        <span className="font-semibold text-slate-700 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> {car.capacity} places</span>
+                        <span className="font-semibold text-slate-700 flex items-center gap-1.5"><Users size={14} className="text-slate-400" /> {car.capacity} {t('cars.places')}</span>
                       </div>
                     </td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleEdit(car)} className="btn-icon-primary" title="Modifier">
+                        <button onClick={() => handleEdit(car)} className="btn-icon-primary" title={t('action.modifier')}>
                           <Edit size={14} />
                         </button>
-                        <button onClick={() => handleDelete(car.id)} className="btn-icon-danger" title="Supprimer">
+                        <button onClick={() => handleDelete(car.id)} className="btn-icon-danger" title={t('action.supprimer')}>
                           <Trash2 size={14} />
                         </button>
                       </div>

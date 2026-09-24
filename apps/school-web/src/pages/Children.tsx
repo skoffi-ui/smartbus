@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Edit, Trash2, User, Key, Download, Search, CheckSquare, Square, ChevronRight, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react';
 import './Children.css';
 import { GATEWAY_URL } from '../config';
+import { useI18n } from '../i18n';
 
 export default function Children() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [children, setChildren] = useState<any[]>([]);
   const [parents, setParents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -192,7 +194,7 @@ export default function Children() {
         <div style={{ flex: 1 }}>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <Users className="text-blue-600" size={32} />
-            Gestion des Élèves
+            {t('children.titre')}
           </h1>
           <p className="text-slate-500 mt-2 flex items-center gap-2 flex-wrap">
             <span>Gérez les élèves, liez-les aux parents et aux cartes BioTime.</span>
@@ -205,10 +207,10 @@ export default function Children() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={handleOpenImportModal} className="btn btn-secondary flex items-center gap-2">
-            <Download size={18} /> Importer
+            <Download size={18} /> {t('children.importer')}
           </button>
           <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center gap-2">
-            <Plus size={18} /> Nouvel Élève
+            <Plus size={18} /> {t('children.ajouter')}
           </button>
         </div>
       </div>
@@ -220,7 +222,7 @@ export default function Children() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Rechercher un élève par nom, classe ou badge..."
+              placeholder={t('children.rechercher')}
               className="w-full pl-10 pr-24 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
