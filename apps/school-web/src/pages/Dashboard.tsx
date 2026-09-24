@@ -4,9 +4,11 @@ import { Bus, Users, GraduationCap, ShieldCheck, Activity, CreditCard, Clock, Pl
 import { Link, useNavigate } from 'react-router-dom';
 import CheckoutModal from '../components/CheckoutModal';
 import './Dashboard.css';
+import { useI18n } from '../i18n';
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [stats, setStats] = useState({ cars: 0, drivers: 0, parents: 0, children: 0 });
   const [loading, setLoading] = useState(true);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -127,7 +129,7 @@ export default function Dashboard() {
       )}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold" style={{ margin: 0 }}>Tableau de bord</h1>
+          <h1 className="text-3xl font-bold" style={{ margin: 0 }}>{t('dash.titre')}</h1>
           <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>Aperçu de l'activité de votre établissement</p>
         </div>
 
@@ -143,21 +145,21 @@ export default function Dashboard() {
             onClick={() => navigate('/children')}
             className="btn btn-secondary gap-2 text-sm"
           >
-            <Plus size={18} /> Ajouter Élève
+            <Plus size={18} /> {t('dash.nouvel_eleve')}
           </button>
           <button
             onClick={() => navigate('/live')}
             className="btn gap-2 text-sm"
             style={{ background: 'var(--success-container)', color: 'white' }}
           >
-            <Zap size={18} /> Live Tracking
+            <Zap size={18} /> {t('sidebar.live')}
           </button>
         </div>
       </div>
 
       {loading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '5rem' }}>
-          <div className="text-secondary">Chargement...</div>
+          <div className="text-secondary">{t('chargement')}</div>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
@@ -171,7 +173,7 @@ export default function Dashboard() {
                 </div>
                 <span className="text-xs font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-600">+{stats.children > 0 ? '12%' : '0%'}</span>
               </div>
-              <p className="text-sm text-slate-500 mb-1 font-medium">Élèves Inscrits</p>
+              <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.eleves')}</p>
               <h3 className="text-3xl font-bold text-slate-900">{stats.children}</h3>
             </Link>
 
@@ -183,7 +185,7 @@ export default function Dashboard() {
                 </div>
                 <span className="text-xs font-bold px-2 py-1 rounded-full bg-indigo-50 text-indigo-600">+{stats.parents > 0 ? '8%' : '0%'}</span>
               </div>
-              <p className="text-sm text-slate-500 mb-1 font-medium">Parents Associés</p>
+              <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.parents')}</p>
               <h3 className="text-3xl font-bold text-slate-900">{stats.parents}</h3>
             </Link>
 
@@ -195,7 +197,7 @@ export default function Dashboard() {
                 </div>
                 <span className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">{stats.drivers > 0 ? 'Actifs' : '0'}</span>
               </div>
-              <p className="text-sm text-slate-500 mb-1 font-medium">Chauffeurs</p>
+              <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.chauffeurs')}</p>
               <h3 className="text-3xl font-bold text-slate-900">{stats.drivers}</h3>
             </Link>
 
@@ -207,7 +209,7 @@ export default function Dashboard() {
                 </div>
                 <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-600">{stats.cars > 0 ? 'OK' : '0'}</span>
               </div>
-              <p className="text-sm text-slate-500 mb-1 font-medium">Flotte de Bus</p>
+              <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.vehicules')}</p>
               <h3 className="text-3xl font-bold text-slate-900">{stats.cars}</h3>
             </Link>
           </div>

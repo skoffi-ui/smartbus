@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom';
 import { Users, Plus, Edit, Trash2, Phone, Mail, User } from 'lucide-react';
 import './Parents.css';
 import { GATEWAY_URL } from '../config';
+import { useI18n } from '../i18n';
 
 export default function Parents() {
+  const { t } = useI18n();
   const [parents, setParents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -77,7 +79,7 @@ export default function Parents() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Voulez-vous vraiment supprimer ce parent ?')) return;
+    if (!confirm(t('parents.confirmer_suppression'))) return;
     try {
       const token = localStorage.getItem('accessToken');
       const res = await fetch(`${GATEWAY_URL}/api/v1/parents/${id}`, {

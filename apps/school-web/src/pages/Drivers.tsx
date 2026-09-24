@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { Plus, Trash2, User, Phone, Calendar, Hash, Truck, Edit } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 export default function Drivers() {
+  const { t } = useI18n();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -58,7 +60,7 @@ export default function Drivers() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Voulez-vous vraiment supprimer ce chauffeur ?")) {
+    if (window.confirm(t('drivers.confirmer_suppression'))) {
       await api.delete(`/drivers/${id}`);
       fetchDrivers();
     }
@@ -68,11 +70,11 @@ export default function Drivers() {
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Équipe de Chauffeurs</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('drivers.titre')}</h1>
           <p className="text-slate-500 mt-1">Gérez vos conducteurs</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
-          <Plus size={18} /> Ajouter un Chauffeur
+          <Plus size={18} /> {t('drivers.ajouter')}
         </button>
       </div>
 
@@ -85,10 +87,10 @@ export default function Drivers() {
           <div className="empty-icon">
             <Truck size={40} />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">Aucun Chauffeur</h3>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">{t('drivers.aucun')}</h3>
           <p className="empty-text">Commencez par ajouter des conducteurs pour vos bus.</p>
           <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
-            <Plus size={18} /> Ajouter un Chauffeur
+            <Plus size={18} /> {t('drivers.ajouter')}
           </button>
         </div>
       ) : (
