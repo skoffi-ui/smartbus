@@ -15,6 +15,7 @@ import './UiverseNewButton.css';
 
 import { getCourses, createCourse, deleteCourse, updateCourse, getTrajets } from '../services/transport.service';
 import api from '../services/api';
+import { useI18n } from '../i18n';
 
 /**
  * Espace de noms du routage, lu sur `window.L`.

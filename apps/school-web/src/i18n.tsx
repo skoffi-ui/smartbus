@@ -250,6 +250,90 @@ const traductions = {
   'msg.confirmation':        { fr: 'Confirmation',         en: 'Confirmation' },
   'msg.aucun_resultat':      { fr: 'Aucun résultat',       en: 'No results' },
   'msg.chargement':          { fr: 'Chargement…',          en: 'Loading…' },
+
+  /* ── BioTime Employees ───────────────────────────────────────── */
+  'biotime.titre':           { fr: 'Annuaire BioTime',     en: 'BioTime Directory' },
+  'biotime.sous_titre':      { fr: 'Synchronisez les élèves depuis BioTime', en: 'Sync students from BioTime' },
+  'biotime.selectionner':    { fr: 'Sélectionner',         en: 'Select' },
+  'biotime.importer':        { fr: 'Importer la sélection', en: 'Import selection' },
+  'biotime.importer_court':  { fr: 'Importer',             en: 'Import' },
+  'biotime.emp_code':        { fr: 'Code employé',         en: 'Employee code' },
+  'biotime.departement':     { fr: 'Département',          en: 'Department' },
+  'biotime.rechercher':      { fr: 'Rechercher dans BioTime…', en: 'Search in BioTime…' },
+  'biotime.aucun':           { fr: 'Aucun employé trouvé', en: 'No employees found' },
+  'biotime.selectionnes':    { fr: 'sélectionné(s)',       en: 'selected' },
+  'biotime.sync_photos':     { fr: 'Resynchroniser les photos', en: 'Resync photos' },
+  'biotime.import_succes':   { fr: 'élève(s) importé(s) avec succès', en: 'student(s) imported successfully' },
+  'biotime.import_erreur':   { fr: 'Erreur lors de l\'importation', en: 'Import error' },
+
+  /* ── BioTime Config ──────────────────────────────────────────── */
+  'biotime_cfg.titre':       { fr: 'Configuration BioTime', en: 'BioTime Configuration' },
+  'biotime_cfg.sous_titre':  { fr: 'Paramètres de connexion au serveur BioTime', en: 'BioTime server connection settings' },
+  'biotime_cfg.url':         { fr: 'URL du serveur',       en: 'Server URL' },
+  'biotime_cfg.username':    { fr: 'Nom d\'utilisateur',   en: 'Username' },
+  'biotime_cfg.password':    { fr: 'Mot de passe',         en: 'Password' },
+  'biotime_cfg.tester':      { fr: 'Tester la connexion',  en: 'Test connection' },
+  'biotime_cfg.test_ok':     { fr: 'Connexion réussie !',  en: 'Connection successful!' },
+  'biotime_cfg.test_ko':     { fr: 'Échec de la connexion', en: 'Connection failed' },
+
+  /* ── Courses ─────────────────────────────────────────────────── */
+  'courses.titre':           { fr: 'Courses',              en: 'Rides' },
+  'courses.ajouter':         { fr: 'Nouvelle course',      en: 'New ride' },
+  'courses.modifier':        { fr: 'Modifier la course',   en: 'Edit ride' },
+  'courses.supprimer':       { fr: 'Supprimer',            en: 'Delete' },
+  'courses.date':            { fr: 'Date',                 en: 'Date' },
+  'courses.heure':           { fr: 'Heure',                en: 'Time' },
+  'courses.trajet':          { fr: 'Trajet',               en: 'Route' },
+  'courses.bus':             { fr: 'Bus',                  en: 'Bus' },
+  'courses.chauffeur':       { fr: 'Chauffeur',            en: 'Driver' },
+  'courses.statut':          { fr: 'Statut',               en: 'Status' },
+  'courses.en_cours':        { fr: 'En cours',             en: 'In progress' },
+  'courses.terminee':        { fr: 'Terminée',             en: 'Completed' },
+  'courses.annulee':         { fr: 'Annulée',              en: 'Cancelled' },
+  'courses.planifiee':       { fr: 'Planifiée',            en: 'Scheduled' },
+  'courses.aucune':          { fr: 'Aucune course',        en: 'No rides' },
+
+  /* ── Trajets ─────────────────────────────────────────────────── */
+  'trajets.titre':           { fr: 'Trajets',              en: 'Routes' },
+  'trajets.ajouter':         { fr: 'Nouveau trajet',       en: 'New route' },
+  'trajets.modifier':        { fr: 'Modifier le trajet',   en: 'Edit route' },
+  'trajets.supprimer':       { fr: 'Supprimer',            en: 'Delete' },
+  'trajets.nom':             { fr: 'Nom du trajet',        en: 'Route name' },
+  'trajets.type':            { fr: 'Type',                 en: 'Type' },
+  'trajets.aller':           { fr: 'Aller (Matin)',        en: 'Outbound (Morning)' },
+  'trajets.retour':          { fr: 'Retour (Soir)',        en: 'Return (Evening)' },
+  'trajets.points':          { fr: 'Points d\'arrêt',      en: 'Stops' },
+  'trajets.aucun':           { fr: 'Aucun trajet',         en: 'No routes' },
+
+  /* ── Affectation ─────────────────────────────────────────────── */
+  'affectation.titre':       { fr: 'Affectation des élèves', en: 'Student Assignment' },
+  'affectation.sous_titre':  { fr: 'Assignez les élèves aux points d\'arrêt', en: 'Assign students to stops' },
+  'affectation.eleve':       { fr: 'Élève',                en: 'Student' },
+  'affectation.point':       { fr: 'Point d\'arrêt',       en: 'Stop' },
+  'affectation.trajet':      { fr: 'Trajet',               en: 'Route' },
+  'affectation.assigner':    { fr: 'Assigner',             en: 'Assign' },
+  'affectation.non_assigne': { fr: 'Non assigné',          en: 'Not assigned' },
+
+  /* ── Suivi Montées ───────────────────────────────────────────── */
+  'suivi.titre':             { fr: 'Suivi des montées',    en: 'Boarding Tracking' },
+  'suivi.sous_titre':        { fr: 'Historique des badgeages', en: 'Badge history' },
+  'suivi.date':              { fr: 'Date',                 en: 'Date' },
+  'suivi.heure':             { fr: 'Heure',                en: 'Time' },
+  'suivi.eleve':             { fr: 'Élève',                en: 'Student' },
+  'suivi.sens':              { fr: 'Sens',                 en: 'Direction' },
+  'suivi.montee':            { fr: 'Montée',               en: 'Boarding' },
+  'suivi.descente':          { fr: 'Descente',             en: 'Alighting' },
+  'suivi.statut':            { fr: 'Statut',               en: 'Status' },
+  'suivi.valide':            { fr: 'Validé',               en: 'Valid' },
+  'suivi.refuse':            { fr: 'Refusé',               en: 'Refused' },
+  'suivi.aucun':             { fr: 'Aucun badgeage',       en: 'No badges' },
+
+  /* ── Alertes Transport ───────────────────────────────────────── */
+  'alertes_transport.titre': { fr: 'Alertes Transport',    en: 'Transport Alerts' },
+  'alertes_transport.toutes':{ fr: 'Toutes',               en: 'All' },
+  'alertes_transport.critiques': { fr: 'Critiques',        en: 'Critical' },
+  'alertes_transport.info':  { fr: 'Infos',                en: 'Info' },
+  'alertes_transport.aucune':{ fr: 'Aucune alerte',        en: 'No alerts' },
 } as const;
 
 export type CleTraduction = keyof typeof traductions;

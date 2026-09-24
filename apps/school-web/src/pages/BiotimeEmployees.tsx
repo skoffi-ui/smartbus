@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { Plus, Trash2, User, Edit, RefreshCw, Search, Hash } from 'lucide-react';
+import { useI18n } from '../i18n';
 
 interface BiotimeEmployee {
   id: number;
@@ -18,6 +19,7 @@ interface BiotimeEmployee {
 const FORM_VIDE = { emp_code: '', first_name: '', last_name: '', department: '', card_no: '' };
 
 export default function BiotimeEmployees() {
+  const { t } = useI18n();
   const [employes, setEmployes] = useState<BiotimeEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -77,7 +79,7 @@ export default function BiotimeEmployees() {
   };
 
   const handleDelete = async (emp: BiotimeEmployee) => {
-    if (!window.confirm(`Supprimer « ${emp.first_name} ${emp.last_name} » du serveur BioTime ?`)) return;
+    if (!window.confirm(`${t('action.supprimer')} « ${emp.first_name} ${emp.last_name} » ?`)) return;
     try {
       await api.delete(`/biotime/mon-ecole/employees/${emp.id}`);
       await synchroniserEtRecharger();
@@ -117,9 +119,9 @@ export default function BiotimeEmployees() {
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Annuaire BioTime</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('biotime.titre')}</h1>
           <p className="text-slate-500 mt-1">
-            Gérez les employés directement sur votre serveur BioTime
+            {t('biotime.sous_titre')}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -129,10 +131,10 @@ export default function BiotimeEmployees() {
             className="btn btn-secondary flex items-center gap-2"
           >
             <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-            Synchroniser
+            {t('action.actualiser')}
           </button>
           <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
-            <Plus size={18} /> Nouvel employé
+            <Plus size={18} /> {t('action.ajouter')}
           </button>
         </div>
       </div>
@@ -143,7 +145,7 @@ export default function BiotimeEmployees() {
         <input
           type="text"
           className="premium-input"
-          placeholder="Rechercher par nom, matricule, classe…"
+          placeholder={t('biotime.rechercher')}
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
         />
