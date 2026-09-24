@@ -16,7 +16,10 @@ export default function Sidebar() {
   return (
     <div className="w-64 fixed h-full bg-navy-800/80 backdrop-blur-xl border-r border-white/10 p-6 flex flex-col">
       <div className="mb-12 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-white font-bold text-xl shadow-lg">
+        <div
+          className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center font-bold text-xl shadow-lg"
+          style={{ color: '#fff' }}
+        >
           S
         </div>
         <div>
@@ -35,10 +38,11 @@ export default function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
                   isActive
-                    ? 'bg-brand-500 text-white shadow-md shadow-brand-500/20'
+                    ? 'bg-brand-500 shadow-md shadow-brand-500/20'
                     : 'text-navy-300 hover:bg-white/5 hover:text-white'
                 }`
               }
+              style={({ isActive }) => (isActive ? { color: '#fff' } : undefined)}
             >
               <Icon size={20} className="shrink-0" />
               {link.name}

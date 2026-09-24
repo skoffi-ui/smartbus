@@ -1,9 +1,20 @@
-import { Search, Bell, LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Bell, LogOut, Sun, Moon } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { getInitialTheme, setTheme, type Theme } from '../theme';
 
 export default function AdminNavbar() {
   const location = useLocation();
   const currentPath = location.pathname.replace('/', '') || 'Dashboard';
+
+  // Thème clair/sombre (voir theme.ts) — appliqué avant le rendu dans main.tsx,
+  // ici seulement pour piloter l'icône et persister le choix.
+  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
+  const toggleTheme = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    setThemeState(next);
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -38,15 +49,26 @@ export default function AdminNavbar() {
           />
         </div>
 
-        <button className="text-navy-300 hover:text-white transition-colors">
+        <button
+          onClick={toggleTheme}
+          className="h-12 w-12 flex items-center justify-center rounded-full text-navy-300 hover:text-white hover:bg-white/5 transition-colors"
+          title={theme === 'dark' ? 'Passer au thème clair' : 'Passer au thème sombre'}
+        >
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+
+        <button className="h-12 w-12 flex items-center justify-center rounded-full text-navy-300 hover:text-white hover:bg-white/5 transition-colors">
           <Bell size={20} />
         </button>
 
-        <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-brand-600 to-brand-400 border border-white/20 flex items-center justify-center text-sm font-bold text-white shadow-lg cursor-pointer">
+        <div
+          className="h-8 w-8 rounded-full bg-gradient-to-tr from-brand-600 to-brand-400 border border-white/20 flex items-center justify-center text-sm font-bold shadow-lg cursor-pointer"
+          style={{ color: '#fff' }}
+        >
           AD
         </div>
 
-        <button onClick={handleLogout} className="text-red-400 hover:text-red-300 transition-colors ml-2" title="Déconnexion">
+        <button onClick={handleLogout} className="h-12 w-12 flex items-center justify-center rounded-full text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors ml-2" title="Déconnexion">
           <LogOut size={20} />
         </button>
       </div>

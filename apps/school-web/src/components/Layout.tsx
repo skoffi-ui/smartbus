@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Bus, Users, LogOut, Settings, Map, MapPin, ListOrdered, CheckSquare, AlertTriangle, Shield, Fingerprint, SlidersHorizontal } from 'lucide-react';
+import { LayoutDashboard, Bus, Users, LogOut, Settings, Map, MapPin, ListOrdered, CheckSquare, AlertTriangle, Shield, Fingerprint, SlidersHorizontal, Sun, Moon } from 'lucide-react';
 import { socketService } from '../services/socket.service';
+import { getInitialTheme, setTheme, type Theme } from '../theme';
 
 interface LayoutProps {
   children: ReactNode;
@@ -21,16 +22,19 @@ export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const margeSousBandeau = PAGES_SANS_MARGE_SOUS_BANDEAU.includes(location.pathname) ? 0 : '2rem';
 
-  // Forcer le thème light et nettoyer les anciennes préférences
-  useEffect(() => {
-    document.documentElement.classList.remove('dark');
-    localStorage.removeItem('theme');
-  }, []);
-
   const handleLogout = () => {
     if (!confirm('Voulez-vous vraiment vous déconnecter ?')) return;
     localStorage.removeItem('accessToken');
     navigate('/login');
+  };
+
+  // Thème clair/sombre (voir theme.ts) — appliqué avant le rendu dans main.tsx,
+  // ici seulement pour piloter l'icône et persister le choix.
+  const [theme, setThemeState] = React.useState<Theme>(getInitialTheme);
+  const toggleTheme = () => {
+    const next: Theme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    setThemeState(next);
   };
 
   // Listen for critical_anomaly events to show badge counter
@@ -99,7 +103,7 @@ export default function Layout({ children }: LayoutProps) {
                       gap: '0.75rem',
                       padding: '10px 10px',
                       borderRadius: 'var(--radius-md)',
-                      color: isActive ? 'white' : 'var(--text-secondary)',
+                      color: isActive ? 'var(--on-primary)' : 'var(--text-secondary)',
                       background: isActive ? 'var(--accent-primary)' : 'transparent',
                       textDecoration: 'none',
                       fontWeight: isActive ? 600 : 400,
@@ -116,9 +120,9 @@ export default function Layout({ children }: LayoutProps) {
         </nav>
 
         <div style={{ padding: '1.5rem 1rem', borderTop: '1px solid var(--glass-border)' }}>
-          <button onClick={handleLogout} className="btn w-full" style={{ 
-            background: 'rgba(239, 68, 68, 0.1)', 
-            color: 'var(--danger)', 
+          <button onClick={handleLogout} className="btn w-full" style={{
+            background: 'var(--danger-tint)',
+            color: 'var(--danger)',
             display: 'flex', 
             justifyContent: 'flex-start',
             gap: '0.75rem'
@@ -132,7 +136,15 @@ export default function Layout({ children }: LayoutProps) {
       {/* Main Content */}
       <main style={{ flex: 1, marginLeft: '260px', padding: '2rem', display: 'flex', flexDirection: 'column' }}>
         <header style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: margeSousBandeau, gap: '1rem' }}>
-          <div className="glass-panel" style={{ padding: '0.5rem', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button
+            onClick={toggleTheme}
+            className="glass-panel"
+            title={theme === 'dark' ? 'Passer au thème clair' : 'Passer au thème sombre'}
+            style={{ width: '48px', height: '48px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}
+          >
+            {theme === 'dark' ? <Sun size={20} className="text-secondary" /> : <Moon size={20} className="text-secondary" />}
+          </button>
+          <div className="glass-panel" style={{ width: '48px', height: '48px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Settings size={20} className="text-secondary" />
           </div>
         </header>
