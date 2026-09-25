@@ -32,6 +32,7 @@ const traductions = {
   'sidebar.diagnostic':      { fr: 'Diagnostic BioTime',   en: 'BioTime Diagnostic' },
   'sidebar.serveurs':        { fr: 'Serveurs BioTime',     en: 'BioTime Servers' },
   'sidebar.badgeuses':       { fr: 'Badgeuses',            en: 'Badge Readers' },
+  'sidebar.centrale':        { fr: 'BioTime Centrale',     en: 'Central BioTime' },
   'sidebar.materiel':        { fr: 'Matériel',             en: 'Hardware' },
   'sidebar.parametres':      { fr: 'Paramètres',           en: 'Settings' },
   'sidebar.aide':            { fr: 'Besoin d\'aide ?',     en: 'Need help?' },

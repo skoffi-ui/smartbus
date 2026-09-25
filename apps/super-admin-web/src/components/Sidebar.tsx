@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, Activity, Cpu, Server, Calendar, Wifi, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, Activity, Cpu, Server, Calendar, Wifi, Settings, Network } from 'lucide-react';
 import { useI18n } from '../i18n';
 
 export default function Sidebar() {
@@ -13,6 +13,7 @@ export default function Sidebar() {
     { nom: t('sidebar.diagnostic'), chemin: '/biotime', icone: Activity },
     { nom: t('sidebar.serveurs'), chemin: '/biotime-serveurs', icone: Server },
     { nom: t('sidebar.badgeuses'), chemin: '/biotime-terminaux', icone: Wifi },
+    { nom: t('sidebar.centrale'), chemin: '/biotime-centrale', icone: Network },
     { nom: t('sidebar.materiel'), chemin: '/devices', icone: Cpu },
     { nom: t('sidebar.parametres'), chemin: '/settings', icone: Settings },
   ];
