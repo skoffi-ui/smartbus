@@ -194,13 +194,13 @@ export default function Children() {
         <div style={{ flex: 1 }}>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <Users className="text-blue-600" size={32} />
-            {t('children.titre')}
+            {t('children.gestion')}
           </h1>
           <p className="text-slate-500 mt-2 flex items-center gap-2 flex-wrap">
-            <span>Gérez les élèves, liez-les aux parents et aux cartes BioTime.</span>
+            <span>{t('children.sous_titre')}</span>
             {!loading && children.length > 0 && (
               <span className="text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700">
-                {children.length} inscrit{children.length > 1 ? 's' : ''}
+                {children.length} {children.length > 1 ? t('children.inscrits') : t('children.inscrit')}
               </span>
             )}
           </p>
@@ -229,7 +229,7 @@ export default function Children() {
             />
             {(searchQuery || filterStatus !== 'all') && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                {filteredChildren.length} résultat{filteredChildren.length > 1 ? 's' : ''}
+                {filteredChildren.length} {filteredChildren.length > 1 ? t('children.resultats') : t('children.resultat')}
               </span>
             )}
           </div>
@@ -242,7 +242,7 @@ export default function Children() {
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              Tous ({children.length})
+              {t('children.tous')} ({children.length})
             </button>
             <button
               onClick={() => setFilterStatus('complete')}
@@ -253,7 +253,7 @@ export default function Children() {
               }`}
             >
               <CheckCircle2 size={16} />
-              Complets ({completeCount})
+              {t('children.complets')} ({completeCount})
             </button>
             <button
               onClick={() => setFilterStatus('incomplete')}
@@ -264,7 +264,7 @@ export default function Children() {
               }`}
             >
               <AlertCircle size={16} />
-              Incomplets ({incompleteCount})
+              {t('children.incomplets')} ({incompleteCount})
             </button>
           </div>
         </div>
@@ -279,25 +279,25 @@ export default function Children() {
           <div className="empty-icon">
             <Users size={40} />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">Aucun Élève</h3>
-          <p className="empty-text">Commencez par ajouter des élèves manuellement ou importez-les directement depuis votre base de données BioTime.</p>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">{t('children.aucun')}</h3>
+          <p className="empty-text">{t('children.aucun_desc')}</p>
           <div className="flex mt-4 justify-center" style={{ gap: '5px' }}>
             <button onClick={handleOpenImportModal} className="btn btn-secondary flex items-center gap-2">
-              <Download size={18} /> Importer
+              <Download size={18} /> {t('children.importer')}
             </button>
             <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center gap-2">
-              <Plus size={18} /> Inscrire
+              <Plus size={18} /> {t('children.inscrire')}
             </button>
           </div>
         </div>
       ) : filteredChildren.length === 0 ? (
         <div className="glass-panel p-12 text-center">
           <Search size={48} className="mx-auto mb-4 text-gray-300" />
-          <h3 className="text-xl font-bold text-gray-700 mb-2">Aucun élève trouvé</h3>
+          <h3 className="text-xl font-bold text-gray-700 mb-2">{t('children.aucun_trouve')}</h3>
           <p className="text-gray-500">
             {searchQuery
-              ? 'Aucun élève ne correspond à votre recherche.'
-              : 'Aucun élève ne correspond aux filtres sélectionnés.'}
+              ? t('children.aucun_recherche')
+              : t('children.aucun_filtre')}
           </p>
         </div>
       ) : (
@@ -314,12 +314,12 @@ export default function Children() {
                   {isComplete ? (
                     <div className="status-badge status-complete">
                       <CheckCircle2 size={14} />
-                      <span>Complet</span>
+                      <span>{t('children.complet')}</span>
                     </div>
                   ) : (
                     <div className="status-badge status-incomplete">
                       <AlertCircle size={14} />
-                      <span>Incomplet</span>
+                      <span>{t('children.incomplet')}</span>
                     </div>
                   )}
                 </div>
@@ -334,7 +334,7 @@ export default function Children() {
                   </div>
                   <div className="child-info">
                     <h3 className="child-name">{child.firstName} {child.lastName}</h3>
-                    <span className="child-class-badge">{child.className || 'Sans Classe'}</span>
+                    <span className="child-class-badge">{child.className || t('children.sans_classe')}</span>
                   </div>
                 </div>
 
@@ -343,7 +343,7 @@ export default function Children() {
                   <div className="info-item">
                     <div className="info-item-header">
                       <Key size={16} className={hasBadge ? 'text-emerald-600' : 'text-gray-400'} />
-                      <span className="info-item-label">Badge</span>
+                      <span className="info-item-label">{t('children.badge')}</span>
                     </div>
                     {hasBadge ? (
                       <div className="info-badge info-badge-success">
@@ -353,7 +353,7 @@ export default function Children() {
                     ) : (
                       <div className="info-badge info-badge-empty">
                         <AlertCircle size={14} />
-                        <span>Non assigné</span>
+                        <span>{t('children.non_assigne')}</span>
                       </div>
                     )}
                   </div>
@@ -362,7 +362,7 @@ export default function Children() {
                   <div className="info-item">
                     <div className="info-item-header">
                       <UserCheck size={16} className={hasParent ? 'text-blue-600' : 'text-gray-400'} />
-                      <span className="info-item-label">Parent</span>
+                      <span className="info-item-label">{t('children.parent')}</span>
                     </div>
                     {hasParent ? (
                       <div className="info-badge info-badge-primary">
@@ -372,7 +372,7 @@ export default function Children() {
                     ) : (
                       <div className="info-badge info-badge-empty">
                         <AlertCircle size={14} />
-                        <span>Non assigné</span>
+                        <span>{t('children.non_assigne')}</span>
                       </div>
                     )}
                   </div>
@@ -380,14 +380,14 @@ export default function Children() {
 
                 <div className="child-card-footer">
                   <button onClick={() => navigate(`/children/${child.id}`)} className="btn-profile">
-                    Profil
+                    {t('children.profil')}
                     <ChevronRight size={16} />
                   </button>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => handleEdit(child)} className="btn-icon-primary" title="Modifier l'élève">
+                    <button onClick={() => handleEdit(child)} className="btn-icon-primary" title={t('children.modifier_eleve')}>
                       <Edit size={18} />
                     </button>
-                    <button onClick={() => handleDelete(child.id)} className="btn-icon-danger" title="Supprimer l'élève">
+                    <button onClick={() => handleDelete(child.id)} className="btn-icon-danger" title={t('children.supprimer_eleve')}>
                       <Trash2 size={18} />
                     </button>
                   </div>
