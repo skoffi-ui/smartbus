@@ -71,7 +71,7 @@ export default function Drivers() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">{t('drivers.titre')}</h1>
-          <p className="text-slate-500 mt-1">Gérez vos conducteurs</p>
+          <p className="text-slate-500 mt-1">{t('drivers.sous_titre')}</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
           <Plus size={18} /> {t('drivers.ajouter')}
@@ -88,7 +88,7 @@ export default function Drivers() {
             <Truck size={40} />
           </div>
           <h3 className="text-xl font-bold text-slate-800 mb-2">{t('drivers.aucun')}</h3>
-          <p className="empty-text">Commencez par ajouter des conducteurs pour vos bus.</p>
+          <p className="empty-text">{t('drivers.aucun_desc')}</p>
           <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
             <Plus size={18} /> {t('drivers.ajouter')}
           </button>
@@ -99,10 +99,10 @@ export default function Drivers() {
             <table className="premium-table">
               <thead>
                 <tr>
-                  <th className="w-1/3">Chauffeur</th>
-                  <th className="w-1/4">Contact</th>
-                  <th>Permis</th>
-                  <th className="text-right">Actions</th>
+                  <th className="w-1/3">{t('drivers.chauffeur')}</th>
+                  <th className="w-1/4">{t('drivers.contact')}</th>
+                  <th>{t('drivers.permis')}</th>
+                  <th className="text-right">{t('drivers.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -127,15 +127,15 @@ export default function Drivers() {
                     <td>
                       <div className="flex flex-col gap-1 text-sm">
                         <span className="font-semibold text-slate-700 flex items-center gap-1.5"><Hash size={14} className="text-slate-400" /> {driver.licenseNumber}</span>
-                        <span className="text-xs text-slate-500 flex items-center gap-1.5"><Calendar size={12} /> Exp: {new Date(driver.licenseExpiry).toLocaleDateString()}</span>
+                        <span className="text-xs text-slate-500 flex items-center gap-1.5"><Calendar size={12} /> {t('drivers.expiration')}: {new Date(driver.licenseExpiry).toLocaleDateString()}</span>
                       </div>
                     </td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => handleEdit(driver)} className="btn-icon-primary" title="Modifier">
+                        <button onClick={() => handleEdit(driver)} className="btn-icon-primary" title={t('drivers.modifier')}>
                           <Edit size={14} />
                         </button>
-                        <button onClick={() => handleDelete(driver.id)} className="btn-icon-danger" title="Supprimer">
+                        <button onClick={() => handleDelete(driver.id)} className="btn-icon-danger" title={t('drivers.supprimer')}>
                           <Trash2 size={14} />
                         </button>
                       </div>

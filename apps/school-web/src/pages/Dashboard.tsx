@@ -130,7 +130,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-center mb-6 flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold" style={{ margin: 0 }}>{t('dash.titre')}</h1>
-          <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>Aperçu de l'activité de votre établissement</p>
+          <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>{t('dash.sous_titre')}</p>
         </div>
 
         {/* Actions Rapides */}
@@ -219,12 +219,12 @@ export default function Dashboard() {
             <div className="glass-panel p-4">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
                 <Activity size={22} style={{ color: 'var(--accent-primary)' }} />
-                <h3 className="text-lg font-bold" style={{ margin: 0 }}>Activité Récente</h3>
+                <h3 className="text-lg font-bold" style={{ margin: 0 }}>{t('dash.activite_recente')}</h3>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '400px', overflowY: 'auto' }}>
                 {recentActivities.length === 0 ? (
                   <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                    Aucune activité récente enregistrée.
+                    {t('dash.aucune_activite')}
                   </div>
                 ) : (
                   recentActivities.map((activity) => {
@@ -234,20 +234,20 @@ export default function Dashboard() {
                     
                     let badgeColor = 'var(--success)';
                     let badgeBg = 'var(--success-tint)';
-                    let statusLabel = 'Embarqué';
+                    let statusLabel = t('dash.embarque');
 
                     if (isApproaching) {
                       badgeColor = 'var(--warning)';
                       badgeBg = 'var(--warning-tint)';
-                      statusLabel = 'En approche';
+                      statusLabel = t('dash.en_approche');
                     } else if (isWarning) {
                       badgeColor = 'var(--danger)';
                       badgeBg = 'var(--danger-tint)';
-                      statusLabel = 'Alerte';
+                      statusLabel = t('dash.alerte');
                     } else if (activity.message.includes('descendu')) {
                       badgeColor = 'var(--accent-primary)';
                       badgeBg = 'var(--accent-tint)';
-                      statusLabel = 'Descendu';
+                      statusLabel = t('dash.descendu');
                     }
 
                     return (
@@ -275,15 +275,15 @@ export default function Dashboard() {
 
             {/* Raccourcis Utiles - Remplace welcome card */}
             <div className="glass-panel p-4">
-              <h3 className="text-lg font-bold mb-4">Accès Rapides</h3>
+              <h3 className="text-lg font-bold mb-4">{t('dash.acces_rapides')}</h3>
               <div className="flex flex-col gap-3">
                 <Link to="/courses" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-indigo-50 transition-colors border border-slate-100 hover:border-indigo-200 group" style={{ textDecoration: 'none' }}>
                   <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
                     <RouteIcon size={20} className="text-indigo-600" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-slate-900 text-sm">Gérer les Courses</p>
-                    <p className="text-xs text-slate-500">Planifier et éditer</p>
+                    <p className="font-semibold text-slate-900 text-sm">{t('dash.gerer_courses')}</p>
+                    <p className="text-xs text-slate-500">{t('dash.planifier_editer')}</p>
                   </div>
                 </Link>
 
