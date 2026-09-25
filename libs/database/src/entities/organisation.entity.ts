@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 import { BaseEntityModel } from './base.entity';
 import { Subscription } from './subscription.entity';
+import { BiotimeTerminal } from './biotime-terminal.entity';
 
 /**
  * Enumération des statuts d'une organisation
@@ -76,6 +77,31 @@ export class Organisation extends BaseEntityModel {
 
   @Column({ name: 'db_provisioned', default: false })
   dbProvisioned: boolean;
+
+  // ---- Configuration BioTime (Serveur Central) ----
+  @Column({ name: 'biotime_server_url', nullable: true })
+  biotimeServerUrl: string;
+
+  @Column({ name: 'biotime_username', nullable: true })
+  biotimeUsername: string;
+
+  @Column({ name: 'biotime_password', nullable: true, select: false })
+  biotimePassword: string;
+
+  /**
+   * ID du département BioTime assigné à cette organisation
+   * Chaque organisation = 1 département sur le serveur BioTime central
+   * Utilisé pour isoler les données (élèves, pointages) par école
+   */
+  @Column({ name: 'biotime_department_id', type: 'int', nullable: true })
+  biotimeDepartmentId: number;
+
+  @Column({ name: 'biotime_department_name', nullable: true })
+  biotimeDepartmentName: string;
+
+  // ---- Relation vers les terminaux BioTime ----
+  @OneToMany(() => BiotimeTerminal, terminal => terminal.organisation)
+  biotimeTerminals: BiotimeTerminal[];
 
   // ---- Relation vers les abonnements ----
   @OneToMany(() => Subscription, (sub) => sub.organisation)

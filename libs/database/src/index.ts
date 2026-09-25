@@ -13,6 +13,7 @@ export * from './entities/super-app-child.entity';
 export * from './entities/super-app-punch.entity';
 export * from './entities/tenant-schema-version.entity';
 export * from './entities/biotime-config.entity';
+export * from './entities/biotime-terminal.entity';
 
 // Entités école (Bases Locataires)
 export * from './tenant-entities/child.entity';
