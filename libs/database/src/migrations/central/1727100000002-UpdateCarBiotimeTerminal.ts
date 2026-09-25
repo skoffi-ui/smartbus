@@ -8,13 +8,21 @@ export class UpdateCarBiotimeTerminal1727100000002 implements MigrationInterface
       ADD COLUMN IF NOT EXISTS "biotime_terminal_id" uuid
     `);
 
-    // Contrainte de clé étrangère
+    // Contrainte de clé étrangère (idempotent)
     await queryRunner.query(`
-      ALTER TABLE "cars"
-      ADD CONSTRAINT "fk_cars_biotime_terminal"
-      FOREIGN KEY ("biotime_terminal_id")
-      REFERENCES "biotime_terminals"("id")
-      ON DELETE SET NULL
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'fk_cars_biotime_terminal'
+        ) THEN
+          ALTER TABLE "cars"
+          ADD CONSTRAINT "fk_cars_biotime_terminal"
+          FOREIGN KEY ("biotime_terminal_id")
+          REFERENCES "biotime_terminals"("id")
+          ON DELETE SET NULL;
+        END IF;
+      END $$;
     `);
 
     // Index
@@ -30,6 +38,7 @@ export class UpdateCarBiotimeTerminal1727100000002 implements MigrationInterface
       FROM "biotime_terminals" bt
       WHERE c."biotime_terminal_sn" = bt."serial_number"
       AND c."biotime_terminal_sn" IS NOT NULL
+      AND c."biotime_terminal_id" IS NULL
     `);
   }
 

@@ -2,9 +2,9 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddBiotimeTerminals1727100000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Création de la table biotime_terminals
+    // Création de la table biotime_terminals (idempotent)
     await queryRunner.query(`
-      CREATE TABLE "biotime_terminals" (
+      CREATE TABLE IF NOT EXISTS "biotime_terminals" (
         "id" uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
         "serial_number" varchar NOT NULL UNIQUE,
         "terminal_name" varchar NOT NULL,
@@ -23,15 +23,15 @@ export class AddBiotimeTerminals1727100000000 implements MigrationInterface {
       )
     `);
 
-    // Index pour les recherches fréquentes
+    // Index pour les recherches fréquentes (idempotent)
     await queryRunner.query(`
-      CREATE INDEX "idx_biotime_terminals_serial_number" ON "biotime_terminals"("serial_number")
+      CREATE INDEX IF NOT EXISTS "idx_biotime_terminals_serial_number" ON "biotime_terminals"("serial_number")
     `);
     await queryRunner.query(`
-      CREATE INDEX "idx_biotime_terminals_organisation" ON "biotime_terminals"("organisation_id")
+      CREATE INDEX IF NOT EXISTS "idx_biotime_terminals_organisation" ON "biotime_terminals"("organisation_id")
     `);
     await queryRunner.query(`
-      CREATE INDEX "idx_biotime_terminals_status" ON "biotime_terminals"("status")
+      CREATE INDEX IF NOT EXISTS "idx_biotime_terminals_status" ON "biotime_terminals"("status")
     `);
   }
 
