@@ -2,9 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Users from './pages/Users';
-import Billing from './pages/Billing';
 import Subscriptions from './pages/Subscriptions';
-import Devices from './pages/Devices';
 import BiotimeGestionCentrale from './pages/BiotimeGestionCentrale';
 import Settings from './pages/Settings';
 import AdminLayout from './layouts/AdminLayout';
@@ -20,9 +18,7 @@ function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="users" element={<Users />} />
           <Route path="subscriptions" element={<Subscriptions />} />
-          <Route path="billing" element={<Billing />} />
           <Route path="biotime-centrale" element={<BiotimeGestionCentrale />} />
-          <Route path="devices" element={<Devices />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

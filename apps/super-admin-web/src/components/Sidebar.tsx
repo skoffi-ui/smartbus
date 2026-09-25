@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, Cpu, Calendar, Settings, Network } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Settings, Network } from 'lucide-react';
 import { useI18n } from '../i18n';
 
 export default function Sidebar() {
@@ -9,9 +9,7 @@ export default function Sidebar() {
     { nom: t('sidebar.ecoles'), chemin: '/dashboard', icone: LayoutDashboard },
     { nom: t('sidebar.equipe'), chemin: '/users', icone: Users },
     { nom: t('sidebar.abonnements'), chemin: '/subscriptions', icone: Calendar },
-    { nom: t('sidebar.facturation'), chemin: '/billing', icone: CreditCard },
     { nom: t('sidebar.centrale'), chemin: '/biotime-centrale', icone: Network },
-    { nom: t('sidebar.materiel'), chemin: '/devices', icone: Cpu },
     { nom: t('sidebar.parametres'), chemin: '/settings', icone: Settings },
   ];
 
