@@ -92,7 +92,7 @@ export default function Cars() {
         </div>
         <div className="flex items-center gap-3">
           <button onClick={handleSyncLibellule} disabled={syncing} className="btn btn-secondary flex items-center gap-2">
-            <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? 'Synchronisation...' : t('cars.sync_libellule')}
+            <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? t('cars.synchronisation') : t('cars.sync_libellule')}
           </button>
           <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
             <Plus size={18} /> {t('cars.ajouter')}
@@ -110,10 +110,10 @@ export default function Cars() {
             <Bus size={40} />
           </div>
           <h3 className="text-xl font-bold text-slate-800 mb-2">{t('cars.aucun')}</h3>
-          <p className="empty-text">Commencez par ajouter des bus ou des minivans à votre flotte.</p>
+          <p className="empty-text">{t('cars.aucun_desc')}</p>
           <div className="flex gap-3 justify-center mt-4">
             <button onClick={handleSyncLibellule} disabled={syncing} className="btn btn-secondary flex items-center gap-2">
-              <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? 'Synchro...' : t('cars.sync_libellule')}
+              <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? t('cars.synchronisation') : t('cars.sync_libellule')}
             </button>
             <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
               <Plus size={18} /> {t('cars.ajouter')}
@@ -186,8 +186,8 @@ export default function Cars() {
                 <Bus size={20} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-800">{editingCar ? 'Modifier le Véhicule' : 'Nouveau Véhicule'}</h2>
-                <p className="text-xs text-slate-500 mt-1">{editingCar ? 'Modifiez les informations du véhicule.' : 'Saisissez les informations du véhicule.'}</p>
+                <h2 className="text-xl font-bold text-slate-800">{editingCar ? t('cars.modifier') : t('cars.nouveau')}</h2>
+                <p className="text-xs text-slate-500 mt-1">{editingCar ? t('cars.modifier_info') : t('cars.saisir_info')}</p>
               </div>
             </div>
             
@@ -195,32 +195,32 @@ export default function Cars() {
               <div className="premium-modal-body">
                 <div className="flex gap-4">
                   <div className="premium-input-group w-full">
-                    <label className="premium-input-label">Immatriculation</label>
+                    <label className="premium-input-label">{t('cars.immatriculation')}</label>
                     <div className="premium-input-wrapper">
                       <Hash size={16} className="premium-input-icon" />
                       <input required type="text" className="premium-input" placeholder="DK-1234-AB" value={formData.plateNumber} onChange={e => setFormData({...formData, plateNumber: e.target.value})} />
                     </div>
                   </div>
-                  
+
                   <div className="premium-input-group w-full">
-                    <label className="premium-input-label">Capacité (Places)</label>
+                    <label className="premium-input-label">{t('cars.capacite_places')}</label>
                     <div className="premium-input-wrapper">
                       <Users size={16} className="premium-input-icon" />
                       <input required type="number" className="premium-input" value={formData.capacity} onChange={e => setFormData({...formData, capacity: parseInt(e.target.value, 10) as any})} />
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="premium-input-group">
-                  <label className="premium-input-label">Marque</label>
+                  <label className="premium-input-label">{t('cars.marque')}</label>
                   <div className="premium-input-wrapper">
                     <Car size={16} className="premium-input-icon" />
                     <input required type="text" className="premium-input" placeholder="Toyota" value={formData.brand} onChange={e => setFormData({...formData, brand: e.target.value})} />
                   </div>
                 </div>
-                
+
                 <div className="premium-input-group mb-0">
-                  <label className="premium-input-label">Modèle</label>
+                  <label className="premium-input-label">{t('cars.modele')}</label>
                   <div className="premium-input-wrapper">
                     <Settings size={16} className="premium-input-icon" />
                     <input required type="text" className="premium-input" placeholder="Coaster" value={formData.model} onChange={e => setFormData({...formData, model: e.target.value})} />
@@ -229,19 +229,19 @@ export default function Cars() {
 
                 <div className="flex gap-4 mt-4">
                   <div className="premium-input-group w-full mb-0">
-                    <label className="premium-input-label">Balise GPS Associée (optionnel)</label>
+                    <label className="premium-input-label">{t('cars.gps_balise')}</label>
                     <select className="premium-input w-full" value={formData.gpsDeviceId} onChange={e => setFormData({...formData, gpsDeviceId: e.target.value})}>
-                      <option value="">Aucune balise</option>
+                      <option value="">{t('cars.aucune_balise')}</option>
                       {devices.filter(d => d.typeDevice === 'GPS').map(d => (
                         <option key={d.id} value={d.id}>{d.serialNumber}</option>
                       ))}
                     </select>
                   </div>
-                  
+
                   <div className="premium-input-group w-full mb-0">
-                    <label className="premium-input-label">Badgeuse Associée (optionnel)</label>
+                    <label className="premium-input-label">{t('cars.badgeuse')}</label>
                     <select className="premium-input w-full" value={formData.biotimeTerminalSn} onChange={e => setFormData({...formData, biotimeTerminalSn: e.target.value})}>
-                      <option value="">Aucune badgeuse</option>
+                      <option value="">{t('cars.aucune_badgeuse')}</option>
                       {devices.filter(d => d.typeDevice === 'BADGEUSE').map(d => (
                         <option key={d.id} value={d.serialNumber}>{d.serialNumber}</option>
                       ))}
@@ -251,8 +251,8 @@ export default function Cars() {
               </div>
               
               <div className="premium-modal-footer">
-                <button type="button" onClick={() => { setShowForm(false); setEditingCar(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
-                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">{editingCar ? 'Modifier' : 'Enregistrer'}</button>
+                <button type="button" onClick={() => { setShowForm(false); setEditingCar(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">{t('annuler')}</button>
+                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">{editingCar ? t('action.modifier') : t('enregistrer')}</button>
               </div>
             </form>
           </div>
