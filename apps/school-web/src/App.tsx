@@ -5,7 +5,6 @@ import {
   Navigate,
 } from 'react-router-dom';
 import Login from './pages/Login';
-import RegisterSchool from './pages/RegisterSchool';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Cars from './pages/Cars';
@@ -14,18 +13,15 @@ import Parents from './pages/Parents';
 import Children from './pages/Children';
 import ChildProfile from './pages/ChildProfile';
 import LiveTracking from './pages/LiveTracking';
-import CheckoutSandbox from './pages/CheckoutSandbox';
 import AccesBloque from './pages/AccesBloque';
 
-// Nouveaux composants Transport
+// Composants Transport
 import Courses from './pages/Courses';
 import TrajetEditor from './pages/TrajetEditor';
 import AffectationEleves from './pages/AffectationEleves';
 import SuiviMontees from './pages/SuiviMontees';
 import AlertesTransport from './pages/AlertesTransport';
 import CentreAlertes from './pages/CentreAlertes';
-import BiotimeEmployees from './pages/BiotimeEmployees';
-import BiotimeConfig from './pages/BiotimeConfig';
 import Settings from './pages/Settings';
 
 function App() {
@@ -39,13 +35,6 @@ function App() {
           path="/login"
           element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />}
         />
-        <Route
-          path="/register"
-          element={
-            !isAuthenticated ? <RegisterSchool /> : <Navigate to="/dashboard" />
-          }
-        />
-        <Route path="/checkout-sandbox" element={<CheckoutSandbox />} />
         {/* École suspendue / non activée / version obsolète : la raison est expliquée ici */}
         <Route path="/acces-bloque" element={<AccesBloque />} />
 
@@ -209,30 +198,6 @@ function App() {
           }
         />
 
-        <Route
-          path="/biotime-employes"
-          element={
-            isAuthenticated ? (
-              <Layout>
-                <BiotimeEmployees />
-              </Layout>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
-        <Route
-          path="/biotime-config"
-          element={
-            isAuthenticated ? (
-              <Layout>
-                <BiotimeConfig />
-              </Layout>
-            ) : (
-              <Navigate to="/login" />
-            )
-          }
-        />
         <Route
           path="/settings"
           element={

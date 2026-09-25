@@ -1,7 +1,7 @@
 import React from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Bus, Users, LogOut, Settings, Map, MapPin, ListOrdered, CheckSquare, AlertTriangle, Shield, Fingerprint, SlidersHorizontal, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, Bus, Users, LogOut, Settings, Map, ListOrdered, CheckSquare, AlertTriangle, Shield, Sun, Moon } from 'lucide-react';
 import { socketService } from '../services/socket.service';
 import { getInitialTheme, setTheme, type Theme } from '../theme';
 import { useI18n } from '../i18n';
@@ -53,8 +53,6 @@ export default function Layout({ children }: LayoutProps) {
     { nom: t('sidebar.suivi'), chemin: '/suivi', icone: CheckSquare },
     { nom: t('sidebar.alertes'), chemin: '/alertes', icone: AlertTriangle },
     { nom: t('sidebar.centre_alertes'), chemin: '/centre-alertes', icone: Shield, badge: nbAnomaliesCritiques },
-    { nom: t('sidebar.annuaire'), chemin: '/biotime-employes', icone: Fingerprint },
-    { nom: t('sidebar.config_biotime'), chemin: '/biotime-config', icone: SlidersHorizontal },
     { nom: t('sidebar.parametres'), chemin: '/settings', icone: Settings },
   ];
 

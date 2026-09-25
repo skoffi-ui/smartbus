@@ -23,8 +23,6 @@ const traductions = {
   'sidebar.suivi':           { fr: 'Suivi des montées',    en: 'Boarding Tracking' },
   'sidebar.alertes':         { fr: 'Alertes',              en: 'Alerts' },
   'sidebar.centre_alertes':  { fr: "Centre d'Alertes",     en: 'Alert Center' },
-  'sidebar.annuaire':        { fr: 'Annuaire BioTime',     en: 'BioTime Directory' },
-  'sidebar.config_biotime':  { fr: 'Config BioTime',       en: 'BioTime Config' },
   'sidebar.parametres':      { fr: 'Paramètres',           en: 'Settings' },
   'sidebar.deconnexion':     { fr: 'Déconnexion',          en: 'Log out' },
   'sidebar.confirmer_deco':  { fr: 'Voulez-vous vraiment vous déconnecter ?', en: 'Do you really want to log out?' },
