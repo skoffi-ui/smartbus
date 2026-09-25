@@ -28,8 +28,22 @@ export class Car extends SoftDeleteEntityModel {
   @Column({ name: 'gps_device_id', nullable: true })
   gpsDeviceId: string;
 
+  // ---- Intégration BioTime (Architecture Multi-Tenant Centralisée) ----
+
+  /**
+   * @deprecated Utiliser biotimeTerminalId à la place
+   * Conservé pour compatibilité durant la migration
+   */
   @Column({ name: 'biotime_terminal_sn', nullable: true })
   biotimeTerminalSn: string;
+
+  /**
+   * ID du terminal BioTime assigné à ce véhicule
+   * Référence vers la table biotime_terminals (base shared)
+   * Note: Pas de FK directe car les bases sont séparées (multi-tenant)
+   */
+  @Column({ name: 'biotime_terminal_id', nullable: true })
+  biotimeTerminalId: string;
 
   @Column({ name: 'is_active', default: true })
   isActive: boolean;

@@ -183,7 +183,7 @@ export class ChildrenService {
       ),
     )
       .then(async (response) => {
-        const { biotimeId, action, error } = response.data ?? {};
+        const { biotimeId, action, error, biotimeDepartmentId } = response.data ?? {};
         if (action === 'skipped' && error) {
           await repo.update(child.id, {
             biotimeSyncStatus: BiotimeSyncStatus.FAILED,
@@ -193,11 +193,12 @@ export class ChildrenService {
         }
         await repo.update(child.id, {
           ...(biotimeId ? { biotimeId } : {}),
+          ...(biotimeDepartmentId ? { biotimeDepartmentId } : {}),
           biotimeSyncStatus: BiotimeSyncStatus.SYNCED,
           biotimeSyncError: null as any,
         });
         this.logger.log(
-          `[BioTime→] ${child.firstName} ${child.lastName} → ${action} (biotimeId=${biotimeId})`,
+          `[BioTime→] ${child.firstName} ${child.lastName} → ${action} (biotimeId=${biotimeId}, dept=${biotimeDepartmentId})`,
         );
       })
       .catch(async (err) => {

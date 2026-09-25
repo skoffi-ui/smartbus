@@ -2,10 +2,11 @@ import { Injectable, Logger, HttpException, HttpStatus, NotFoundException } from
 import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, DataSource, In } from 'typeorm';
-import { SuperAppChild, SuperAppPunch, sensFromPunchState, SensPointage } from '@app/database';
+import { SuperAppChild, SuperAppPunch, sensFromPunchState, SensPointage, Organisation } from '@app/database';
 import { firstValueFrom } from 'rxjs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BiotimeConfigService } from './biotime-config.service';
+import { BiotimeCentralService } from './biotime-central.service';
 
 interface JetonEnCache {
   token: string;
@@ -43,6 +44,7 @@ export class BiotimeService {
     private readonly eventEmitter: EventEmitter2,
     private readonly centralDataSource: DataSource,
     private readonly configService: BiotimeConfigService,
+    private readonly biotimeCentralService: BiotimeCentralService,
   ) {}
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -307,6 +309,10 @@ export class BiotimeService {
   /**
    * Récupère les pointages parus depuis la dernière synchronisation de cette école.
    *
+   * ARCHITECTURE MULTI-TENANT CENTRALISÉE :
+   * - Si l'organisation a un biotimeDepartmentId : récupère du serveur central
+   * - Sinon : fallback sur serveur per-school (deprecated)
+   *
    * La fenêtre part du dernier passage, avec un recouvrement de quelques minutes
    * pour absorber la dérive d'horloge des badgeuses. La déduplication par
    * (école, identifiant BioTime) rend ce recouvrement inoffensif.
@@ -315,6 +321,14 @@ export class BiotimeService {
    * trois requêtes SQL par pointage : le coût croissait tout au long de la journée.
    */
   async syncPunches(organisationId: string, depuisIso?: string): Promise<any> {
+    // Vérifier si l'organisation utilise le serveur central
+    const orgRepo = this.centralDataSource.getRepository(Organisation);
+    const organisation = await orgRepo.findOne({ where: { id: organisationId } });
+
+    if (!organisation) {
+      throw new NotFoundException(`Organisation ${organisationId} non trouvée.`);
+    }
+
     const config = await this.configService.obtenirPublique(organisationId);
     if (!config) {
       throw new NotFoundException(`Aucun serveur BioTime configuré pour l'école ${organisationId}.`);
@@ -328,11 +342,29 @@ export class BiotimeService {
     const fin = new Date();
 
     try {
-      const data = await this.lire(
-        organisationId,
-        `/iclock/api/transactions/?start_time=${this.formatBiotime(debut)}` +
-          `&end_time=${this.formatBiotime(fin)}&page_size=5000`,
-      );
+      let data: any;
+
+      // NOUVEAU : Utiliser le serveur central si l'organisation a un département
+      if (organisation.biotimeDepartmentId) {
+        const startDate = this.formatBiotime(debut);
+        const endDate = this.formatBiotime(fin);
+        const transactions = await this.biotimeCentralService.getOrganisationTransactions(
+          organisationId,
+          startDate,
+          endDate,
+        );
+        data = { data: transactions };
+        this.logger.log(
+          `[BioTime→Central] Récupération ${transactions.length} transactions pour département ${organisation.biotimeDepartmentId}`,
+        );
+      } else {
+        // ANCIEN : Fallback sur serveur per-school
+        data = await this.lire(
+          organisationId,
+          `/iclock/api/transactions/?start_time=${this.formatBiotime(debut)}` +
+            `&end_time=${this.formatBiotime(fin)}&page_size=5000`,
+        );
+      }
 
       const pointages = data?.data;
       if (!Array.isArray(pointages) || pointages.length === 0) {
@@ -994,6 +1026,11 @@ export class BiotimeService {
   /**
    * Pousse un enfant SMARTBUS vers BioTime.
    *
+   * ARCHITECTURE MULTI-TENANT CENTRALISÉE :
+   * - Vérifie si l'organisation utilise le serveur BioTime central (biotimeDepartmentId présent)
+   * - Si oui : utilise BiotimeCentralService pour sync sur serveur central
+   * - Si non : fallback sur l'ancien système per-school (deprecated)
+   *
    * - Si `biotimeId` est fourni → PATCH (mise à jour)
    * - Sinon → POST (création)
    *
@@ -1009,7 +1046,56 @@ export class BiotimeService {
       className?: string;
       biotimeId?: number;
     },
-  ): Promise<{ biotimeId: number | null; action: 'created' | 'updated' | 'skipped'; error?: string }> {
+  ): Promise<{ biotimeId: number | null; action: 'created' | 'updated' | 'skipped'; error?: string; biotimeDepartmentId?: number }> {
+    // Récupérer l'organisation pour déterminer si elle utilise le serveur central
+    const orgRepo = this.centralDataSource.getRepository(Organisation);
+    const organisation = await orgRepo.findOne({ where: { id: organisationId } });
+
+    if (!organisation) {
+      return {
+        biotimeId: donnees.biotimeId ?? null,
+        action: 'skipped',
+        error: 'Organisation non trouvée',
+      };
+    }
+
+    // NOUVEAU : Si l'organisation a un département BioTime, utiliser le serveur central
+    if (organisation.biotimeDepartmentId) {
+      try {
+        const emp_code = donnees.empCode || `SM-${Date.now()}`;
+        const result = await this.biotimeCentralService.syncEmployeeToBiotime(
+          emp_code,
+          donnees.firstName,
+          donnees.lastName,
+          organisation.biotimeDepartmentId,
+        );
+
+        this.logger.log(
+          `[BioTime→Central] Sync ${donnees.firstName} ${donnees.lastName} → département ${organisation.biotimeDepartmentId}`,
+        );
+
+        return {
+          biotimeId: result?.id ?? null,
+          action: donnees.biotimeId ? 'updated' : 'created',
+          biotimeDepartmentId: organisation.biotimeDepartmentId,
+        };
+      } catch (error: any) {
+        const message = error?.response?.data?.detail
+          ? JSON.stringify(error.response.data.detail)
+          : error.message;
+        this.logger.warn(
+          `[BioTime→Central] Push échoué pour ${donnees.empCode} (école ${organisationId}) : ${message}`,
+        );
+        return {
+          biotimeId: donnees.biotimeId ?? null,
+          action: 'skipped',
+          error: message,
+          biotimeDepartmentId: organisation.biotimeDepartmentId,
+        };
+      }
+    }
+
+    // ANCIEN : Fallback sur l'architecture per-school (deprecated)
     try {
       await this.getAuthToken(organisationId);
     } catch {

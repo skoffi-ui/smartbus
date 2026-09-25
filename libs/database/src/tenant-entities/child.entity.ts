@@ -48,8 +48,27 @@ export class Child extends SoftDeleteEntityModel {
   @Column({ name: 'emp_code', nullable: true })
   empCode: string;
 
+  // ---- Intégration BioTime (Architecture Multi-Tenant Centralisée) ----
+
+  /**
+   * ID de l'employé sur le serveur BioTime central
+   */
   @Column({ name: 'biotime_id', type: 'int', nullable: true })
   biotimeId: number;
+
+  /**
+   * Code employé BioTime (peut différer de empCode)
+   * Utilisé pour la synchronisation avec le serveur central
+   */
+  @Column({ name: 'biotime_emp_code', nullable: true })
+  biotimeEmpCode: string;
+
+  /**
+   * ID du département BioTime assigné (hérité de l'organisation)
+   * Utilisé pour isoler les données par école sur le serveur central
+   */
+  @Column({ name: 'biotime_department_id', type: 'int', nullable: true })
+  biotimeDepartmentId: number;
 
   @Column({
     name: 'biotime_sync_status',

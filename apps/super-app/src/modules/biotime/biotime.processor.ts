@@ -6,11 +6,14 @@ import { BiotimeService } from './biotime.service';
 /**
  * Worker des synchronisations BioTime.
  *
- * Chaque job porte l'école concernée : les serveurs BioTime étant propres à chaque
- * établissement, il n'existe pas de synchronisation « globale » par défaut.
+ * ARCHITECTURE MULTI-TENANT CENTRALISÉE :
+ * - Le système supporte désormais UN serveur BioTime central pour TOUTES les écoles
+ * - Chaque école a son propre département BioTime pour l'isolation des données
+ * - Fallback sur l'ancienne architecture per-school (deprecated) si pas de département
  *
- * Concurrency = 2 : au plus 2 jobs simultanés. Les serveurs BioTime sont des
- * machines d'école modestes, on ne les sature pas.
+ * Chaque job porte l'école concernée pour maintenir l'isolation organisationnelle.
+ *
+ * Concurrency = 2 : au plus 2 jobs simultanés pour ne pas saturer le serveur.
  */
 @Processor('biotime-sync', { concurrency: 2 })
 export class BiotimeProcessor extends WorkerHost {

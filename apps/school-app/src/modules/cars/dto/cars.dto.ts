@@ -52,10 +52,15 @@ export class CreateCarDto {
   @IsOptional()
   gpsDeviceId?: string;
 
-  @ApiProperty({ example: 'CKPM223460449', required: false })
+  @ApiProperty({ example: 'CKPM223460449', required: false, deprecated: true, description: 'Deprecated: use biotimeTerminalId instead' })
   @IsString()
   @IsOptional()
   biotimeTerminalSn?: string;
+
+  @ApiProperty({ example: 'uuid-terminal-1', required: false, description: 'ID of the BioTime terminal assigned to this vehicle' })
+  @IsString()
+  @IsOptional()
+  biotimeTerminalId?: string;
 }
 
 export class UpdateCarDto extends PartialType(CreateCarDto) {}
