@@ -1,10 +1,13 @@
 import React from 'react';
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Bus, Users, LogOut, Settings, Map, ListOrdered, CheckSquare, AlertTriangle, Shield, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, Bus, Users, UserPlus, LogOut, Settings, Map, ListOrdered, CheckSquare, Shield, Sun, Moon, CreditCard } from 'lucide-react';
 import { socketService } from '../services/socket.service';
+import api from '../services/api';
 import { getInitialTheme, setTheme, type Theme } from '../theme';
 import { useI18n } from '../i18n';
+import { useConfirm } from './ConfirmProvider';
+import { aAcces, peutGererEquipe, type SchoolFeature } from '../constants/schoolFeatures';
 
 interface LayoutProps {
   children: ReactNode;
@@ -16,11 +19,15 @@ export default function Layout({ children }: LayoutProps) {
   const naviguer = useNavigate();
   const emplacement = useLocation();
   const { t } = useI18n();
+  const confirmer = useConfirm();
   const margeSousBandeau = PAGES_SANS_MARGE_SOUS_BANDEAU.includes(emplacement.pathname) ? 0 : '2rem';
 
-  const deconnecter = () => {
-    if (!confirm(t('sidebar.confirmer_deco'))) return;
+  const deconnecter = async () => {
+    if (!(await confirmer(t('sidebar.confirmer_deco')))) return;
+    // Les deux jetons doivent partir : oublier `refreshToken` laisserait un
+    // jeton valable jusqu'à 30 jours dans le localStorage après déconnexion.
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     naviguer('/login');
   };
 
@@ -33,6 +40,18 @@ export default function Layout({ children }: LayoutProps) {
 
   const [nbAnomaliesCritiques, setNbAnomaliesCritiques] = React.useState(0);
   React.useEffect(() => {
+    // Le badge ne partait jamais que de 0, incrémenté seulement par les
+    // événements reçus EN DIRECT depuis l'ouverture de la page — toute
+    // anomalie déjà non résolue avant l'arrivée sur l'écran (redémarrage du
+    // navigateur, autre onglet fermé…) restait invisible tant qu'aucune
+    // nouvelle anomalie n'arrivait. `GET /alertes-critiques/count` (déjà
+    // construit, jamais appelé) donne le vrai compte au chargement.
+    if (aAcces('centre-alertes')) {
+      api.get('/alertes-critiques/count').then((res) => {
+        setNbAnomaliesCritiques(res.data?.count ?? 0);
+      }).catch(() => {});
+    }
+
     const socket = socketService.connect();
     socket.on('critical_anomaly', () => {
       setNbAnomaliesCritiques(prev => prev + 1);
@@ -40,21 +59,34 @@ export default function Layout({ children }: LayoutProps) {
     return () => { socket.off('critical_anomaly'); };
   }, []);
 
-  const elementsNav = [
+  const tousLesElementsNav: { nom: string; chemin: string; icone: typeof Bus; feature?: SchoolFeature | SchoolFeature[]; equipe?: boolean; badge?: number }[] = [
     { nom: t('sidebar.vue_ensemble'), chemin: '/dashboard', icone: LayoutDashboard },
-    { nom: t('sidebar.live'), chemin: '/live', icone: Bus },
-    { nom: t('sidebar.flotte'), chemin: '/cars', icone: Bus },
-    { nom: t('sidebar.chauffeurs'), chemin: '/drivers', icone: Users },
-    { nom: t('sidebar.parents'), chemin: '/parents', icone: Users },
-    { nom: t('sidebar.eleves'), chemin: '/children', icone: Users },
-    { nom: t('sidebar.courses'), chemin: '/courses', icone: Bus },
-    { nom: t('sidebar.trajets'), chemin: '/trajets', icone: Map },
-    { nom: t('sidebar.affectation'), chemin: '/affectation', icone: ListOrdered },
-    { nom: t('sidebar.suivi'), chemin: '/suivi', icone: CheckSquare },
-    { nom: t('sidebar.alertes'), chemin: '/alertes', icone: AlertTriangle },
-    { nom: t('sidebar.centre_alertes'), chemin: '/centre-alertes', icone: Shield, badge: nbAnomaliesCritiques },
-    { nom: t('sidebar.parametres'), chemin: '/settings', icone: Settings },
+    { nom: t('sidebar.live'), chemin: '/live', icone: Bus, feature: 'live' },
+    { nom: t('sidebar.flotte'), chemin: '/cars', icone: Bus, feature: 'cars' },
+    { nom: t('sidebar.chauffeurs'), chemin: '/drivers', icone: Users, feature: 'drivers' },
+    { nom: t('sidebar.parents'), chemin: '/parents', icone: Users, feature: 'parents' },
+    { nom: t('sidebar.eleves'), chemin: '/children', icone: Users, feature: 'children' },
+    { nom: t('sidebar.courses'), chemin: '/courses', icone: Bus, feature: 'courses' },
+    { nom: t('sidebar.trajets'), chemin: '/trajets', icone: Map, feature: 'trajets' },
+    { nom: t('sidebar.affectation'), chemin: '/affectation', icone: ListOrdered, feature: 'affectation' },
+    { nom: t('sidebar.suivi'), chemin: '/suivi', icone: CheckSquare, feature: 'suivi' },
+    // Fusionné : anomalies critiques ET alertes de proximité vivent maintenant
+    // sur le même écran (voir CentreAlertes.tsx) — accessible dès que l'école
+    // a au moins l'une des deux fonctionnalités.
+    { nom: t('sidebar.centre_alertes'), chemin: '/centre-alertes', icone: Shield, feature: ['centre-alertes', 'alertes'], badge: nbAnomaliesCritiques },
+    // Accordé par le Super Admin, par école (Organisation.allowAdditionalDirectors) —
+    // n'a rien à voir avec les fonctionnalités school-web habituelles (`feature`).
+    { nom: t('sidebar.mon_equipe'), chemin: '/mon-equipe', icone: UserPlus, equipe: true },
+    { nom: t('sidebar.parametres'), chemin: '/settings', icone: Settings, feature: 'settings' },
+    // Sans `feature` : toujours visible, y compris une école suspendue.
+    { nom: t('sidebar.abonnement'), chemin: '/abonnement', icone: CreditCard },
   ];
+  // Dashboard (sans `feature`) est toujours visible ; le reste dépend des
+  // permissions accordées par le Super Admin à cette école (voir schoolFeatures.ts).
+  const elementsNav = tousLesElementsNav.filter((e) =>
+    (!e.feature || (Array.isArray(e.feature) ? e.feature.some(aAcces) : aAcces(e.feature))) &&
+    (!e.equipe || peutGererEquipe()),
+  );
 
   return (
     <div className="flex" style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>

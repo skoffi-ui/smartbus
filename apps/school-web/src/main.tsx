@@ -4,13 +4,19 @@ import './index.css'
 import App from './App.tsx'
 import { applyTheme, getInitialTheme } from './theme'
 import { FournisseurI18n } from './i18n'
+import { ToastProvider } from './components/ToastProvider'
+import { ConfirmProvider } from './components/ConfirmProvider'
 
 applyTheme(getInitialTheme())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <FournisseurI18n>
-      <App />
+      <ToastProvider>
+        <ConfirmProvider>
+          <App />
+        </ConfirmProvider>
+      </ToastProvider>
     </FournisseurI18n>
   </StrictMode>,
 )

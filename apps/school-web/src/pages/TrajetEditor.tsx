@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -10,10 +11,13 @@ import {
 import {
   getTrajets, createTrajet, updateTrajet, deleteTrajet, reverseGeocode,
   getPoints, createPoint, deletePoint, updatePoint,
-  getEleves, affecterEnfant, getAffectationsByPoint, supprimerAffectation
+  getEleves, affecterEnfant, getAffectationsByPoint, supprimerAffectation, getAffectations
 } from '../services/transport.service';
 import { chargerLeafletRouting } from '../services/leaflet-routing';
 import { chargerLeafletGeocoder } from '../services/leaflet-geocoder';
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
+import { messageFromError } from '../services/api';
 
 import './UiverseButton.css';
 import './UiverseInput.css';
@@ -120,6 +124,46 @@ function FitBoundsOnWaypoints({ waypoints }: { waypoints: any[] }) {
 
     return () => clearTimeout(timer);
   }, [map, waypoints]);
+
+  return null;
+}
+
+/**
+ * Garde la carte Leaflet synchronisée avec la taille réelle de son conteneur.
+ *
+ * Leaflet calcule sa taille une seule fois à l'initialisation et la met en
+ * cache : redimensionner le conteneur en CSS (ex. replier le panneau "Points
+ * du Trajet" au-dessus) agrandit bien la `<div>`, mais la carte continue de
+ * se croire à son ancienne taille tant que `invalidateSize()` n'est pas
+ * appelé explicitement — l'espace gagné reste vide, décentré, sans tuiles.
+ * Un `ResizeObserver` sur le conteneur couvre ce cas comme tout autre
+ * changement de mise en page (repli du panneau, redimensionnement de
+ * fenêtre, rotation d'écran…) sans dépendre d'un état précis à surveiller.
+ */
+function MapAutoResize() {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map) return;
+    const container = map.getContainer();
+    if (!container || typeof ResizeObserver === 'undefined') return;
+
+    let frame: number | null = null;
+    const observer = new ResizeObserver(() => {
+      // `invalidateSize` recalcule la vue en pleine transition CSS sinon :
+      // un cadre d'attente laisse la taille se stabiliser d'abord.
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        try { map.invalidateSize({ animate: false }); } catch {}
+      });
+    });
+    observer.observe(container);
+
+    return () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [map]);
 
   return null;
 }
@@ -583,8 +627,15 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
 }
 
 export default function TrajetEditor() {
+  const toast = useToast();
+  const confirmer = useConfirm();
+  const naviguer = useNavigate();
   const [trajets, setTrajets] = useState<any[]>([]);
   const [selectedTrajetId, setSelectedTrajetId] = useState<string | null>(null);
+  // Bannière affichée juste après la création d'un nouveau trajet (pas une
+  // mise à jour) : rien ne reliait auparavant cet écran à « Courses », d'où
+  // la confusion « j'ai créé un trajet mais aucune course n'apparaît ».
+  const [trajetJusteCree, setTrajetJusteCree] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nom: '',
     description: '',
@@ -603,7 +654,50 @@ export default function TrajetEditor() {
   const [dureeMin, setDureeMin] = useState(0);
 
   const [eleves, setEleves] = useState<any[]>([]);
+  // Affectations de TOUS les trajets (pas seulement celui-ci) — nécessaire
+  // pour exclure du menu "+ Ajouter un enfant" un élève déjà affecté à un
+  // point d'un AUTRE trajet. Avant ce correctif, le filtre ne regardait que
+  // les affectations DE CE point : on pouvait choisir un élève déjà affecté
+  // ailleurs et recevoir une erreur HTTP brute au lieu du message clair que
+  // le backend renvoie (`affectations.service.ts`, "déjà affecté au point…").
+  const [toutesAffectations, setToutesAffectations] = useState<any[]>([]);
   const [expandedPoint, setExpandedPoint] = useState<string | null>(null);
+
+  // Replié = juste une petite pastille flottante au-dessus de la carte, sans
+  // le panneau complet. Préférence mémorisée par appareil : simple confort
+  // d'affichage, pas un état à partager.
+  const [pointsListReplie, setPointsListReplie] = useState<boolean>(() => {
+    try { return localStorage.getItem('trajetEditor.pointsListReplie') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('trajetEditor.pointsListReplie', pointsListReplie ? '1' : '0'); } catch {}
+  }, [pointsListReplie]);
+
+  // Hauteur du panneau flottant "Points du Trajet", ajustable à la souris via
+  // la poignée de redimensionnement natif (`resize-y`) posée dessus. Le
+  // navigateur pose la nouvelle hauteur directement en style inline sur le
+  // nœud DOM — on la relit ici pour la mémoriser, et on la réapplique à
+  // chaque réouverture du panneau (son démontage/remontage au repli sinon
+  // perdrait la taille choisie).
+  const pointsListPanelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = pointsListPanelRef.current;
+    if (!el) return;
+
+    try {
+      const hauteurMemorisee = localStorage.getItem('trajetEditor.pointsListHauteur');
+      el.style.height = hauteurMemorisee || '60vh';
+    } catch {
+      el.style.height = '60vh';
+    }
+
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      try { localStorage.setItem('trajetEditor.pointsListHauteur', el.style.height); } catch {}
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pointsListReplie]);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -721,7 +815,7 @@ export default function TrajetEditor() {
     }
   }, [pointsRecup]); // Ne pas inclure waypoints dans les dépendances pour éviter la boucle
 
-  useEffect(() => { fetchTrajets(); fetchEleves(); }, []);
+  useEffect(() => { fetchTrajets(); fetchEleves(); fetchToutesAffectations(); }, []);
 
   const fetchTrajets = async () => {
     try {
@@ -737,6 +831,13 @@ export default function TrajetEditor() {
     } catch (e) { console.error('Fetch eleves failed', e); }
   };
 
+  const fetchToutesAffectations = async () => {
+    try {
+      const data = await getAffectations();
+      setToutesAffectations(Array.isArray(data) ? data : []);
+    } catch (e) { console.error('Fetch affectations failed', e); }
+  };
+
   const handleSelectTrajet = async (trajet: any) => {
     console.log('🎯 Sélection du trajet:', trajet.nom, 'ID:', trajet.id);
 
@@ -745,6 +846,7 @@ export default function TrajetEditor() {
     setLoadingMessage('Chargement des points...');
 
     setSelectedTrajetId(trajet.id);
+    setTrajetJusteCree(null);
     setFormData({
       nom: trajet.nom,
       description: trajet.description || '',
@@ -822,6 +924,7 @@ export default function TrajetEditor() {
     setGeoJson(null);
     setDistanceKm(0);
     setDureeMin(0);
+    setTrajetJusteCree(null);
   };
 
   /**
@@ -902,7 +1005,7 @@ export default function TrajetEditor() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (waypoints.length < 2) {
-      alert("Veuillez placer au moins un point de départ et un point d'arrivée sur la carte.");
+      toast.error("Veuillez placer au moins un point de départ et un point d'arrivée sur la carte.");
       return;
     }
 
@@ -941,6 +1044,7 @@ export default function TrajetEditor() {
 
     console.log('Payload envoyé:', JSON.stringify(payload, null, 2));
 
+    const estNouveauTrajet = !selectedTrajetId;
     try {
       let trajetId = selectedTrajetId;
 
@@ -978,7 +1082,7 @@ export default function TrajetEditor() {
             latitude: Number(point.latitude),
             longitude: Number(point.longitude),
             tempsArret: point.tempsArret || '08:00', // Gardé pour compatibilité
-            heurePassage: point.heurePassage || null,
+            heurePassage: point.heurePassage || undefined,
             dureeArretMin: point.dureeArretMin || 2,
             ordrePassage: Number(point.ordrePassage),
             type: point.type || 'arret'
@@ -1007,12 +1111,13 @@ export default function TrajetEditor() {
       }
 
       setLoadingMessage('');
-      alert('Trajet et points sauvegardés avec succès !');
+      toast.success('Trajet et points sauvegardés avec succès !');
+      if (estNouveauTrajet && trajetId) setTrajetJusteCree(trajetId);
     } catch (err: any) {
       console.error('Erreur complète:', err);
       console.error('Réponse du serveur:', err.response?.data);
       const errorMessage = err.response?.data?.message || err.message || 'Erreur inconnue';
-      alert('Erreur lors de la sauvegarde:\n' + errorMessage);
+      toast.error('Erreur lors de la sauvegarde : ' + errorMessage);
     } finally {
       setIsSaving(false);
       setLoadingMessage('');
@@ -1021,21 +1126,21 @@ export default function TrajetEditor() {
 
   const handleDeleteTrajet = async () => {
     if (!selectedTrajetId) return;
-    if (!confirm('Voulez-vous vraiment supprimer ce trajet et tous ses points ?')) return;
+    if (!(await confirmer('Voulez-vous vraiment supprimer ce trajet et tous ses points ?', { danger: true }))) return;
     setIsDeleting(true);
     try {
       await deleteTrajet(selectedTrajetId);
       setTrajets(prev => prev.filter(t => t.id !== selectedTrajetId));
       handleNew();
     } catch (err) {
-      alert('Erreur lors de la suppression.');
+      toast.error('Erreur lors de la suppression.');
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleDeletePoint = (index: number) => {
-    if (!confirm('Supprimer ce point de récupération ?')) return;
+  const handleDeletePoint = async (index: number) => {
+    if (!(await confirmer('Supprimer ce point de récupération ?', { danger: true }))) return;
 
     const newPoints = pointsRecup.filter((_, i) => i !== index);
     newPoints.forEach((p, i) => { p.ordrePassage = i + 1; });
@@ -1069,12 +1174,12 @@ export default function TrajetEditor() {
 
     // Seuls les points d'arrêt peuvent avoir des affectations d'enfants
     if (point.type !== 'arret') {
-      alert('Vous ne pouvez affecter des enfants qu\'aux points d\'arrêt.');
+      toast.error('Vous ne pouvez affecter des enfants qu\'aux points d\'arrêt.');
       return;
     }
 
     if (!point.id) {
-      alert('Veuillez d\'abord enregistrer le trajet avant d\'affecter des enfants.');
+      toast.error('Veuillez d\'abord enregistrer le trajet avant d\'affecter des enfants.');
       return;
     }
 
@@ -1083,8 +1188,14 @@ export default function TrajetEditor() {
       const newPoints = [...pointsRecup];
       newPoints[pointIndex].affectations = [...(newPoints[pointIndex].affectations || []), affectation];
       setPointsRecup(newPoints);
+      // Sans ce rafraîchissement, cet élève resterait proposable dans le menu
+      // d'un AUTRE point jusqu'au prochain rechargement complet de la page.
+      fetchToutesAffectations();
     } catch (err: any) {
-      alert('Erreur: ' + err.message);
+      // `err.message` brut (ex. "Request failed with status code 409")
+      // masquait le message clair que le backend renvoie déjà pour ce cas
+      // précis (« … est déjà affecté au point … »).
+      toast.error(messageFromError(err, "Erreur lors de l'affectation."));
     }
   };
 
@@ -1094,13 +1205,14 @@ export default function TrajetEditor() {
       const newPoints = [...pointsRecup];
       newPoints[pointIndex].affectations = newPoints[pointIndex].affectations?.filter(a => a.id !== affectationId);
       setPointsRecup(newPoints);
+      fetchToutesAffectations();
     } catch (err: any) {
-      alert('Erreur: ' + err.message);
+      toast.error(messageFromError(err, 'Erreur lors de la désaffectation.'));
     }
   };
 
-  const clearMap = () => {
-    if (confirm("Voulez-vous effacer le tracé et tous les points ?")) {
+  const clearMap = async () => {
+    if (await confirmer("Voulez-vous effacer le tracé et tous les points ?", { danger: true })) {
       setWaypoints([]);
       setPointsRecup([]);
       setGeoJson(null);
@@ -1246,6 +1358,33 @@ export default function TrajetEditor() {
                   {isSaving ? '...' : (selectedTrajetId ? 'Mettre à jour le trajet' : 'Enregistrer le trajet')}
                 </button>
               </div>
+
+              {/* Trajet et course sont deux étapes distinctes — sans ce lien,
+                  rien ne guidait vers « Courses » après la création. */}
+              {trajetJusteCree && (
+                <div className="mt-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50 flex items-start justify-between gap-2">
+                  <p className="text-[13px] text-emerald-800">
+                    Trajet créé. Planifiez maintenant une course sur cette ligne pour pouvoir y affecter des élèves.
+                  </p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => naviguer(`/courses?trajetId=${trajetJusteCree}`)}
+                      className="text-[12px] font-semibold px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap"
+                    >
+                      Créer une course
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTrajetJusteCree(null)}
+                      className="text-emerald-600 hover:text-emerald-800 text-[13px] px-1"
+                      title="Fermer"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              )}
             </form>
           </div>
         </div>
@@ -1293,9 +1432,17 @@ export default function TrajetEditor() {
 
                 <button
                   type="button"
+                  disabled={formData.sens !== 'mixte'}
+                  title={
+                    formData.sens !== 'mixte'
+                      ? "Le point d'arrivée n'est un point de récupération que pour un trajet mixte — passez le sens à \"mixte\" pour l'utiliser en affectation."
+                      : undefined
+                  }
                   onClick={() => setSelectedMarkerType(prev => prev === 'arrivee' ? null : 'arrivee')}
                   className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
-                    selectedMarkerType === 'arrivee'
+                    formData.sens !== 'mixte'
+                      ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
+                      : selectedMarkerType === 'arrivee'
                       ? 'bg-red-500 text-white border-red-300 scale-105 shadow-[0_0_15px_rgba(239,68,68,0.7)]'
                       : 'bg-white text-red-600 border-red-500 hover:scale-105 hover:shadow-lg'
                   }`}
@@ -1303,6 +1450,11 @@ export default function TrajetEditor() {
                   Arrivée
                 </button>
               </div>
+              {formData.sens !== 'mixte' && (
+                <p className="text-[11px] text-slate-500 -mt-1">
+                  Point d'arrivée désactivé : non affectable pour un trajet « {formData.sens} ». Passez le sens à « mixte » pour l'utiliser en affectation.
+                </p>
+              )}
 
               {/* Bandeau indicateur du mode actif */}
               {selectedMarkerType && (
@@ -1414,6 +1566,7 @@ export default function TrajetEditor() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   attribution='&copy; OpenStreetMap'
                 />
+                <MapAutoResize />
                 <MapCursorController cursorType={selectedMarkerType} />
                 <SearchControl />
                 <FitBoundsOnWaypoints waypoints={waypoints} />
@@ -1464,55 +1617,77 @@ export default function TrajetEditor() {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
 
-          {/*
-            Liste des Points — sous la carte, et seulement quand il y a des points.
-
-            Placée sous la carte, elle se lit dans le prolongement du tracé : on
-            regarde un point sur la carte, puis ses informations juste en dessous.
-            Elle occupait auparavant le haut de la colonne, où son état vide prenait
-            un quart de la hauteur pour expliquer les trois natures de point — ce que
-            fait déjà la légende dans l'en-tête de la carte.
-          */}
-          {pointsRecup.length > 0 && (
-          <div className="bg-white rounded-[10px] shadow-sm border border-slate-100 overflow-y-auto custom-scrollbar shrink-0" style={{ maxHeight: '25vh' }}>
-            <div className="p-4 border-b bg-slate-50 sticky top-0 z-10 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                  <MapPin size={16} className="text-blue-600"/>
-                  Points du Trajet ({pointsRecup.length})
-                </h3>
-                <div className="flex items-center gap-2 text-[10px] font-semibold">
-                  <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-gradient-to-br from-emerald-400 to-green-600"></div>
-                    Départ
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-gradient-to-br from-sky-400 to-blue-600"></div>
-                    Arrêts
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-gradient-to-br from-rose-400 to-red-600"></div>
-                    Arrivée
-                  </span>
-                </div>
-              </div>
-
-              {pointsRecup.length >= 2 && (
-                <button
-                  type="button"
-                  onClick={calculerHoraires}
-                  className="w-full flex items-center justify-center gap-2 p-[10px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm text-sm font-semibold"
+              {/*
+                Liste des Points — EN SURIMPRESSION sur la carte, plus du tout dans
+                le flux (elle vivait comme sœur de la carte dans la colonne flex :
+                repliée, il restait quand même la hauteur de son en-tête, donc la
+                carte ne récupérait jamais tout l'espace, replié ou pas). Ici son
+                conteneur (`<div className="flex-1 relative z-0">`) garde TOUJOURS
+                sa taille pleine : la carte occupe donc 100% de cet espace en
+                permanence, et ce panneau flotte juste par-dessus, sans jamais
+                réduire la carte elle-même.
+              */}
+              {pointsRecup.length > 0 && (
+                pointsListReplie ? (
+                  <button
+                    type="button"
+                    onClick={() => setPointsListReplie(false)}
+                    className="absolute bottom-3 right-3 z-[1000] bg-white shadow-lg hover:shadow-xl rounded-full pl-3 pr-4 py-2 flex items-center gap-2 border border-slate-200 transition-shadow text-sm font-semibold text-slate-800"
+                    title="Afficher les points du trajet"
+                  >
+                    <MapPin size={16} className="text-blue-600"/>
+                    Points du Trajet ({pointsRecup.length})
+                    <ChevronUp size={16}/>
+                  </button>
+                ) : (
+                <div
+                  ref={pointsListPanelRef}
+                  className="absolute bottom-3 right-3 z-[1000] w-[calc(100%-1.5rem)] sm:w-[360px] bg-white rounded-[10px] shadow-xl border border-slate-200 overflow-y-auto custom-scrollbar resize-y"
+                  style={{ minHeight: '180px', maxHeight: '85vh' }}
+                  title="Glissez le coin inférieur droit pour redimensionner"
                 >
-                  <Clock size={16} />
-                  Calculer les horaires automatiquement
-                </button>
-              )}
-            </div>
+                  <div className="p-4 border-b bg-slate-50 space-y-3 sticky top-0 z-10">
+                    <div className="flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={() => setPointsListReplie(true)}
+                        className="font-bold text-slate-900 flex items-center gap-2 hover:text-blue-600 transition-colors"
+                        title="Replier pour dégager la carte"
+                      >
+                        <MapPin size={16} className="text-blue-600"/>
+                        Points du Trajet ({pointsRecup.length})
+                        <ChevronDown size={16}/>
+                      </button>
+                      <div className="flex items-center gap-2 text-[10px] font-semibold">
+                        <span className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-gradient-to-br from-emerald-400 to-green-600"></div>
+                          Départ
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-gradient-to-br from-sky-400 to-blue-600"></div>
+                          Arrêts
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <div className="w-2 h-2 rounded-full bg-gradient-to-br from-rose-400 to-red-600"></div>
+                          Arrivée
+                        </span>
+                      </div>
+                    </div>
 
-            <div className="p-2">
+                    {pointsRecup.length >= 2 && (
+                      <button
+                        type="button"
+                        onClick={calculerHoraires}
+                        className="w-full flex items-center justify-center gap-2 p-[10px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm text-sm font-semibold"
+                      >
+                        <Clock size={16} />
+                        Calculer les horaires automatiquement
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="p-2">
                 {pointsRecup.map((point, index) => {
                   const isExpanded = expandedPoint === `${index}`;
 
@@ -1656,9 +1831,13 @@ export default function TrajetEditor() {
                                 <div className="space-y-1 mb-2">
                                   {point.affectations.map((aff: any) => {
                                     const enfant = eleves.find(e => e.id === aff.childId);
+                                    // `Child` n'a pas de champ `nom` (seulement
+                                    // `firstName`/`lastName`) : chaque élève déjà
+                                    // affecté s'affichait donc comme "Inconnu" ici.
+                                    const nomEnfant = enfant ? `${enfant.firstName} ${enfant.lastName}`.trim() : '';
                                     return (
                                       <div key={aff.id} className="flex items-center justify-between bg-slate-50 px-2 py-1 rounded text-xs">
-                                        <span className="font-medium">{enfant?.nom || 'Inconnu'}</span>
+                                        <span className="font-medium">{nomEnfant || 'Inconnu'}</span>
                                         <button
                                           type="button"
                                           onClick={() => handleSupprimerAffectation(index, aff.id)}
@@ -1683,9 +1862,15 @@ export default function TrajetEditor() {
                               >
                                 <option value="">+ Ajouter un enfant</option>
                                 {eleves
-                                  .filter(eleve => !point.affectations?.some((a: any) => a.childId === eleve.id))
+                                  // Exclut tout élève déjà affecté à N'IMPORTE
+                                  // QUEL point (pas seulement celui-ci) — sinon
+                                  // on pouvait choisir un élève déjà affecté à
+                                  // un autre point/trajet et recevoir une erreur
+                                  // HTTP brute au lieu de ne simplement pas le
+                                  // proposer dans la liste.
+                                  .filter(eleve => !toutesAffectations.some((a: any) => a.childId === eleve.id))
                                   .map(eleve => (
-                                    <option key={eleve.id} value={eleve.id}>{eleve.nom}</option>
+                                    <option key={eleve.id} value={eleve.id}>{eleve.firstName} {eleve.lastName}</option>
                                   ))}
                               </select>
                             </div>
@@ -1706,9 +1891,12 @@ export default function TrajetEditor() {
                     </div>
                   );
                 })}
-              </div>
+                  </div>
+                </div>
+                )
+              )}
+            </div>
           </div>
-          )}
         </div>
 
       </div>

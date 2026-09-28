@@ -124,7 +124,7 @@ export default function AccesBloque() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
           {info?.action === 'paiement' && (
             <a
-              href="/dashboard"
+              href="/abonnement"
               className="btn btn-primary"
               style={{ textDecoration: 'none', fontSize: '0.9rem' }}
             >

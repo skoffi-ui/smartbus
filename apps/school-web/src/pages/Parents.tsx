@@ -1,32 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, Plus, Edit, Trash2, Phone, Mail, User } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Phone, Mail, User, KeyRound, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import './Parents.css';
-import { GATEWAY_URL } from '../config';
+import api, { messageFromError } from '../services/api';
 import { useI18n } from '../i18n';
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
 
 export default function Parents() {
   const { t } = useI18n();
+  const toast = useToast();
+  const confirmer = useConfirm();
   const [parents, setParents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // PIN démasqués localement, jamais persisté — juste pour l'affichage à la demande.
+  const [pinsVisibles, setPinsVisibles] = useState<Record<string, boolean>>({});
+  const [regenerationEnCours, setRegenerationEnCours] = useState<string | null>(null);
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [editingParent, setEditingParent] = useState<any>(null);
-  const [formData, setFormData] = useState({ firstName: '', lastName: '', phone: '', email: '' });
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', phone: '', email: '', pinCode: '' });
 
   const fetchParents = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`${GATEWAY_URL}/api/v1/parents`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setParents(data);
-      }
+      const res = await api.get('/parents');
+      setParents(res.data);
     } catch (err) {
-      console.error(err);
+      toast.error(messageFromError(err, 'Impossible de charger la liste des parents.'));
     } finally {
       setLoading(false);
     }
@@ -38,32 +39,50 @@ export default function Parents() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // `pinCode` vide ne doit jamais être envoyé : en édition ce serait
+    // interprété comme une valeur invalide (le backend exige 4 chiffres
+    // s'il est présent) plutôt que « ne pas toucher au PIN actuel » ; à la
+    // création, absent signifie « génère-en un » côté serveur.
+    const { pinCode, ...payload } = formData;
+    const payloadFinal = pinCode ? { ...payload, pinCode } : payload;
     try {
-      const token = localStorage.getItem('accessToken');
-      const url = editingParent
-        ? `${GATEWAY_URL}/api/v1/parents/${editingParent.id}`
-        : `${GATEWAY_URL}/api/v1/parents`;
-      const method = editingParent ? 'PATCH' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-      if (res.ok) {
-        setShowModal(false);
-        setEditingParent(null);
-        setFormData({ firstName: '', lastName: '', phone: '', email: '' });
-        fetchParents();
+      if (editingParent) {
+        await api.patch(`/parents/${editingParent.id}`, payloadFinal);
+        toast.success('Parent modifié.');
       } else {
-        const err = await res.json();
-        alert(`Erreur: ${err.message}`);
+        const { data: cree } = await api.post('/parents', payloadFinal);
+        // Le code PIN (généré automatiquement si non saisi) n'est affiché
+        // qu'ici, une seule fois à la création — sans ça, aucun moyen simple
+        // de le communiquer au parent (il reste consultable ensuite via
+        // l'icône œil dans le tableau, mais jamais renvoyé par email/SMS
+        // automatiquement : ce n'est pas encore construit).
+        toast.success(`Parent créé. Code PIN à communiquer : ${cree.pinCode}`);
       }
+      setShowModal(false);
+      setEditingParent(null);
+      setFormData({ firstName: '', lastName: '', phone: '', email: '', pinCode: '' });
+      fetchParents();
     } catch (err) {
-      console.error(err);
+      toast.error(messageFromError(err, "Erreur lors de l'enregistrement du parent."));
+    }
+  };
+
+  const togglePinVisible = (id: string) => {
+    setPinsVisibles((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const regenererPin = async (parent: any) => {
+    if (!(await confirmer(`Régénérer le code PIN de ${parent.firstName} ${parent.lastName} ? L'ancien code ne fonctionnera plus.`))) return;
+    setRegenerationEnCours(parent.id);
+    try {
+      const { data } = await api.post(`/parents/${parent.id}/regenerate-pin`);
+      setParents((prev) => prev.map((p) => (p.id === parent.id ? { ...p, pinCode: data.pinCode } : p)));
+      setPinsVisibles((prev) => ({ ...prev, [parent.id]: true }));
+      toast.success(`Nouveau code PIN : ${data.pinCode} — à communiquer au parent.`);
+    } catch (err) {
+      toast.error(messageFromError(err, 'Erreur lors de la régénération du code PIN.'));
+    } finally {
+      setRegenerationEnCours(null);
     }
   };
 
@@ -73,22 +92,19 @@ export default function Parents() {
       firstName: parent.firstName,
       lastName: parent.lastName,
       phone: parent.phone,
-      email: parent.email || ''
+      email: parent.email || '',
+      pinCode: '', // édité seulement via « Régénérer » dans le tableau, pas ce formulaire
     });
     setShowModal(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm(t('parents.confirmer_suppression'))) return;
+    if (!(await confirmer(t('parents.confirmer_suppression'), { danger: true }))) return;
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`${GATEWAY_URL}/api/v1/parents/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) fetchParents();
+      await api.delete(`/parents/${id}`);
+      fetchParents();
     } catch (err) {
-      console.error(err);
+      toast.error(messageFromError(err, 'Erreur lors de la suppression du parent.'));
     }
   };
 
@@ -111,16 +127,17 @@ export default function Parents() {
               <tr>
                 <th className="w-1/4">Nom</th>
                 <th className="w-1/4">Contact</th>
+                <th>Code PIN (app parent)</th>
                 <th>Statut</th>
                 <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={4} className="py-8 text-center text-slate-500">Chargement...</td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-slate-500">Chargement...</td></tr>
               ) : parents.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-12 text-center text-slate-400">
+                  <td colSpan={5} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center gap-2">
                       <Users size={40} className="opacity-20" />
                       <p>Aucun parent enregistré.</p>
@@ -155,6 +172,31 @@ export default function Parents() {
                             Aucun email
                           </span>
                         )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <KeyRound size={14} className="text-slate-400" />
+                        <span className="font-mono font-bold text-slate-700 tracking-wider">
+                          {parent.pinCode ? (pinsVisibles[parent.id] ? parent.pinCode : '••••') : '—'}
+                        </span>
+                        {parent.pinCode && (
+                          <button
+                            onClick={() => togglePinVisible(parent.id)}
+                            className="text-slate-400 hover:text-slate-600"
+                            title={pinsVisibles[parent.id] ? 'Masquer' : 'Afficher'}
+                          >
+                            {pinsVisibles[parent.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => regenererPin(parent)}
+                          disabled={regenerationEnCours === parent.id}
+                          className="text-slate-400 hover:text-indigo-600 disabled:opacity-40"
+                          title="Régénérer le code PIN"
+                        >
+                          <RefreshCw size={14} className={regenerationEnCours === parent.id ? 'animate-spin' : ''} />
+                        </button>
                       </div>
                     </td>
                     <td>
@@ -231,6 +273,24 @@ export default function Parents() {
                     <input type="email" className="premium-input" placeholder="jean.dupont@email.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
                   </div>
                 </div>
+
+                {!editingParent && (
+                  <div className="premium-input-group mb-0 mt-4">
+                    <label className="premium-input-label">Code PIN — connexion app parent (Optionnel)</label>
+                    <div className="premium-input-wrapper">
+                      <KeyRound size={18} className="premium-input-icon" />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        className="premium-input"
+                        placeholder="Laissez vide pour un code généré automatiquement"
+                        value={formData.pinCode}
+                        onChange={e => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
               
               <div className="premium-modal-footer">

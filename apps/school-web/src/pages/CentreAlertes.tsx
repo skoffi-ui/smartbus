@@ -15,7 +15,6 @@ import {
   Clock,
   Phone,
   MapPin,
-  X,
   Bus,
   User,
   FileText,
@@ -24,9 +23,11 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  Navigation,
 } from 'lucide-react';
 import { socketService } from '../services/socket.service';
 import api from '../services/api';
+import { aAcces } from '../constants/schoolFeatures';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Fix leaflet icon default
@@ -67,6 +68,7 @@ interface CriticalAnomaly {
   detectedCarPlate?: string;
   terminalSn?: string;
   detectedCourseId?: string;
+  driverId?: string;
   expectedCourseId?: string;
   expectedStopName?: string;
   punchTime: string;
@@ -74,10 +76,36 @@ interface CriticalAnomaly {
   lat?: number;
   lng?: number;
   resolved?: boolean;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionNote?: string;
   createdAt?: string;
   // Extended local fields
   _resolving?: boolean;
   _expanded?: boolean;
+}
+
+/**
+ * Alerte de proximité : un bus qui approche de l'arrêt d'un élève — bénin,
+ * jamais à résoudre, distinct d'une anomalie critique de badgeage. Fusionné
+ * ici depuis l'ancien écran « Alertes Transport » (`GET /montees/alertes`),
+ * qui ne contenait plus que ce type d'alerte depuis le retrait de la
+ * validation des montées.
+ */
+interface ProximiteAlerte {
+  id: string;
+  type?: string;
+  date?: string;
+  heure?: string;
+  createdAt?: string;
+  child?: { firstName?: string; lastName?: string };
+  course?: { nom?: string };
+  car?: { plateNumber?: string };
+  // Champs du direct (voir hardware-stream.service.ts, événement `proximity_alert`)
+  childName?: string;
+  stopName?: string;
+  distance?: number;
+  time?: string;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -135,8 +163,13 @@ function AnomalyCard({
   const elapsed = Math.floor((Date.now() - punchDate.getTime()) / 1000);
   const elapsedStr = elapsed < 60 ? `${elapsed}s` : elapsed < 3600 ? `${Math.floor(elapsed / 60)}min` : `${Math.floor(elapsed / 3600)}h`;
 
-  // Find driver by plate
-  const driver = Object.values(drivers).find((d: any) => d.plateNumber === anomaly.detectedCarPlate) as any;
+  // Chauffeur de la course détectée (voir AlertesCritiquesService.getUnresolved
+  // et l'émission live dans hardware-stream.service.ts, qui fournissent
+  // maintenant `driverId`). Avant ce correctif, on tentait de faire
+  // correspondre `detectedCarPlate` à un champ `plateNumber` inexistant sur
+  // `Driver` — ce panneau ne pouvait donc jamais s'afficher, pour aucune
+  // anomalie. `drivers` (déjà chargé via GET /drivers) est indexé par id.
+  const driver = anomaly.driverId ? drivers[anomaly.driverId] : undefined;
 
   return (
     <div
@@ -263,7 +296,9 @@ function AnomalyCard({
                 <User size={16} />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{driver.name ?? driver.fullName ?? 'Chauffeur'}</div>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                  {driver.firstName || driver.lastName ? `${driver.firstName ?? ''} ${driver.lastName ?? ''}`.trim() : 'Chauffeur'}
+                </div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{driver.phone ?? 'Tél. inconnu'}</div>
               </div>
               {driver.phone && (
@@ -382,16 +417,74 @@ function AnomalyCard({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Composant principal — Centre d'Alertes
+// Sous-composant : Fiche de proximité (bénin, jamais à résoudre)
+// ──────────────────────────────────────────────────────────────────────────────
+function ProximityCard({ alerte }: { alerte: ProximiteAlerte }) {
+  const nomEnfant =
+    alerte.childName ??
+    (alerte.child ? `${alerte.child.firstName ?? ''} ${alerte.child.lastName ?? ''}`.trim() : '') ??
+    'Élève';
+  const heure = alerte.time ?? alerte.createdAt ?? alerte.date;
+
+  return (
+    <div
+      style={{
+        borderRadius: '0.875rem',
+        border: '1.5px solid rgba(245,158,11,0.3)',
+        background: 'linear-gradient(135deg, rgba(245,158,11,0.06), rgba(245,158,11,0.02))',
+        padding: '0.75rem 1rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+      }}
+    >
+      <div style={{
+        width: 36, height: 36, borderRadius: '50%',
+        background: 'rgba(245,158,11,0.15)', color: '#f59e0b',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <Navigation size={16} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+          {nomEnfant || 'Élève'} {alerte.stopName ? `— ${alerte.stopName}` : ''}
+        </div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+          Bus à proximité de l'arrêt
+          {typeof alerte.distance === 'number' && <span>· {alerte.distance} km</span>}
+          {alerte.car?.plateNumber && <span className="flex items-center gap-1"><Bus size={10} />{alerte.car.plateNumber}</span>}
+        </div>
+      </div>
+      {heure && (
+        <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
+          <Clock size={9} /> {new Date(heure).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Composant principal — Alertes (Centre d'Alertes + Alertes de proximité, fusionnés)
 // ──────────────────────────────────────────────────────────────────────────────
 export default function CentreAlertes() {
   const [anomalies, setAnomalies] = useState<CriticalAnomaly[]>([]);
   const [historique, setHistorique] = useState<CriticalAnomaly[]>([]);
+  const [proximiteAlertes, setProximiteAlertes] = useState<ProximiteAlerte[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'active' | 'resolved' | 'all'>('active');
   const [drivers, setDrivers] = useState<Record<string, any>>({});
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Une école peut n'avoir accès qu'à l'une des deux fonctionnalités
+  // fusionnées ici (voir App.tsx, PageProtegee) — n'afficher/charger que ce
+  // qu'elle a réellement le droit de voir.
+  const accesCritiques = aAcces('centre-alertes');
+  const accesProximite = aAcces('alertes');
+  const [categorie, setCategorie] = useState<'toutes' | 'critiques' | 'proximite'>(
+    accesCritiques ? 'toutes' : 'proximite',
+  );
 
   // Extract tenant from JWT
   const tenantId = (() => {
@@ -434,9 +527,14 @@ export default function CentreAlertes() {
     async function fetchInitial() {
       setLoading(true);
       try {
-        const [alertsRes, driversRes] = await Promise.all([
-          api.get('/alertes-critiques?limit=100').catch(() => ({ data: [] })),
-          api.get('/drivers').catch(() => ({ data: [] })),
+        // `statut=all` : sans ça, seules les anomalies NON résolues étaient
+        // renvoyées, et les onglets « Résolues »/« Toutes » ne montraient
+        // que ce qui avait été résolu depuis l'ouverture de cette page —
+        // tout disparaissait au rechargement.
+        const [alertsRes, driversRes, proximiteRes] = await Promise.all([
+          accesCritiques ? api.get('/alertes-critiques?limit=100&statut=all').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+          accesCritiques ? api.get('/drivers').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+          accesProximite ? api.get('/montees/alertes').catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
         ]);
 
         const alertList: CriticalAnomaly[] = Array.isArray(alertsRes.data)
@@ -452,6 +550,8 @@ export default function CentreAlertes() {
         const driverMap: Record<string, any> = {};
         driverList.forEach(d => { driverMap[d.id] = d; });
         setDrivers(driverMap);
+
+        setProximiteAlertes(Array.isArray(proximiteRes.data) ? proximiteRes.data : []);
       } catch (e) {
         console.warn('Erreur chargement alertes critiques :', e);
       } finally {
@@ -459,7 +559,7 @@ export default function CentreAlertes() {
       }
     }
     fetchInitial();
-  }, []);
+  }, [accesCritiques, accesProximite]);
 
   // ── WebSocket subscription ────────────────────────────────────────────────
   useEffect(() => {
@@ -472,7 +572,13 @@ export default function CentreAlertes() {
 
     socket.on('critical_anomaly', (payload: any) => {
       const incoming: CriticalAnomaly = {
-        id: `live-${Date.now()}-${Math.random()}`,
+        // `payload.id` est maintenant le vrai id BDD de l'AlerteCritique
+        // déjà enregistrée (voir hardware-stream.service.ts) — un id
+        // synthétique ici rendait "Marquer comme résolue" muet pour toute
+        // alerte reçue en direct : l'écran l'affichait résolue localement,
+        // mais l'appel à PATCH /alertes-critiques/:id/resolve n'avait
+        // jamais lieu, donc elle réapparaissait non résolue au rechargement.
+        id: payload.id ?? `live-${Date.now()}-${Math.random()}`,
         type: payload.type ?? 'MAUVAIS_CAR',
         severity: payload.severity ?? 'HIGH',
         message: payload.message ?? 'Anomalie détectée',
@@ -482,6 +588,7 @@ export default function CentreAlertes() {
         detectedCarPlate: payload.detectedCarPlate,
         terminalSn: payload.terminalSn,
         detectedCourseId: payload.detectedCourseId,
+        driverId: payload.driverId,
         expectedCourseId: payload.expectedCourseId,
         expectedStopName: payload.expectedStopName,
         punchTime: payload.time ?? new Date().toISOString(),
@@ -506,8 +613,22 @@ export default function CentreAlertes() {
       }, 700);
     });
 
+    // Alerte de proximité — bénigne, jamais sonore, jamais de clignotement
+    // de l'onglet (contrairement à une anomalie critique).
+    socket.on('proximity_alert', (payload: any) => {
+      const incoming: ProximiteAlerte = {
+        id: `prox-${Date.now()}-${Math.random()}`,
+        childName: payload.childName,
+        stopName: payload.stopName,
+        distance: payload.distance,
+        time: payload.time ?? new Date().toISOString(),
+      };
+      setProximiteAlertes(prev => [incoming, ...prev].slice(0, 50));
+    });
+
     return () => {
       socket.off('critical_anomaly');
+      socket.off('proximity_alert');
     };
   }, [tenantId, playAlert]);
 
@@ -604,9 +725,13 @@ export default function CentreAlertes() {
               <Shield size={18} color="white" />
             </div>
             <div>
-              <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Centre d'Alertes</h1>
+              <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Alertes</h1>
               <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                Détection d'anomalies de badgeage en temps réel
+                {accesCritiques && accesProximite
+                  ? 'Anomalies de badgeage et proximité des bus, en temps réel'
+                  : accesCritiques
+                  ? "Détection d'anomalies de badgeage en temps réel"
+                  : 'Bus approchant des arrêts, en temps réel'}
               </p>
             </div>
           </div>
@@ -631,7 +756,7 @@ export default function CentreAlertes() {
           </button>
 
           {/* Unresolved badge */}
-          {unresolvedCount > 0 && (
+          {accesCritiques && unresolvedCount > 0 && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '0.4rem',
               padding: '0.45rem 0.9rem', borderRadius: '2rem',
@@ -649,10 +774,15 @@ export default function CentreAlertes() {
       {/* ── Stats cards ────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem' }}>
         {[
-          { label: 'Alertes Actives', value: unresolvedCount, color: '#ef4444', icon: <AlertTriangle size={18} /> },
-          { label: '⚡ Critiques', value: criticalCount, color: '#dc2626', icon: <Zap size={18} /> },
-          { label: 'Résolues', value: resolvedCount, color: '#10b981', icon: <CheckCircle size={18} /> },
-          { label: 'Total', value: allAnomalies.length, color: '#64748b', icon: <FileText size={18} /> },
+          ...(accesCritiques ? [
+            { label: 'Alertes Actives', value: unresolvedCount, color: '#ef4444', icon: <AlertTriangle size={18} /> },
+            { label: '⚡ Critiques', value: criticalCount, color: '#dc2626', icon: <Zap size={18} /> },
+            { label: 'Résolues', value: resolvedCount, color: '#10b981', icon: <CheckCircle size={18} /> },
+          ] : []),
+          ...(accesProximite ? [
+            { label: 'Proximité', value: proximiteAlertes.length, color: '#f59e0b', icon: <Navigation size={18} /> },
+          ] : []),
+          { label: 'Total', value: allAnomalies.length + (accesProximite ? proximiteAlertes.length : 0), color: '#64748b', icon: <FileText size={18} /> },
         ].map(stat => (
           <div key={stat.label} className="glass-panel" style={{ padding: '0.85rem 1rem', display: 'flex', alignItems: 'center', gap: '0.7rem' }}>
             <div style={{
@@ -671,68 +801,121 @@ export default function CentreAlertes() {
         ))}
       </div>
 
-      {/* ── Filter tabs ────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.4rem', background: 'rgba(241,245,249,0.7)', padding: '0.3rem', borderRadius: '0.75rem', width: 'fit-content', border: '1px solid var(--glass-border)' }}>
-        {([
-          { key: 'active', label: `Actives (${unresolvedCount})` },
-          { key: 'resolved', label: `Résolues (${resolvedCount})` },
-          { key: 'all', label: `Toutes (${allAnomalies.length})` },
-        ] as const).map(tab => (
-          <button
-            key={tab.key}
-            className="tab-btn"
-            onClick={() => setFilter(tab.key)}
-            style={{
-              padding: '0.4rem 0.9rem',
-              borderRadius: '0.5rem',
-              border: 'none',
-              background: filter === tab.key ? 'white' : 'transparent',
-              color: filter === tab.key ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontWeight: filter === tab.key ? 700 : 500,
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              boxShadow: filter === tab.key ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* ── Sélecteur de catégorie (seulement si les 2 sont accessibles) ────── */}
+      {accesCritiques && accesProximite && (
+        <div style={{ display: 'flex', gap: '0.4rem', background: 'rgba(241,245,249,0.7)', padding: '0.3rem', borderRadius: '0.75rem', width: 'fit-content', border: '1px solid var(--glass-border)' }}>
+          {([
+            { key: 'toutes', label: 'Toutes' },
+            { key: 'critiques', label: `Anomalies critiques (${unresolvedCount})` },
+            { key: 'proximite', label: `Proximité (${proximiteAlertes.length})` },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              className="tab-btn"
+              onClick={() => setCategorie(tab.key)}
+              style={{
+                padding: '0.4rem 0.9rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                background: categorie === tab.key ? 'white' : 'transparent',
+                color: categorie === tab.key ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: categorie === tab.key ? 700 : 500,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                boxShadow: categorie === tab.key ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* ── Main list ──────────────────────────────────────────────────────── */}
-      <div className="glass-panel" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        {loading && (
-          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-            <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite', marginBottom: '0.5rem', display: 'block', margin: '0 auto 0.5rem' }} />
-            Chargement des alertes…
-          </div>
-        )}
+      {/* ── Filter tabs (uniquement pertinent pour les anomalies critiques) ── */}
+      {accesCritiques && categorie !== 'proximite' && (
+        <div style={{ display: 'flex', gap: '0.4rem', background: 'rgba(241,245,249,0.7)', padding: '0.3rem', borderRadius: '0.75rem', width: 'fit-content', border: '1px solid var(--glass-border)' }}>
+          {([
+            { key: 'active', label: `Actives (${unresolvedCount})` },
+            { key: 'resolved', label: `Résolues (${resolvedCount})` },
+            { key: 'all', label: `Toutes (${allAnomalies.length})` },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              className="tab-btn"
+              onClick={() => setFilter(tab.key)}
+              style={{
+                padding: '0.4rem 0.9rem',
+                borderRadius: '0.5rem',
+                border: 'none',
+                background: filter === tab.key ? 'white' : 'transparent',
+                color: filter === tab.key ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: filter === tab.key ? 700 : 500,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                boxShadow: filter === tab.key ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
 
-        {!loading && displayedAnomalies.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>
-              {filter === 'resolved' ? '✅' : '🟢'}
+      {/* ── Liste des anomalies critiques ─────────────────────────────────── */}
+      {accesCritiques && categorie !== 'proximite' && (
+        <div className="glass-panel" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {loading && (
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              <RefreshCw size={20} style={{ animation: 'spin 1s linear infinite', marginBottom: '0.5rem', display: 'block', margin: '0 auto 0.5rem' }} />
+              Chargement des alertes…
             </div>
-            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.3rem' }}>
-              {filter === 'active' ? 'Aucune anomalie active' : filter === 'resolved' ? 'Aucune anomalie résolue' : 'Aucune anomalie enregistrée'}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              {filter === 'active' ? 'Tous les badgeages sont conformes. Le système surveille en temps réel.' : 'Les résultats apparaîtront ici.'}
-            </div>
-          </div>
-        )}
+          )}
 
-        {!loading && displayedAnomalies.map(anomaly => (
-          <AnomalyCard
-            key={anomaly.id}
-            anomaly={anomaly}
-            drivers={drivers}
-            onResolve={handleResolve}
-            onExpand={handleExpand}
-          />
-        ))}
-      </div>
+          {!loading && displayedAnomalies.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>
+                {filter === 'resolved' ? '✅' : '🟢'}
+              </div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.3rem' }}>
+                {filter === 'active' ? 'Aucune anomalie active' : filter === 'resolved' ? 'Aucune anomalie résolue' : 'Aucune anomalie enregistrée'}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {filter === 'active' ? 'Tous les badgeages sont conformes. Le système surveille en temps réel.' : 'Les résultats apparaîtront ici.'}
+              </div>
+            </div>
+          )}
+
+          {!loading && displayedAnomalies.map(anomaly => (
+            <AnomalyCard
+              key={anomaly.id}
+              anomaly={anomaly}
+              drivers={drivers}
+              onResolve={handleResolve}
+              onExpand={handleExpand}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ── Liste des alertes de proximité ───────────────────────────────── */}
+      {accesProximite && categorie !== 'critiques' && (
+        <div className="glass-panel" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {!loading && proximiteAlertes.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🟢</div>
+              <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.3rem' }}>Aucune alerte de proximité</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Une entrée apparaît ici lorsqu'un bus approche de l'arrêt d'un élève.
+              </div>
+            </div>
+          )}
+          {proximiteAlertes.map((alerte, idx) => (
+            <ProximityCard key={alerte.id ?? idx} alerte={alerte} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

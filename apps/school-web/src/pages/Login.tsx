@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { Link } from 'react-router-dom';
 import { GATEWAY_URL } from '../config';
+import ChampMotDePasse from '../components/ChampMotDePasse';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -66,22 +68,18 @@ export default function Login() {
           
           <div className="form-group mb-6">
             <label className="form-label">Mot de passe</label>
-            <input
-              type="password"
-              className="form-input"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
+            <ChampMotDePasse value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
           </div>
 
           <button type="submit" className="btn btn-primary w-full" disabled={loading}>
             {loading ? 'Connexion en cours...' : 'Se connecter'}
           </button>
           
-          <div className="text-center mt-6">
-            <a href="/register" className="text-sm text-accent" style={{ textDecoration: 'none' }}>Votre école n'est pas encore sur SMARTBUS ?<br/>S'inscrire ici</a>
+          {/* Auto-inscription ouverte : le directeur crée son compte, un Super Admin
+              l'active, puis il crée lui-même son école — voir CandidatureDirecteur.tsx. */}
+          <div className="text-center mt-6 text-sm text-secondary">
+            Votre école n'est pas encore sur SMARTBUS ?<br/>
+            <Link to="/inscription" className="text-accent" style={{ textDecoration: 'none' }}>Inscrivez-vous en tant que directeur</Link>
           </div>
         </form>
       </div>

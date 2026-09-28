@@ -3,9 +3,13 @@ import { createPortal } from 'react-dom';
 import api from '../services/api';
 import { Plus, Trash2, User, Phone, Calendar, Hash, Truck, Edit } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
 
 export default function Drivers() {
   const { t } = useI18n();
+  const toast = useToast();
+  const confirmer = useConfirm();
   const [drivers, setDrivers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -43,7 +47,7 @@ export default function Drivers() {
       fetchDrivers();
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || (editingDriver ? "Erreur lors de la modification du chauffeur" : "Erreur lors de l'ajout du chauffeur");
-      alert(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg);
+      toast.error(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg);
     }
   };
 
@@ -60,7 +64,7 @@ export default function Drivers() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm(t('drivers.confirmer_suppression'))) {
+    if (await confirmer(t('drivers.confirmer_suppression'), { danger: true })) {
       await api.delete(`/drivers/${id}`);
       fetchDrivers();
     }

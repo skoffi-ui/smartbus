@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Users, Search, Plus, Trash2, MapPin, RefreshCw, AlertCircle, Route, CheckCircle2, Circle, GripVertical, X, UserCheck, UserX, TrendingUp } from 'lucide-react';
+import { Users, Search, Plus, Trash2, MapPin, RefreshCw, AlertCircle, Route, CheckCircle2, Circle, GripVertical, UserCheck, UserX, TrendingUp } from 'lucide-react';
 import {
   getCourses,
   getPointsByCourse,
@@ -9,12 +9,8 @@ import {
   getEleves,
 } from '../services/transport.service';
 import { messageFromError } from '../services/api';
-
-interface Toast {
-  id: number;
-  message: string;
-  type: 'success' | 'error' | 'info';
-}
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
 
 interface Eleve {
   id: string;
@@ -69,20 +65,9 @@ export default function AffectationEleves() {
   const [draggedEleve, setDraggedEleve] = useState<Eleve | null>(null);
   const [showAllStops, setShowAllStops] = useState(false);
 
-  // Toasts
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  const showToast = (message: string, type: Toast['type'] = 'success') => {
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  };
-
-  const removeToast = (id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  const toast = useToast();
+  const confirmer = useConfirm();
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => toast[type](message);
 
   // Animation de succès
   const [recentlyAffected, setRecentlyAffected] = useState<Set<string>>(new Set());
@@ -222,7 +207,13 @@ export default function AffectationEleves() {
     setEnCours(eleve.id);
     setErreur('');
     try {
-      await affecterEnfant(pointActif.id, { childId: eleve.id });
+      // Sans `ordreMontee`, l'affectation gardait la valeur par défaut `0`
+      // (voir `Affectation.ordreMontee`) quel que soit l'ordre réel de
+      // ramassage — l'ordre de passage restait donc silencieusement inerte
+      // pour tout trajet géré depuis cet écran plutôt que TrajetEditor.tsx
+      // (qui, lui, le calcule déjà correctement).
+      const ordreMontee = affectations.filter((a) => a.pointId === pointActif.id).length + 1;
+      await affecterEnfant(pointActif.id, { childId: eleve.id, ordreMontee });
       const a = await getAffectations();
       setAffectations(Array.isArray(a) ? a : []);
       triggerSuccessAnimation(eleve.id);
@@ -237,7 +228,7 @@ export default function AffectationEleves() {
 
   const desaffecter = async (affectation: Affectation) => {
     const eleveNom = nomComplet(affectation.child);
-    if (!confirm(`Voulez-vous vraiment retirer ${eleveNom} de cet arrêt ?`)) return;
+    if (!(await confirmer(`Voulez-vous vraiment retirer ${eleveNom} de cet arrêt ?`))) return;
 
     setEnCours(affectation.id);
     setErreur('');
@@ -273,9 +264,10 @@ export default function AffectationEleves() {
     setEnCours('bulk');
     setErreur('');
     try {
+      const ordreDeBase = affectations.filter((a) => a.pointId === pointActif.id).length;
       await Promise.all(
-        eleveIds.map((childId) =>
-          affecterEnfant(pointActif.id, { childId })
+        eleveIds.map((childId, index) =>
+          affecterEnfant(pointActif.id, { childId, ordreMontee: ordreDeBase + index + 1 })
         )
       );
       const a = await getAffectations();
@@ -851,33 +843,6 @@ export default function AffectationEleves() {
             </>
           )}
         </div>
-      </div>
-
-      {/* Toast Notifications */}
-      <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg backdrop-blur-sm animate-slide-in min-w-[300px] ${
-              toast.type === 'success'
-                ? 'bg-green-50 border border-green-200 text-green-800'
-                : toast.type === 'error'
-                ? 'bg-red-50 border border-red-200 text-red-800'
-                : 'bg-blue-50 border border-blue-200 text-blue-800'
-            }`}
-          >
-            {toast.type === 'success' && <CheckCircle2 size={20} className="text-green-600 shrink-0" />}
-            {toast.type === 'error' && <AlertCircle size={20} className="text-red-600 shrink-0" />}
-            {toast.type === 'info' && <AlertCircle size={20} className="text-blue-600 shrink-0" />}
-            <span className="flex-1 text-sm font-medium">{toast.message}</span>
-            <button
-              onClick={() => removeToast(toast.id)}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <X size={16} />
-            </button>
-          </div>
-        ))}
       </div>
 
       {/* Confetti Animation */}

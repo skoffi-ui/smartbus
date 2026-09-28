@@ -75,9 +75,9 @@ export const deleteTrajet = async (id: string) => {
 // Un point appartient à un TRAJET, et une course porte le trajet qu'elle exécute.
 // Les helpers « par course » résolvent donc d'abord le trajet de la course.
 
-export const getPoints = async (trajetId?: string) => {
+export const getPoints = async (trajetId?: string, pourAffectation = false) => {
   const response = await api.get('/points-recuperation', {
-    params: trajetId ? { trajetId } : undefined,
+    params: trajetId ? { trajetId, ...(pourAffectation ? { pourAffectation: 'true' } : {}) } : undefined,
   });
   return response.data;
 };
@@ -111,7 +111,9 @@ async function trajetIdOfCourse(courseId: string): Promise<string | null> {
 export const getPointsByCourse = async (courseId: string) => {
   const trajetId = await trajetIdOfCourse(courseId);
   if (!trajetId) return [];
-  return getPoints(trajetId);
+  // `pourAffectation: true` : le point d'arrivée n'est un point de
+  // récupération que si le trajet est mixte (voir points-recuperation.service.ts).
+  return getPoints(trajetId, true);
 };
 
 export const createPointForCourse = async (courseId: string, data: any) => {

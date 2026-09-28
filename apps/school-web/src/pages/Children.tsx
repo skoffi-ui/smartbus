@@ -3,12 +3,16 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Users, Plus, Edit, Trash2, User, Key, Download, Search, CheckSquare, Square, ChevronRight, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react';
 import './Children.css';
-import { GATEWAY_URL } from '../config';
+import api, { messageFromError } from '../services/api';
 import { useI18n } from '../i18n';
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
 
 export default function Children() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const toast = useToast();
+  const confirmer = useConfirm();
   const [children, setChildren] = useState<any[]>([]);
   const [parents, setParents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,19 +37,18 @@ export default function Children() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const headers = { Authorization: `Bearer ${token}` };
-      
-      const [childRes, parentRes] = await Promise.all([
-        fetch(`${GATEWAY_URL}/api/v1/children`, { headers }),
-        fetch(`${GATEWAY_URL}/api/v1/parents`, { headers })
-      ]);
-      
-      if (childRes.ok) setChildren(await childRes.json());
-      if (parentRes.ok) setParents(await parentRes.json());
-      
+      const childRes = await api.get('/children');
+      setChildren(childRes.data);
     } catch (err) {
-      console.error(err);
+      toast.error(messageFromError(err, 'Impossible de charger la liste des élèves.'));
+    }
+    try {
+      // Séparé de l'appel élèves : l'absence de parents ne doit pas empêcher
+      // d'afficher la liste des élèves (juste le champ "Parent associé" du formulaire).
+      const parentRes = await api.get('/parents');
+      setParents(parentRes.data);
+    } catch (err) {
+      console.warn('Parents non chargés (formulaire élève limité) :', messageFromError(err));
     } finally {
       setLoading(false);
     }
@@ -57,15 +60,10 @@ export default function Children() {
 
   const fetchBiotimeDirectory = async () => {
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`${GATEWAY_URL}/api/v1/children/biotime-directory`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setBiotimeDirectory(await res.json());
-      }
+      const res = await api.get('/children/biotime-directory');
+      setBiotimeDirectory(res.data);
     } catch (err) {
-      console.error(err);
+      toast.error(messageFromError(err, 'Impossible de charger le répertoire BioTime.'));
     }
   };
 
@@ -78,26 +76,12 @@ export default function Children() {
     if (selectedEmpCodes.length === 0) return;
     setImporting(true);
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`${GATEWAY_URL}/api/v1/children/bulk-import`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ empCodes: selectedEmpCodes })
-      });
-      
-      if (res.ok) {
-        setShowImportModal(false);
-        setSelectedEmpCodes([]);
-        fetchData();
-      } else {
-        const err = await res.json();
-        alert(`Erreur d'importation: ${err.message}`);
-      }
+      await api.post('/children/bulk-import', { empCodes: selectedEmpCodes });
+      setShowImportModal(false);
+      setSelectedEmpCodes([]);
+      fetchData();
     } catch (err) {
-      console.error(err);
+      toast.error(messageFromError(err, "Erreur d'importation."));
     } finally {
       setImporting(false);
     }
@@ -106,36 +90,22 @@ export default function Children() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('accessToken');
       // If empCode is empty string, we want it to be null or omitted so it doesn't trigger unique constraints
       const payload = { ...formData };
       if (!payload.empCode) delete (payload as any).empCode;
       if (!payload.parentId) delete (payload as any).parentId;
 
-      const url = editingChild
-        ? `${GATEWAY_URL}/api/v1/children/${editingChild.id}`
-        : `${GATEWAY_URL}/api/v1/children`;
-      const method = editingChild ? 'PATCH' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        setShowModal(false);
-        setEditingChild(null);
-        setFormData({ firstName: '', lastName: '', className: '', empCode: '', parentId: '' });
-        fetchData();
+      if (editingChild) {
+        await api.patch(`/children/${editingChild.id}`, payload);
       } else {
-        const err = await res.json();
-        alert(`Erreur: ${err.message}`);
+        await api.post('/children', payload);
       }
+      setShowModal(false);
+      setEditingChild(null);
+      setFormData({ firstName: '', lastName: '', className: '', empCode: '', parentId: '' });
+      fetchData();
     } catch (err) {
-      console.error(err);
+      toast.error(messageFromError(err, "Erreur lors de l'enregistrement de l'élève."));
     }
   };
 
@@ -152,16 +122,12 @@ export default function Children() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Voulez-vous vraiment supprimer cet élève ?')) return;
+    if (!(await confirmer('Voulez-vous vraiment supprimer cet élève ?', { danger: true }))) return;
     try {
-      const token = localStorage.getItem('accessToken');
-      const res = await fetch(`${GATEWAY_URL}/api/v1/children/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) fetchData();
+      await api.delete(`/children/${id}`);
+      fetchData();
     } catch (err) {
-      console.error(err);
+      toast.error(messageFromError(err, "Erreur lors de la suppression de l'élève."));
     }
   };
 

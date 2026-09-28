@@ -16,6 +16,32 @@ export interface BusPosition {
   studentsOnBoard?: number;
   courseName?: string;
   routeName?: string;
+  /**
+   * Statut brut GPSWOX (`'online' | 'ack' | 'offline'`) — absent pour
+   * Libellule/Traccar. Purement informatif : voir `estEnLigne` pour le seul
+   * signal réellement fiable et commun à toutes les sources.
+   */
+  online?: string;
+}
+
+/**
+ * Un bus n'émet plus forcément un événement quand il tombe en panne ou perd
+ * le réseau : sans notion de fraîcheur, son dernier point connu restait
+ * affiché indéfiniment, identique en apparence à un bus réellement suivi.
+ * La fraîcheur de `timestamp` est le seul signal commun aux trois sources
+ * (GPSWOX, Traccar, Libellule) — GPSWOX expose bien un champ `online`, mais
+ * il ne couvre que son propre flux et un appareil qui repasse `offline` chez
+ * GPSWOX est simplement exclu des cycles suivants (voir
+ * `estAllumeOuEnDeplacement` côté serveur) : plus aucun événement n'arrive
+ * jamais pour le signaler autrement que par ce silence.
+ */
+export const SEUIL_HORS_LIGNE_MS = 90_000; // 90s sans nouvelle position → hors ligne
+export const SEUIL_EXPIRATION_MS = 10 * 60_000; // 10min sans nouvelle position → retiré de la carte
+
+export function estEnLigne(bus: BusPosition, maintenant: number = Date.now()): boolean {
+  const t = new Date(bus.timestamp).getTime();
+  if (!Number.isFinite(t)) return false;
+  return maintenant - t < SEUIL_HORS_LIGNE_MS;
 }
 
 export interface PunchEvent {
@@ -51,6 +77,7 @@ interface UseRealTimeTrackingReturn {
   busPositions: Map<string, BusPosition>;
   punchEvents: PunchEvent[];
   connectionStatus: ConnectionStatus;
+  /** Nombre de bus réellement en ligne (position fraîche), pas seulement connus. */
   activeBusCount: number;
   reconnect: () => void;
 }
@@ -90,6 +117,7 @@ function normaliserPosition(brut: any): { cle: string; position: BusPosition } |
       studentsOnBoard: brut.studentsOnBoard,
       courseName: brut.courseName,
       routeName: brut.routeName,
+      online: brut.online,
     },
   };
 }
@@ -232,6 +260,30 @@ export function useRealTimeTracking({
     return () => { annule = true; };
   }, []);
 
+  // Purge périodique : un bus dont la position n'a plus bougé depuis
+  // `SEUIL_EXPIRATION_MS` est retiré de la carte plutôt que d'y rester figé
+  // indéfiniment à son dernier point connu (voir `estEnLigne`). Sert aussi de
+  // tic régulier pour que le statut « hors ligne » (calculé à l'affichage à
+  // partir de `timestamp`) se rafraîchisse même sans nouvelle trame reçue.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const maintenant = Date.now();
+      setBusPositions((prev) => {
+        let modifie = false;
+        const next = new Map(prev);
+        for (const [cle, position] of prev) {
+          const t = new Date(position.timestamp).getTime();
+          if (!Number.isFinite(t) || maintenant - t >= SEUIL_EXPIRATION_MS) {
+            next.delete(cle);
+            modifie = true;
+          }
+        }
+        return modifie ? next : prev;
+      });
+    }, 10_000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     setupListeners();
     return () => {
@@ -252,7 +304,7 @@ export function useRealTimeTracking({
     busPositions,
     punchEvents,
     connectionStatus,
-    activeBusCount: busPositions.size,
+    activeBusCount: Array.from(busPositions.values()).filter((b) => estEnLigne(b)).length,
     reconnect,
   };
 }

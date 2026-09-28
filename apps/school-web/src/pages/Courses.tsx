@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  Plus, Trash2, Bus, Clock, User, Search, Navigation, AlertCircle, Route
+  Plus, Trash2, Bus, Clock, User, Search, Navigation, AlertCircle, Route, RefreshCw
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -16,6 +17,8 @@ import './UiverseNewButton.css';
 import { getCourses, createCourse, deleteCourse, updateCourse, getTrajets } from '../services/transport.service';
 import api from '../services/api';
 import { useI18n } from '../i18n';
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
 
 /**
  * Espace de noms du routage, lu sur `window.L`.
@@ -46,6 +49,22 @@ const JOURS_SEMAINE = [
   { id: 'L', label: 'Lundi' }, { id: 'M', label: 'Mardi' }, { id: 'Me', label: 'Mercredi' },
   { id: 'J', label: 'Jeudi' }, { id: 'V', label: 'Vendredi' }, { id: 'S', label: 'Samedi' }, { id: 'D', label: 'Dimanche' }
 ];
+
+/**
+ * Estime l'heure d'arrivée à partir de l'heure de départ et de la durée
+ * OSRM du trajet sélectionné (`Trajet.dureeEstimative`, en minutes, sans
+ * trafic). Avant ce calcul, "Heure d'arrivée" était un simple champ manuel
+ * figé à 08:30 par défaut, sans aucun lien avec le trajet réellement
+ * sélectionné ni sa durée — d'où le champ jamais "estimable" signalé.
+ */
+function estimerHeureArrivee(heureDepart: string, dureeMin: number): string {
+  const [h, m] = heureDepart.split(':').map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return heureDepart;
+  const totalMin = ((h * 60 + m + Math.round(dureeMin)) % (24 * 60) + 24 * 60) % (24 * 60);
+  const hh = Math.floor(totalMin / 60);
+  const mm = totalMin % 60;
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
 
 const PRESET_COLORS = [
   { hex: '#2563EB', name: 'Bleu' }, { hex: '#8B5CF6', name: 'Violet' },
@@ -123,6 +142,8 @@ function RoutingMachineReadOnly({ waypoints, color }: { waypoints: any[], color:
 }
 
 export default function Courses() {
+  const toast = useToast();
+  const confirmer = useConfirm();
   const [courses, setCourses] = useState<any[]>([]);
   const [trajets, setTrajets] = useState<any[]>([]);
   const [carsList, setCarsList] = useState<any[]>([]);
@@ -132,20 +153,35 @@ export default function Courses() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
 
-  const defaultForm = { 
-    nom: '', description: '', statut: 'active', couleurCarte: '#2563EB', 
-    heureDepart: '07:00', heureArrivee: '08:30', jours: ['L', 'M', 'Me', 'J', 'V'], 
-    chauffeur: '', vehicule: '', trajetId: '' 
+  const defaultForm = {
+    nom: '', description: '', statut: 'active', couleurCarte: '#2563EB',
+    heureDepart: '07:00', heureArrivee: '08:30', jours: ['L', 'M', 'Me', 'J', 'V'],
+    chauffeur: '', vehicule: '', trajetId: ''
   };
   const [formData, setFormData] = useState<any>(defaultForm);
 
-  useEffect(() => { 
-    fetchCourses(); 
+  useEffect(() => {
+    fetchCourses();
     fetchTrajetsList();
-    fetchCarsList(); 
-    fetchDriversList(); 
+    fetchCarsList();
+    fetchDriversList();
   }, []);
+
+  // Arrivée depuis « Trajets » (bouton « Créer une course avec ce trajet ») :
+  // pré-remplit le trajet plutôt que de laisser un menu déroulant vide à
+  // choisir soi-même — une fois les trajets chargés, pour pouvoir vérifier
+  // que le trajetId reçu correspond bien à un trajet réel.
+  const [preRemplissageTrajetApplique, setPreRemplissageTrajetApplique] = useState(false);
+  useEffect(() => {
+    const trajetIdDepuisUrl = searchParams.get('trajetId');
+    if (preRemplissageTrajetApplique || !trajetIdDepuisUrl || trajets.length === 0) return;
+    if (trajets.some((t) => t.id === trajetIdDepuisUrl)) {
+      setFormData((prev: any) => ({ ...prev, trajetId: trajetIdDepuisUrl }));
+    }
+    setPreRemplissageTrajetApplique(true);
+  }, [trajets, searchParams, preRemplissageTrajetApplique]);
 
   const fetchCarsList = async () => { try { const r = await api.get('/cars'); setCarsList(r.data); } catch {} };
   const fetchDriversList = async () => { try { const r = await api.get('/drivers'); setDriversList(r.data); } catch {} };
@@ -184,7 +220,7 @@ export default function Courses() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.trajetId) {
-      alert("Veuillez sélectionner un trajet géographique pour cette course.");
+      toast.error("Veuillez sélectionner un trajet géographique pour cette course.");
       return;
     }
 
@@ -203,18 +239,18 @@ export default function Courses() {
         trajetId: formData.trajetId || null,
       };
 
-      if (selectedCourseId) { 
+      if (selectedCourseId) {
         const updated = await updateCourse(selectedCourseId, payload);
         setCourses(c => c.map(x => x.id === selectedCourseId ? updated : x));
-        alert('Course mise à jour !');
-      } else { 
-        const created = await createCourse(payload); 
-        setCourses(c => [created, ...c]); 
-        setSelectedCourseId(created.id); 
-        alert('Course planifiée avec succès !');
+        toast.success('Course mise à jour !');
+      } else {
+        const created = await createCourse(payload);
+        setCourses(c => [created, ...c]);
+        setSelectedCourseId(created.id);
+        toast.success('Course planifiée avec succès !');
       }
-    } catch (e: any) { 
-      alert('Erreur: ' + (e.response?.data?.message || e.message));
+    } catch (e: any) {
+      toast.error('Erreur: ' + (e.response?.data?.message || e.message));
     } finally {
       setIsSaving(false);
     }
@@ -222,13 +258,13 @@ export default function Courses() {
 
   const handleDelete = async () => {
     if (!selectedCourseId) return;
-    if (!confirm('Supprimer cette course ?')) return;
+    if (!(await confirmer('Supprimer cette course ?', { danger: true }))) return;
     setIsDeleting(true);
-    try { 
+    try {
       await deleteCourse(selectedCourseId);
       setCourses(c => c.filter(x => x.id !== selectedCourseId));
       handleNewCourse();
-    } catch (e: any) { alert('Erreur suppression'); } 
+    } catch (e: any) { toast.error('Erreur suppression'); }
     finally { setIsDeleting(false); }
   };
 
@@ -378,7 +414,20 @@ export default function Courses() {
                 
                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-2">
                   <label className="font-bold text-slate-700 block mb-2">Trajet Géographique (Ligne)</label>
-                  <select required value={formData.trajetId} onChange={e => setFormData({...formData, trajetId: e.target.value})}
+                  <select required value={formData.trajetId} onChange={e => {
+                    const trajetId = e.target.value;
+                    const trajet = trajets.find(t => t.id === trajetId);
+                    setFormData((prev: any) => ({
+                      ...prev,
+                      trajetId,
+                      // Le trajet change de durée réelle (OSRM) : l'heure d'arrivée
+                      // ré-estimée avec lui, sinon elle resterait celle de l'ancien
+                      // trajet, sans rapport avec la nouvelle ligne sélectionnée.
+                      ...(trajet?.dureeEstimative && prev.heureDepart
+                        ? { heureArrivee: estimerHeureArrivee(prev.heureDepart, trajet.dureeEstimative) }
+                        : {}),
+                    }));
+                  }}
                     className="w-full p-2 border border-slate-300 rounded-md bg-white">
                     <option value="">-- Sélectionnez la ligne à desservir --</option>
                     {trajets.map(t => <option key={t.id} value={t.id}>{t.nom} ({t.sens})</option>)}
@@ -405,11 +454,43 @@ export default function Courses() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="uiverse-flex-column">
                     <label>Heure de départ</label>
-                    <input type="time" required value={formData.heureDepart} onChange={e => setFormData({...formData, heureDepart: e.target.value})} className="uiverse-input mt-1" />
+                    <input type="time" required value={formData.heureDepart} onChange={e => {
+                      const heureDepart = e.target.value;
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        heureDepart,
+                        // Ré-estime l'arrivée à chaque changement de départ, à
+                        // partir de la durée réelle OSRM du trajet sélectionné —
+                        // avant ce calcul, "Heure d'arrivée" restait figée à sa
+                        // valeur par défaut (08:30) sans lien avec le trajet.
+                        ...(selectedTrajet?.dureeEstimative
+                          ? { heureArrivee: estimerHeureArrivee(heureDepart, selectedTrajet.dureeEstimative) }
+                          : {}),
+                      }));
+                    }} className="uiverse-input mt-1" />
                   </div>
                   <div className="uiverse-flex-column">
-                    <label>Heure d'arrivée</label>
+                    <div className="flex items-center justify-between">
+                      <label>Heure d'arrivée</label>
+                      <button
+                        type="button"
+                        disabled={!selectedTrajet?.dureeEstimative || !formData.heureDepart}
+                        onClick={() => setFormData((prev: any) => ({
+                          ...prev,
+                          heureArrivee: estimerHeureArrivee(prev.heureDepart, selectedTrajet.dureeEstimative),
+                        }))}
+                        title="Ré-estimer à partir de la durée OSRM du trajet"
+                        className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 disabled:text-slate-300 disabled:cursor-not-allowed flex items-center gap-1"
+                      >
+                        <RefreshCw size={11} /> Estimer
+                      </button>
+                    </div>
                     <input type="time" required value={formData.heureArrivee} onChange={e => setFormData({...formData, heureArrivee: e.target.value})} className="uiverse-input mt-1" />
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {selectedTrajet?.dureeEstimative
+                        ? `Estimée via OSRM (${durationText}, sans trafic) — modifiable.`
+                        : "Sélectionnez un trajet avec un itinéraire calculé pour estimer automatiquement."}
+                    </p>
                   </div>
                 </div>
 

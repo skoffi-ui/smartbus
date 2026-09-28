@@ -5,10 +5,25 @@ import { Link, useNavigate } from 'react-router-dom';
 import CheckoutModal from '../components/CheckoutModal';
 import './Dashboard.css';
 import { useI18n } from '../i18n';
+import { aAcces } from '../constants/schoolFeatures';
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  // Calculé une fois : ce que ce directeur a le droit de voir sur cette école
+  // (assigné par le Super Admin, voir schoolFeatures.ts). Les cartes, boutons
+  // et appels API du tableau de bord s'adaptent automatiquement en conséquence.
+  const acces = {
+    cars: aAcces('cars'),
+    drivers: aAcces('drivers'),
+    parents: aAcces('parents'),
+    children: aAcces('children'),
+    courses: aAcces('courses'),
+    trajets: aAcces('trajets'),
+    affectation: aAcces('affectation'),
+    suivi: aAcces('suivi'),
+    live: aAcces('live'),
+  };
   const [stats, setStats] = useState({ cars: 0, drivers: 0, parents: 0, children: 0 });
   const [loading, setLoading] = useState(true);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -30,11 +45,14 @@ export default function Dashboard() {
   const fetchStatsAndSubscription = async () => {
     setLoading(true);
     try {
+      // Ne demander que ce que ce directeur a le droit de voir : un seul
+      // `Promise.all` sur les 4 ressources ferait échouer TOUTES les stats
+      // dès qu'une seule est interdite (403) pour cette école.
       const [carsRes, driversRes, parentsRes, childrenRes] = await Promise.all([
-        api.get('/cars'),
-        api.get('/drivers'),
-        api.get('/parents'),
-        api.get('/children')
+        acces.cars ? api.get('/cars') : Promise.resolve({ data: [] }),
+        acces.drivers ? api.get('/drivers') : Promise.resolve({ data: [] }),
+        acces.parents ? api.get('/parents') : Promise.resolve({ data: [] }),
+        acces.children ? api.get('/children') : Promise.resolve({ data: [] }),
       ]);
       setStats({
         cars: carsRes.data.length || 0,
@@ -62,6 +80,10 @@ export default function Dashboard() {
       // centaines de badgeages existaient. Les montées sont la source qui fait foi,
       // et le nom de l'élève vient des enfants déjà chargés ci-dessus.
       try {
+        if (!acces.suivi) {
+          setRecentActivities([]);
+          return;
+        }
         const monteesRes = await api.get('/montees');
         const montees: any[] = Array.isArray(monteesRes.data) ? monteesRes.data : monteesRes.data?.data || [];
         const enfants: any[] = Array.isArray(childrenRes.data) ? childrenRes.data : childrenRes.data?.data || [];
@@ -133,27 +155,33 @@ export default function Dashboard() {
           <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>{t('dash.sous_titre')}</p>
         </div>
 
-        {/* Actions Rapides */}
+        {/* Actions Rapides — une par fonctionnalité autorisée pour cette école */}
         <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={() => navigate('/courses')}
-            className="btn btn-primary gap-2 text-sm"
-          >
-            <Plus size={18} /> Nouvelle Course
-          </button>
-          <button
-            onClick={() => navigate('/children')}
-            className="btn btn-secondary gap-2 text-sm"
-          >
-            <Plus size={18} /> {t('dash.nouvel_eleve')}
-          </button>
-          <button
-            onClick={() => navigate('/live')}
-            className="btn gap-2 text-sm"
-            style={{ background: 'var(--success-container)', color: 'white' }}
-          >
-            <Zap size={18} /> {t('sidebar.live')}
-          </button>
+          {acces.courses && (
+            <button
+              onClick={() => navigate('/courses')}
+              className="btn btn-primary gap-2 text-sm"
+            >
+              <Plus size={18} /> Nouvelle Course
+            </button>
+          )}
+          {acces.children && (
+            <button
+              onClick={() => navigate('/children')}
+              className="btn btn-secondary gap-2 text-sm"
+            >
+              <Plus size={18} /> {t('dash.nouvel_eleve')}
+            </button>
+          )}
+          {acces.live && (
+            <button
+              onClick={() => navigate('/live')}
+              className="btn gap-2 text-sm"
+              style={{ background: 'var(--success-container)', color: 'white' }}
+            >
+              <Zap size={18} /> {t('sidebar.live')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -163,55 +191,63 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {/* Stats Cards */}
+          {/* Stats Cards — une par fonctionnalité autorisée pour cette école */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-2">
             {/* Card 1: Élèves - Cliquable */}
-            <Link to="/children" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <GraduationCap size={28} className="text-blue-600" />
+            {acces.children && (
+              <Link to="/children" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <GraduationCap size={28} className="text-blue-600" />
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-600">+{stats.children > 0 ? '12%' : '0%'}</span>
                 </div>
-                <span className="text-xs font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-600">+{stats.children > 0 ? '12%' : '0%'}</span>
-              </div>
-              <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.eleves')}</p>
-              <h3 className="text-3xl font-bold text-slate-900">{stats.children}</h3>
-            </Link>
+                <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.eleves')}</p>
+                <h3 className="text-3xl font-bold text-slate-900">{stats.children}</h3>
+              </Link>
+            )}
 
             {/* Card 2: Parents - Cliquable */}
-            <Link to="/parents" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-14 h-14 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Users size={28} className="text-indigo-600" />
+            {acces.parents && (
+              <Link to="/parents" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-14 h-14 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Users size={28} className="text-indigo-600" />
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-indigo-50 text-indigo-600">+{stats.parents > 0 ? '8%' : '0%'}</span>
                 </div>
-                <span className="text-xs font-bold px-2 py-1 rounded-full bg-indigo-50 text-indigo-600">+{stats.parents > 0 ? '8%' : '0%'}</span>
-              </div>
-              <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.parents')}</p>
-              <h3 className="text-3xl font-bold text-slate-900">{stats.parents}</h3>
-            </Link>
+                <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.parents')}</p>
+                <h3 className="text-3xl font-bold text-slate-900">{stats.parents}</h3>
+              </Link>
+            )}
 
             {/* Card 3: Chauffeurs - Cliquable */}
-            <Link to="/drivers" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <ShieldCheck size={28} className="text-emerald-600" />
+            {acces.drivers && (
+              <Link to="/drivers" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-14 h-14 rounded-xl bg-emerald-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <ShieldCheck size={28} className="text-emerald-600" />
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">{stats.drivers > 0 ? 'Actifs' : '0'}</span>
                 </div>
-                <span className="text-xs font-bold px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">{stats.drivers > 0 ? 'Actifs' : '0'}</span>
-              </div>
-              <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.chauffeurs')}</p>
-              <h3 className="text-3xl font-bold text-slate-900">{stats.drivers}</h3>
-            </Link>
+                <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.chauffeurs')}</p>
+                <h3 className="text-3xl font-bold text-slate-900">{stats.drivers}</h3>
+              </Link>
+            )}
 
             {/* Card 4: Véhicules - Cliquable */}
-            <Link to="/cars" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-14 h-14 rounded-xl bg-amber-50 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Bus size={28} className="text-amber-600" />
+            {acces.cars && (
+              <Link to="/cars" className="glass-panel p-4 hover:shadow-lg transition-all cursor-pointer group" style={{ textDecoration: 'none', border: '2px solid transparent' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-14 h-14 rounded-xl bg-amber-50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Bus size={28} className="text-amber-600" />
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-600">{stats.cars > 0 ? 'OK' : '0'}</span>
                 </div>
-                <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-50 text-amber-600">{stats.cars > 0 ? 'OK' : '0'}</span>
-              </div>
-              <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.vehicules')}</p>
-              <h3 className="text-3xl font-bold text-slate-900">{stats.cars}</h3>
-            </Link>
+                <p className="text-sm text-slate-500 mb-1 font-medium">{t('dash.vehicules')}</p>
+                <h3 className="text-3xl font-bold text-slate-900">{stats.cars}</h3>
+              </Link>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-4">
@@ -277,45 +313,53 @@ export default function Dashboard() {
             <div className="glass-panel p-4">
               <h3 className="text-lg font-bold mb-4">{t('dash.acces_rapides')}</h3>
               <div className="flex flex-col gap-3">
-                <Link to="/courses" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-indigo-50 transition-colors border border-slate-100 hover:border-indigo-200 group" style={{ textDecoration: 'none' }}>
-                  <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
-                    <RouteIcon size={20} className="text-indigo-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-slate-900 text-sm">{t('dash.gerer_courses')}</p>
-                    <p className="text-xs text-slate-500">{t('dash.planifier_editer')}</p>
-                  </div>
-                </Link>
+                {acces.courses && (
+                  <Link to="/courses" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-indigo-50 transition-colors border border-slate-100 hover:border-indigo-200 group" style={{ textDecoration: 'none' }}>
+                    <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                      <RouteIcon size={20} className="text-indigo-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-900 text-sm">{t('dash.gerer_courses')}</p>
+                      <p className="text-xs text-slate-500">{t('dash.planifier_editer')}</p>
+                    </div>
+                  </Link>
+                )}
 
-                <Link to="/trajets" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-blue-50 transition-colors border border-slate-100 hover:border-blue-200 group" style={{ textDecoration: 'none' }}>
-                  <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                    <MapPin size={20} className="text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-slate-900 text-sm">Éditer les Trajets</p>
-                    <p className="text-xs text-slate-500">Points et itinéraires</p>
-                  </div>
-                </Link>
+                {acces.trajets && (
+                  <Link to="/trajets" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-blue-50 transition-colors border border-slate-100 hover:border-blue-200 group" style={{ textDecoration: 'none' }}>
+                    <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                      <MapPin size={20} className="text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-900 text-sm">Éditer les Trajets</p>
+                      <p className="text-xs text-slate-500">Points et itinéraires</p>
+                    </div>
+                  </Link>
+                )}
 
-                <Link to="/affectation" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-emerald-50 transition-colors border border-slate-100 hover:border-emerald-200 group" style={{ textDecoration: 'none' }}>
-                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-                    <Users size={20} className="text-emerald-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-slate-900 text-sm">Affecter Élèves</p>
-                    <p className="text-xs text-slate-500">Associer aux arrêts</p>
-                  </div>
-                </Link>
+                {acces.affectation && (
+                  <Link to="/affectation" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-emerald-50 transition-colors border border-slate-100 hover:border-emerald-200 group" style={{ textDecoration: 'none' }}>
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                      <Users size={20} className="text-emerald-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-900 text-sm">Affecter Élèves</p>
+                      <p className="text-xs text-slate-500">Associer aux arrêts</p>
+                    </div>
+                  </Link>
+                )}
 
-                <Link to="/suivi" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-purple-50 transition-colors border border-slate-100 hover:border-purple-200 group" style={{ textDecoration: 'none' }}>
-                  <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-                    <Activity size={20} className="text-purple-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-slate-900 text-sm">Suivi des Montées</p>
-                    <p className="text-xs text-slate-500">Pointages élèves</p>
-                  </div>
-                </Link>
+                {acces.suivi && (
+                  <Link to="/suivi" className="flex items-center gap-3 p-3 rounded-lg bg-white hover:bg-purple-50 transition-colors border border-slate-100 hover:border-purple-200 group" style={{ textDecoration: 'none' }}>
+                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                      <Activity size={20} className="text-purple-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-slate-900 text-sm">Suivi des Montées</p>
+                      <p className="text-xs text-slate-500">Pointages élèves</p>
+                    </div>
+                  </Link>
+                )}
 
                 {subscription && (
                   <button

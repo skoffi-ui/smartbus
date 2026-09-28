@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Users, Phone, Mail, Key, Calendar, Bus, Clock, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import './ChildProfile.css';
-import { GATEWAY_URL } from '../config';
+import api, { messageFromError } from '../services/api';
 
 export default function ChildProfile() {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +10,7 @@ export default function ChildProfile() {
   const [child, setChild] = useState<any>(null);
   const [punches, setPunches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState('');
 
   // Group punches by date for better display (MUST BE BEFORE EARLY RETURNS)
   const groupedPunches = React.useMemo(() => {
@@ -27,23 +28,20 @@ export default function ChildProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
-        const headers = { Authorization: `Bearer ${token}` };
-        
         // 1. Fetch child details
-        const childRes = await fetch(`${GATEWAY_URL}/api/v1/children/${id}`, { headers });
-        if (childRes.ok) {
-          const childData = await childRes.json();
-          setChild(childData);
-          
-          // 2. Fetch punch history (using the new endpoint)
-          const punchesRes = await fetch(`${GATEWAY_URL}/api/v1/children/${id}/punches`, { headers });
-          if (punchesRes.ok) {
-            setPunches(await punchesRes.json());
-          }
+        const childRes = await api.get(`/children/${id}`);
+        setChild(childRes.data);
+
+        // 2. Fetch punch history (using the new endpoint) — informations d'appoint :
+        // son absence ne doit pas empêcher d'afficher la fiche de l'élève.
+        try {
+          const punchesRes = await api.get(`/children/${id}/punches`);
+          setPunches(punchesRes.data);
+        } catch (err) {
+          console.warn('Historique de pointages non chargé :', messageFromError(err));
         }
       } catch (err) {
-        console.error(err);
+        setErreur(messageFromError(err, "Impossible de charger la fiche de l'élève."));
       } finally {
         setLoading(false);
       }
@@ -56,8 +54,8 @@ export default function ChildProfile() {
     return <div className="p-8 text-center text-slate-500">Chargement de la fiche élève...</div>;
   }
 
-  if (!child) {
-    return <div className="p-8 text-center text-red-500">Élève introuvable.</div>;
+  if (erreur || !child) {
+    return <div className="p-8 text-center text-red-500">{erreur || 'Élève introuvable.'}</div>;
   }
 
   // Generate last 30 days for the heatmap

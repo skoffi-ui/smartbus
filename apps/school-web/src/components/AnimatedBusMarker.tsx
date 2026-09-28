@@ -4,10 +4,14 @@ import L from 'leaflet';
 import type { BusPosition } from '../hooks/useRealTimeTracking';
 
 // Icône SVG bus personnalisée (couleur indigo)
-function createBusIcon(heading: number = 0, studentsOnBoard: number = 0): L.DivIcon {
+function createBusIcon(heading: number = 0, studentsOnBoard: number = 0, enLigne: boolean = true): L.DivIcon {
   const isLoaded = studentsOnBoard > 0;
   const color = isLoaded ? '#4f46e5' : '#94a3b8';
-  const pulse = isLoaded ? `
+  // Hors ligne : dernière position connue, mais plus mise à jour depuis un
+  // moment (voir `estEnLigne`) — estompé, sans pulsation, pour ne pas le
+  // confondre visuellement avec un bus réellement suivi en ce moment.
+  const opacite = enLigne ? 1 : 0.4;
+  const pulse = isLoaded && enLigne ? `
     <div style="
       position: absolute;
       top: 50%;
@@ -25,7 +29,7 @@ function createBusIcon(heading: number = 0, studentsOnBoard: number = 0): L.DivI
   return new L.DivIcon({
     className: '',
     html: `
-      <div style="position: relative; width: 44px; height: 44px;">
+      <div style="position: relative; width: 44px; height: 44px; opacity: ${opacite}; transition: opacity 0.4s ease;">
         ${pulse}
         <div style="
           position: absolute;
@@ -47,6 +51,24 @@ function createBusIcon(heading: number = 0, studentsOnBoard: number = 0): L.DivI
         ">
           <span style="transform: rotate(${-heading}deg); display: block; line-height: 1;">🚌</span>
         </div>
+        ${!enLigne ? `
+          <div style="
+            position: absolute;
+            bottom: -2px;
+            left: -2px;
+            background: #64748b;
+            color: white;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 9px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          ">📡</div>
+        ` : ''}
         ${studentsOnBoard > 0 ? `
           <div style="
             position: absolute;
@@ -77,13 +99,15 @@ function createBusIcon(heading: number = 0, studentsOnBoard: number = 0): L.DivI
 
 interface AnimatedBusMarkerProps {
   bus: BusPosition;
+  /** Position fraîche (voir `estEnLigne`) — change l'apparence du marqueur. */
+  enLigne?: boolean;
 }
 
 /**
  * Marqueur de bus qui interpole fluidement sa position
  * via requestAnimationFrame pour éviter les sauts brusques.
  */
-const AnimatedBusMarker: React.FC<AnimatedBusMarkerProps> = ({ bus }) => {
+const AnimatedBusMarker: React.FC<AnimatedBusMarkerProps> = ({ bus, enLigne = true }) => {
   const markerRef = useRef<L.Marker | null>(null);
   const prevPositionRef = useRef<[number, number]>([bus.latitude, bus.longitude]);
   const animationRef = useRef<number | null>(null);
@@ -140,7 +164,7 @@ const AnimatedBusMarker: React.FC<AnimatedBusMarkerProps> = ({ bus }) => {
     };
   }, [bus.latitude, bus.longitude]);
 
-  const icon = createBusIcon(bus.heading || 0, bus.studentsOnBoard || 0);
+  const icon = createBusIcon(bus.heading || 0, bus.studentsOnBoard || 0, enLigne);
 
   return (
     <Marker

@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api';
-import { Plus, Trash2, Bus, Hash, Users, Car, Settings, RefreshCw, Edit } from 'lucide-react';
+import { Plus, Trash2, Bus, Hash, Users, Car, Settings, Edit } from 'lucide-react';
 import { useI18n } from '../i18n';
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
 
 export default function Cars() {
   const { t } = useI18n();
+  const toast = useToast();
+  const confirmer = useConfirm();
   const [cars, setCars] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingCar, setEditingCar] = useState<any>(null);
   const [formData, setFormData] = useState({ plateNumber: '', brand: '', model: '', capacity: 30, gpsDeviceId: '', biotimeTerminalSn: '' });
@@ -46,7 +49,7 @@ export default function Cars() {
       fetchCars();
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || (editingCar ? "Erreur lors de la modification du véhicule" : "Erreur lors de l'ajout du véhicule");
-      alert(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg);
+      toast.error(Array.isArray(errorMsg) ? errorMsg[0] : errorMsg);
     }
   };
 
@@ -64,22 +67,9 @@ export default function Cars() {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm(t('cars.confirmer_suppression'))) {
+    if (await confirmer(t('cars.confirmer_suppression'), { danger: true })) {
       await api.delete(`/cars/${id}`);
       fetchCars();
-    }
-  };
-
-  const handleSyncLibellule = async () => {
-    try {
-      setSyncing(true);
-      const res = await api.post('/cars/sync-libellule');
-      alert(`${res.data.synced} véhicule(s) synchronisé(s) avec succès !`);
-      fetchCars();
-    } catch (err: any) {
-      alert("Erreur lors de la synchronisation avec Libellule.");
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -91,9 +81,6 @@ export default function Cars() {
           <p className="text-slate-500 mt-1">Gérez vos bus et minivans</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={handleSyncLibellule} disabled={syncing} className="btn btn-secondary flex items-center gap-2">
-            <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? t('cars.synchronisation') : t('cars.sync_libellule')}
-          </button>
           <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
             <Plus size={18} /> {t('cars.ajouter')}
           </button>
@@ -112,9 +99,6 @@ export default function Cars() {
           <h3 className="text-xl font-bold text-slate-800 mb-2">{t('cars.aucun')}</h3>
           <p className="empty-text">{t('cars.aucun_desc')}</p>
           <div className="flex gap-3 justify-center mt-4">
-            <button onClick={handleSyncLibellule} disabled={syncing} className="btn btn-secondary flex items-center gap-2">
-              <RefreshCw size={18} className={syncing ? "animate-spin" : ""} /> {syncing ? t('cars.synchronisation') : t('cars.sync_libellule')}
-            </button>
             <button onClick={() => setShowForm(true)} className="btn btn-primary flex items-center gap-2">
               <Plus size={18} /> {t('cars.ajouter')}
             </button>
@@ -232,9 +216,20 @@ export default function Cars() {
                     <label className="premium-input-label">{t('cars.gps_balise')}</label>
                     <select className="premium-input w-full" value={formData.gpsDeviceId} onChange={e => setFormData({...formData, gpsDeviceId: e.target.value})}>
                       <option value="">{t('cars.aucune_balise')}</option>
-                      {devices.filter(d => d.typeDevice === 'GPS').map(d => (
-                        <option key={d.id} value={d.id}>{d.serialNumber}</option>
-                      ))}
+                      {devices.filter(d => d.typeDevice === 'GPS').map(d => {
+                        // Déjà pris par un AUTRE véhicule (jamais par celui qu'on édite,
+                        // qui doit pouvoir garder sa propre balise) : grisé, non
+                        // sélectionnable — il faut d'abord la désassigner de ce
+                        // véhicule-là avant de pouvoir la donner à celui-ci (même règle
+                        // que `assertAppareilLibre` côté serveur, ici visible avant même
+                        // d'essayer d'enregistrer).
+                        const prisAilleurs = d.assignedCarId && d.assignedCarId !== editingCar?.id;
+                        return (
+                          <option key={d.id} value={d.serialNumber} disabled={prisAilleurs}>
+                            {d.serialNumber}{prisAilleurs ? ` — ${t('cars.deja_assignee')} ${d.assignedCarPlate}` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
 
@@ -242,16 +237,21 @@ export default function Cars() {
                     <label className="premium-input-label">{t('cars.badgeuse')}</label>
                     <select className="premium-input w-full" value={formData.biotimeTerminalSn} onChange={e => setFormData({...formData, biotimeTerminalSn: e.target.value})}>
                       <option value="">{t('cars.aucune_badgeuse')}</option>
-                      {devices.filter(d => d.typeDevice === 'BADGEUSE').map(d => (
-                        <option key={d.id} value={d.serialNumber}>{d.serialNumber}</option>
-                      ))}
+                      {devices.filter(d => d.typeDevice === 'BADGEUSE').map(d => {
+                        const prisAilleurs = d.assignedCarId && d.assignedCarId !== editingCar?.id;
+                        return (
+                          <option key={d.id} value={d.serialNumber} disabled={prisAilleurs}>
+                            {d.serialNumber}{prisAilleurs ? ` — ${t('cars.deja_assignee')} ${d.assignedCarPlate}` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>
               </div>
               
               <div className="premium-modal-footer">
-                <button type="button" onClick={() => { setShowForm(false); setEditingCar(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">{t('annuler')}</button>
+                <button type="button" onClick={() => { setShowForm(false); setEditingCar(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">{t('action.annuler')}</button>
                 <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">{editingCar ? t('action.modifier') : t('enregistrer')}</button>
               </div>
             </form>

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Fingerprint, Bell, GraduationCap, User, Save, RefreshCw, CheckCircle, XCircle, Clock, Eye, EyeOff, Lock, ChevronRight, Globe } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Building2, Fingerprint, Bell, GraduationCap, User, Save, RefreshCw, CheckCircle, XCircle, Clock, Lock, ChevronRight, Globe, Info, UserPlus } from 'lucide-react';
 import api, { messageFromError } from '../services/api';
+import ChampMotDePasse from '../components/ChampMotDePasse';
 import { useI18n, type Langue } from '../i18n';
 
 type Onglet = 'ecole' | 'biotime' | 'alertes' | 'classes' | 'compte' | 'langue';
@@ -90,30 +92,62 @@ function OngletEcole({ afficherMessage }: { afficherMessage: (t: 'success' | 'er
   const [codeEcole, setCodeEcole] = useState('');
   const [adresse, setAdresse] = useState('');
   const [telephone, setTelephone] = useState('');
-  const [fuseauHoraire, setFuseauHoraire] = useState('Africa/Abidjan');
+  const [emailEcole, setEmailEcole] = useState('');
+  const [siteWeb, setSiteWeb] = useState('');
   const [nomDirecteur, setNomDirecteur] = useState('');
   const [emailDirecteur, setEmailDirecteur] = useState('');
+  const [chargement, setChargement] = useState(true);
   const [enCours, setEnCours] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const jeton = localStorage.getItem('accessToken');
-        if (!jeton) return;
+    // Nom/email du directeur : déjà connus via le jeton, aucune requête
+    // supplémentaire nécessaire pour ces deux champs (lecture seule ici,
+    // modifiables depuis l'onglet "Mon compte").
+    try {
+      const jeton = localStorage.getItem('accessToken');
+      if (jeton) {
         const contenu = JSON.parse(atob(jeton.split('.')[1]));
-        setNomEcole(contenu.organisationName || '');
-        setCodeEcole(contenu.organisationCode || contenu.tenantId || '');
         setNomDirecteur(`${contenu.firstName || ''} ${contenu.lastName || ''}`.trim());
         setEmailDirecteur(contenu.email || '');
-      } catch {}
+      }
+    } catch {}
+
+    (async () => {
+      try {
+        // Les informations de l'école ont déjà été saisies une fois, à la
+        // création (`/auth/creer-mon-ecole`) : on les relit ici plutôt que
+        // de les redemander, pour permettre uniquement leur modification.
+        const res = await api.get('/organisations/mon-ecole');
+        const org = res.data;
+        setNomEcole(org.name || '');
+        setCodeEcole(org.code || '');
+        setAdresse(org.address || '');
+        setTelephone(org.phone || '');
+        setEmailEcole(org.email || '');
+        setSiteWeb(org.website || '');
+      } catch (err) {
+        afficherMessage('error', messageFromError(err, t('ecole.chargement_erreur')));
+      } finally {
+        setChargement(false);
+      }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const sauvegarder = async (e: React.FormEvent) => {
     e.preventDefault();
     setEnCours(true);
     try {
+      await api.patch('/organisations/mon-ecole', {
+        name: nomEcole,
+        address: adresse,
+        phone: telephone,
+        email: emailEcole || undefined,
+        website: siteWeb || undefined,
+      });
       afficherMessage('success', t('ecole.succes'));
+    } catch (err) {
+      afficherMessage('error', messageFromError(err, t('ecole.enregistrement_erreur')));
     } finally {
       setEnCours(false);
     }
@@ -126,52 +160,58 @@ function OngletEcole({ afficherMessage }: { afficherMessage: (t: 'success' | 'er
         {t('ecole.titre')}
       </h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', maxWidth: '700px' }}>
-        <div className="form-group">
-          <label className="form-label">{t('ecole.nom')}</label>
-          <input className="form-input" value={nomEcole} onChange={(e) => setNomEcole(e.target.value)} placeholder="École Nangui Abrogoua" />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{t('ecole.code')}</label>
-          <input className="form-input" value={codeEcole} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} />
-        </div>
-        <div className="form-group" style={{ gridColumn: 'span 2' }}>
-          <label className="form-label">{t('ecole.adresse')}</label>
-          <input className="form-input" value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="Cocody, Abidjan, Côte d'Ivoire" />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{t('ecole.telephone')}</label>
-          <input className="form-input" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="+225 07 00 00 00" />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{t('ecole.fuseau')}</label>
-          <select className="form-input" value={fuseauHoraire} onChange={(e) => setFuseauHoraire(e.target.value)} style={{ background: 'var(--surface-variant)', color: 'var(--text-primary)' }}>
-            <option value="Africa/Abidjan">Africa/Abidjan (GMT+0)</option>
-            <option value="Africa/Lagos">Africa/Lagos (GMT+1)</option>
-            <option value="Africa/Douala">Africa/Douala (GMT+1)</option>
-            <option value="Europe/Paris">Europe/Paris (GMT+1/+2)</option>
-          </select>
-        </div>
-      </div>
+      {chargement ? (
+        <p style={{ color: 'var(--text-secondary)' }}>{t('chargement')}</p>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', maxWidth: '700px' }}>
+            <div className="form-group">
+              <label className="form-label">{t('ecole.nom')}</label>
+              <input className="form-input" value={nomEcole} onChange={(e) => setNomEcole(e.target.value)} placeholder="École Nangui Abrogoua" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t('ecole.code')}</label>
+              <input className="form-input" value={codeEcole} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+            </div>
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label className="form-label">{t('ecole.adresse')}</label>
+              <input className="form-input" value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="Cocody, Abidjan, Côte d'Ivoire" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t('ecole.telephone')}</label>
+              <input className="form-input" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="+225 07 00 00 00" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t('ecole.email')}</label>
+              <input className="form-input" type="email" value={emailEcole} onChange={(e) => setEmailEcole(e.target.value)} placeholder="contact@ecole.ci" />
+            </div>
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label className="form-label">{t('ecole.site_web')}</label>
+              <input className="form-input" value={siteWeb} onChange={(e) => setSiteWeb(e.target.value)} placeholder="https://www.ecole.ci" />
+            </div>
+          </div>
 
-      <h3 className="font-bold" style={{ marginTop: '2rem', marginBottom: '1rem', fontSize: '1rem' }}>{t('ecole.responsable')}</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', maxWidth: '700px' }}>
-        <div className="form-group">
-          <label className="form-label">{t('ecole.nom_directeur')}</label>
-          <input className="form-input" value={nomDirecteur} onChange={(e) => setNomDirecteur(e.target.value)} />
-        </div>
-        <div className="form-group">
-          <label className="form-label">{t('ecole.email')}</label>
-          <input className="form-input" type="email" value={emailDirecteur} onChange={(e) => setEmailDirecteur(e.target.value)} />
-        </div>
-      </div>
+          <h3 className="font-bold" style={{ marginTop: '2rem', marginBottom: '1rem', fontSize: '1rem' }}>{t('ecole.responsable')}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', maxWidth: '700px' }}>
+            <div className="form-group">
+              <label className="form-label">{t('ecole.nom_directeur')}</label>
+              <input className="form-input" value={nomDirecteur} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">{t('ecole.email_directeur')}</label>
+              <input className="form-input" type="email" value={emailDirecteur} readOnly style={{ opacity: 0.6, cursor: 'not-allowed' }} />
+            </div>
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>{t('ecole.responsable_note')}</p>
 
-      <div style={{ marginTop: '1.5rem' }}>
-        <button type="submit" disabled={enCours} className="btn btn-primary" style={{ gap: '0.5rem' }}>
-          <Save size={16} />
-          {enCours ? t('enregistrement') : t('enregistrer')}
-        </button>
-      </div>
+          <div style={{ marginTop: '1.5rem' }}>
+            <button type="submit" disabled={enCours} className="btn btn-primary" style={{ gap: '0.5rem' }}>
+              <Save size={16} />
+              {enCours ? t('enregistrement') : t('enregistrer')}
+            </button>
+          </div>
+        </>
+      )}
     </form>
   );
 }
@@ -233,6 +273,28 @@ function OngletBiotime({ afficherMessage }: { afficherMessage: (t: 'success' | '
         <Fingerprint size={22} style={{ color: 'var(--accent-primary)' }} />
         {t('bio.titre')}
       </h2>
+
+      {/* Sans élève enregistré, les 4 compteurs sont à 0 par construction —
+          on l'explique ici plutôt que de laisser croire à une panne, puisque
+          c'est justement ce qui a mené à cette confusion (badgeuses déjà
+          assignées à l'école, mais aucun élève encore ajouté). */}
+      {!chargement && enfants.length === 0 && (
+        <div style={{
+          display: 'flex', gap: '0.75rem', alignItems: 'flex-start', padding: '1rem',
+          borderRadius: 'var(--radius-md)', marginBottom: '1.5rem', maxWidth: '700px',
+          background: 'var(--warning-tint)', border: '1px solid var(--warning-border-tint)',
+        }}>
+          <Info size={20} style={{ color: 'var(--warning)', flexShrink: 0, marginTop: '0.15rem' }} />
+          <div>
+            <p style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{t('bio.aucun_eleve_titre')}</p>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>{t('bio.aucun_eleve_desc')}</p>
+            <Link to="/children" className="btn btn-primary" style={{ gap: '0.5rem', display: 'inline-flex' }}>
+              <UserPlus size={16} />
+              {t('bio.aucun_eleve_bouton')}
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Cartes statistiques */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
@@ -453,7 +515,6 @@ function OngletCompte({ afficherMessage }: { afficherMessage: (t: 'success' | 'e
   const [mdpActuel, setMdpActuel] = useState('');
   const [mdpNouveau, setMdpNouveau] = useState('');
   const [mdpConfirmation, setMdpConfirmation] = useState('');
-  const [voirMdp, setVoirMdp] = useState(false);
   const [abonnement, setAbonnement] = useState<any>(null);
 
   useEffect(() => {
@@ -554,20 +615,15 @@ function OngletCompte({ afficherMessage }: { afficherMessage: (t: 'success' | 'e
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxWidth: '400px' }}>
           <div className="form-group">
             <label className="form-label">{t('compte.mdp_actuel')}</label>
-            <div style={{ position: 'relative' }}>
-              <input className="form-input" type={voirMdp ? 'text' : 'password'} value={mdpActuel} onChange={(e) => setMdpActuel(e.target.value)} required />
-              <button type="button" onClick={() => setVoirMdp(!voirMdp)} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                {voirMdp ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
+            <ChampMotDePasse value={mdpActuel} onChange={(e) => setMdpActuel(e.target.value)} required />
           </div>
           <div className="form-group">
             <label className="form-label">{t('compte.mdp_nouveau')}</label>
-            <input className="form-input" type="password" value={mdpNouveau} onChange={(e) => setMdpNouveau(e.target.value)} required minLength={8} />
+            <ChampMotDePasse value={mdpNouveau} onChange={(e) => setMdpNouveau(e.target.value)} required minLength={8} />
           </div>
           <div className="form-group">
             <label className="form-label">{t('compte.mdp_confirmer')}</label>
-            <input className="form-input" type="password" value={mdpConfirmation} onChange={(e) => setMdpConfirmation(e.target.value)} required minLength={8} />
+            <ChampMotDePasse value={mdpConfirmation} onChange={(e) => setMdpConfirmation(e.target.value)} required minLength={8} />
           </div>
         </div>
         <button type="submit" disabled={enCours} className="btn btn-secondary" style={{ gap: '0.5rem', marginTop: '0.75rem' }}>

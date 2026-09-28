@@ -25,7 +25,7 @@ import {
   Activity,
   ChevronRight,
 } from 'lucide-react';
-import { useRealTimeTracking, type BusPosition, type PunchEvent } from '../hooks/useRealTimeTracking';
+import { useRealTimeTracking, estEnLigne, type BusPosition, type PunchEvent } from '../hooks/useRealTimeTracking';
 import AnimatedBusMarker from '../components/AnimatedBusMarker';
 import api from '../services/api';
 
@@ -217,6 +217,18 @@ export default function LiveTracking() {
   const [routeCoordinates, setRouteCoordinates] = useState<[number, number][]>([]);
   const abidjanCenter: [number, number] = [5.3364, -4.0267];
 
+  // Tic régulier : le statut en ligne/hors ligne d'un bus se déduit de la
+  // fraîcheur de sa dernière position (voir `estEnLigne`), qui se dégrade
+  // avec le temps sans qu'aucun nouvel événement n'arrive pour le signaler.
+  // Sans ce tic, l'écran ne se rafraîchit qu'au prochain message WebSocket
+  // et un bus resterait affiché « en ligne » longtemps après avoir cessé
+  // d'émettre.
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setMaintenant(Date.now()), 10_000);
+    return () => clearInterval(id);
+  }, []);
+
   // Charger le tracé d'itinéraire OSRM réel lorsque le bus/course est sélectionné
   useEffect(() => {
     if (!selectedBus) {
@@ -376,6 +388,10 @@ export default function LiveTracking() {
                 Bus vide / stationnaire
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#94a3b8', opacity: 0.4, display: 'inline-block' }} />
+                Hors ligne (position non mise à jour)
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#4f46e5', border: '2px solid white', boxShadow: '0 0 4px rgba(79,70,229,0.5)', display: 'inline-block' }} />
                 Arrêt
               </span>
@@ -445,11 +461,12 @@ export default function LiveTracking() {
                 const detail = Object.values(busDetails).find(
                   (c: any) => c.courseId === bus.courseId || c.id === bus.deviceId,
                 ) as any;
+                const busEnLigne = estEnLigne(bus, maintenant);
                 return (
                   // Indexé sur le véhicule : `courseId` est vide quand le bus n'a
                   // pas de course active, et plusieurs bus le partageaient alors.
                   <React.Fragment key={bus.deviceId || bus.courseId}>
-                    <AnimatedBusMarker bus={bus} />
+                    <AnimatedBusMarker bus={bus} enLigne={busEnLigne} />
 
                     {/* Infobulle permanente pour le bus sélectionné */}
                     <Marker
@@ -476,7 +493,7 @@ export default function LiveTracking() {
                             borderBottom: '1px solid #e2e8f0',
                           }}>
                             <span style={{ fontSize: '1.5rem' }}>🚌</span>
-                            <div>
+                            <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>
                                 {bus.plateNumber || detail?.plateNumber || 'Bus inconnu'}
                               </div>
@@ -484,6 +501,16 @@ export default function LiveTracking() {
                                 {bus.courseName || detail?.name || `Course ${bus.courseId?.slice(0, 8)}…`}
                               </div>
                             </div>
+                            <span style={{
+                              display: 'flex', alignItems: 'center', gap: '0.25rem',
+                              padding: '0.15rem 0.5rem', borderRadius: '1rem',
+                              fontSize: '0.68rem', fontWeight: 700,
+                              color: busEnLigne ? '#10b981' : '#64748b',
+                              background: busEnLigne ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.12)',
+                            }}>
+                              {busEnLigne ? <Wifi size={11} /> : <WifiOff size={11} />}
+                              {busEnLigne ? 'En ligne' : 'Hors ligne'}
+                            </span>
                           </div>
 
                           {/* Infos chauffeur */}
@@ -523,14 +550,17 @@ export default function LiveTracking() {
                             <div style={{
                               marginTop: '0.5rem',
                               padding: '0.4rem 0.6rem',
-                              background: '#f8fafc',
+                              background: busEnLigne ? '#f8fafc' : 'rgba(100,116,139,0.1)',
                               borderRadius: '0.4rem',
                               fontSize: '0.72rem',
-                              color: '#64748b',
+                              color: busEnLigne ? '#64748b' : '#475569',
                               display: 'flex', alignItems: 'center', gap: '0.3rem',
+                              fontWeight: busEnLigne ? 400 : 600,
                             }}>
                               <Clock size={11} />
-                              Mis à jour : {new Date(bus.timestamp).toLocaleTimeString('fr-FR')}
+                              {busEnLigne
+                                ? `Mis à jour : ${new Date(bus.timestamp).toLocaleTimeString('fr-FR')}`
+                                : `Hors ligne depuis ${new Date(bus.timestamp).toLocaleTimeString('fr-FR')} — aucune nouvelle position`}
                             </div>
                           </div>
                         </div>
@@ -602,6 +632,7 @@ export default function LiveTracking() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                 {busArray.map((bus) => {
                   const isSelected = selectedBus === bus.courseId;
+                  const busEnLigne = estEnLigne(bus, maintenant);
                   return (
                     <div
                       key={bus.deviceId || bus.courseId}
@@ -615,14 +646,17 @@ export default function LiveTracking() {
                         fontSize: '0.8rem',
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
+                        opacity: busEnLigne ? 1 : 0.6,
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{
-                          width: 8, height: 8, borderRadius: '50%', background: '#10b981',
-                        boxShadow: '0 0 6px #10b981', display: 'inline-block',
-                        animation: 'statusPulse 2s ease-in-out infinite',
-                      }} />
+                          width: 8, height: 8, borderRadius: '50%',
+                          background: busEnLigne ? '#10b981' : '#94a3b8',
+                          boxShadow: busEnLigne ? '0 0 6px #10b981' : 'none',
+                          display: 'inline-block',
+                          animation: busEnLigne ? 'statusPulse 2s ease-in-out infinite' : 'none',
+                        }} title={busEnLigne ? 'En ligne' : 'Hors ligne'} />
                       <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                         {bus.plateNumber || `Bus ${bus.courseId?.slice(0, 6)}`}
                       </span>
