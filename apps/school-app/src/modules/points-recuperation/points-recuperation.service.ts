@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { TenantService } from '../tenant/tenant.service';
-import { PointRecuperation } from '@app/database';
+import { PointRecuperation, Trajet, TrajetSens } from '@app/database';
 import { CreatePointDto } from './dto/create-point.dto';
 
 @Injectable()
@@ -15,13 +15,32 @@ export class PointsRecuperationService {
     return ds.getRepository(PointRecuperation);
   }
 
-  /** Points d'un trajet, ou tous les points de l'école si `trajetId` est omis (paramètre optionnel). */
-  async findByTrajet(trajetId?: string): Promise<PointRecuperation[]> {
+  /**
+   * Points d'un trajet, ou tous les points de l'école si `trajetId` est omis
+   * (paramètre optionnel).
+   *
+   * `pourAffectation` : cet endpoint est partagé par 3 usages très
+   * différents (édition du trajet dans `TrajetEditor.tsx`, carte live dans
+   * `LiveTracking.tsx`, choix du point à affecter dans `AffectationEleves.tsx`)
+   * — filtrer sans distinction casserait les deux premiers. Seul le 3e passe
+   * ce drapeau : le point d'arrivée n'y est un point de récupération que si
+   * le trajet est `mixte` (le point reste par ailleurs visible/éditable
+   * normalement partout ailleurs).
+   */
+  async findByTrajet(trajetId?: string, pourAffectation = false): Promise<PointRecuperation[]> {
     const repo = await this.getRepo();
-    return repo.find({
+    const points = await repo.find({
       where: trajetId ? { trajetId } : {},
       order: { ordrePassage: 'ASC' },
     });
+
+    if (!pourAffectation || !trajetId) return points;
+
+    const ds = await this.tenantService.getDataSource();
+    const trajet = await ds.getRepository(Trajet).findOne({ where: { id: trajetId } });
+    if (trajet?.sens === TrajetSens.MIXTE) return points;
+
+    return points.filter((p) => p.type !== 'arrivee');
   }
 
   async findById(id: string): Promise<PointRecuperation> {

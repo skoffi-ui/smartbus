@@ -3,7 +3,7 @@ import {
   Param, Body, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@app/common';
+import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -11,13 +11,16 @@ import { CourseStatus } from '@app/database';
 
 @ApiTags('Courses')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, FeaturesGuard)
+@RequireFeature('courses')
 @Controller('courses')
 export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   @Get()
   @ApiOperation({ summary: 'Liste toutes les courses planifiées' })
+  // Aussi utilisé par AffectationEleves.tsx (choisir la course à affecter).
+  @RequireFeature('courses', 'affectation')
   findAll() {
     return this.coursesService.findAll();
   }
@@ -30,6 +33,9 @@ export class CoursesController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Récupère une course par son UUID' })
+  // Aussi utilisé par AffectationEleves.tsx, via getPointsByCourse/createPointForCourse
+  // (résolution du trajetId d'une course avant de lister/créer ses points).
+  @RequireFeature('courses', 'affectation')
   findById(@Param('id', ParseUUIDPipe) id: string) {
     return this.coursesService.findById(id);
   }

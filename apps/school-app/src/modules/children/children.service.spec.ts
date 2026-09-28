@@ -45,6 +45,8 @@ describe('ChildrenService', () => {
       create: jest.fn(),
       save: jest.fn(),
       remove: jest.fn(),
+      // Appelé par `update()` pour marquer la synchro BioTime PENDING avant le push.
+      update: jest.fn(),
     } as any;
 
     mockParentRepo = {

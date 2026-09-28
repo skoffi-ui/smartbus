@@ -3,13 +3,14 @@ import {
   Param, Body, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus, Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@app/common';
+import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
 import { AffectationsService } from './affectations.service';
 import { CreateAffectationDto } from './dto/create-affectation.dto';
 
 @ApiTags('Affectations')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, FeaturesGuard)
+@RequireFeature('affectation')
 @Controller('affectations')
 export class AffectationsController {
   constructor(private readonly affectationsService: AffectationsService) {}

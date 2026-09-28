@@ -9,28 +9,54 @@ export class AlertesCritiquesService {
   constructor(private readonly tenantService: TenantService) {}
 
   /**
-   * Retourne les N dernières anomalies critiques non résolues.
+   * Retourne les N dernières anomalies critiques.
+   *
+   * `statut` restait figé sur `resolved = false` : les onglets « Résolues »/
+   * « Toutes » de CentreAlertes.tsx n'avaient donc RIEN à afficher venant de
+   * la base — ils ne montraient que ce qui avait été résolu pendant la
+   * session en cours (état React local), perdu au premier rechargement.
    */
-  async getUnresolved(tenantId: string, limit = 50): Promise<AlerteCritique[]> {
+  async getUnresolved(
+    tenantId: string,
+    limit = 50,
+    statut: 'unresolved' | 'resolved' | 'all' = 'unresolved',
+  ): Promise<AlerteCritique[]> {
     try {
       const ds = await this.tenantService.getDataSource(tenantId);
+      const clauseResolu =
+        statut === 'unresolved' ? 'AND ac.resolved = false' : statut === 'resolved' ? 'AND ac.resolved = true' : '';
+      // `driverId` de la course détectée, pour le bouton "Appeler le
+      // chauffeur" de CentreAlertes.tsx — jusqu'ici il tentait de faire
+      // correspondre `detectedCarPlate` à un champ `plateNumber` qui
+      // n'existe pas sur `Driver` (aucune relation Car→Driver n'existe dans
+      // ce schéma), donc ce panneau ne s'affichait jamais. Le vrai lien
+      // existant est Course→Driver (`courses.driver_id`, posé et lu
+      // réellement par Courses.tsx — `course_executions.driver_id` existe
+      // dans le schéma mais n'est écrit nulle part, donc inexploitable).
+      // Le nom/téléphone se résolvent côté client via `GET /drivers` (déjà
+      // chargé par CentreAlertes.tsx) : pas besoin de les dupliquer ici.
       return ds.query(`
         SELECT
-          id, type, severity, message,
-          child_id        AS "childId",
-          child_name      AS "childName",
-          child_emp_code  AS "childEmpCode",
-          detected_car_plate AS "detectedCarPlate",
-          terminal_sn     AS "terminalSn",
-          detected_course_id AS "detectedCourseId",
-          expected_course_id AS "expectedCourseId",
-          expected_stop_name AS "expectedStopName",
-          punch_time      AS "punchTime",
-          resolved,
-          created_at      AS "createdAt"
-        FROM alertes_critiques
-        WHERE resolved = false AND deleted_at IS NULL
-        ORDER BY created_at DESC
+          ac.id, ac.type, ac.severity, ac.message,
+          ac.child_id        AS "childId",
+          ac.child_name      AS "childName",
+          ac.child_emp_code  AS "childEmpCode",
+          ac.detected_car_plate AS "detectedCarPlate",
+          ac.terminal_sn     AS "terminalSn",
+          ac.detected_course_id AS "detectedCourseId",
+          ac.expected_course_id AS "expectedCourseId",
+          ac.expected_stop_name AS "expectedStopName",
+          ac.punch_time      AS "punchTime",
+          ac.resolved,
+          ac.resolved_at     AS "resolvedAt",
+          ac.resolved_by     AS "resolvedBy",
+          ac.resolution_note AS "resolutionNote",
+          ac.created_at      AS "createdAt",
+          co.driver_id       AS "driverId"
+        FROM alertes_critiques ac
+        LEFT JOIN courses co ON co.id = ac.detected_course_id
+        WHERE ac.deleted_at IS NULL ${clauseResolu}
+        ORDER BY ac.created_at DESC
         LIMIT $1
       `, [limit]);
     } catch (err: any) {

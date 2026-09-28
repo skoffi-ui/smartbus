@@ -3,13 +3,15 @@ import {
   Param, Body, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus, Query,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@app/common';
+import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
 import { PointsRecuperationService } from './points-recuperation.service';
 import { CreatePointDto } from './dto/create-point.dto';
 
 @ApiTags('Points de Récupération')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, FeaturesGuard)
+// Gérés depuis l'éditeur de trajet côté school-web : même fonctionnalité que "trajets".
+@RequireFeature('trajets')
 @Controller('points-recuperation')
 export class PointsRecuperationController {
   constructor(private readonly pointsService: PointsRecuperationService) {}
@@ -17,8 +19,17 @@ export class PointsRecuperationController {
   @Get()
   @ApiOperation({ summary: 'Liste les points de récupération, filtrables par trajet' })
   @ApiQuery({ name: 'trajetId', required: false, description: 'Filtrer par UUID du trajet' })
-  findByTrajet(@Query('trajetId') trajetId?: string) {
-    return this.pointsService.findByTrajet(trajetId);
+  @ApiQuery({
+    name: 'pourAffectation',
+    required: false,
+    description:
+      "Si 'true' : exclut le point d'arrivée quand le trajet n'est pas mixte (n'est alors pas un point de récupération valide).",
+  })
+  // Aussi utilisé par AffectationEleves.tsx (lister les arrêts d'une course à affecter)
+  // et LiveTracking.tsx (afficher les arrêts sur la carte en direct).
+  @RequireFeature('trajets', 'affectation', 'live')
+  findByTrajet(@Query('trajetId') trajetId?: string, @Query('pourAffectation') pourAffectation?: string) {
+    return this.pointsService.findByTrajet(trajetId, pourAffectation === 'true');
   }
 
   @Get(':id')

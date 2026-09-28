@@ -2,13 +2,14 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { ParentsService } from './parents.service';
 import { CreateParentDto, UpdateParentDto } from './dto/parents.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
+import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
 import { UserRole } from '@app/database';
 
 @ApiTags('Parents')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FeaturesGuard)
 @Roles(UserRole.SCHOOL_ADMIN)
+@RequireFeature('parents')
 @Controller('parents')
 export class ParentsController {
   constructor(private readonly parentsService: ParentsService) {}
@@ -21,6 +22,8 @@ export class ParentsController {
 
   @Get()
   @ApiOperation({ summary: 'Lister tous les parents' })
+  // Aussi utilisé par Children.tsx (associer un élève à son/ses parent(s)).
+  @RequireFeature('parents', 'children')
   findAll() {
     return this.parentsService.findAll();
   }
@@ -35,6 +38,12 @@ export class ParentsController {
   @ApiOperation({ summary: 'Mettre à jour un parent' })
   update(@Param('id') id: string, @Body() updateParentDto: UpdateParentDto) {
     return this.parentsService.update(id, updateParentDto);
+  }
+
+  @Post(':id/regenerate-pin')
+  @ApiOperation({ summary: "Régénère le code PIN d'accès à l'app parent" })
+  regeneratePin(@Param('id') id: string) {
+    return this.parentsService.regeneratePin(id);
   }
 
   @Delete(':id')

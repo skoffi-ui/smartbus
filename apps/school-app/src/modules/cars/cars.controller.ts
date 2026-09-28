@@ -2,13 +2,14 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CarsService } from './cars.service';
 import { CreateCarDto, UpdateCarDto } from './dto/cars.dto';
-import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
+import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
 import { UserRole } from '@app/database';
 
 @ApiTags('cars')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FeaturesGuard)
 @Roles(UserRole.SCHOOL_ADMIN)
+@RequireFeature('cars')
 @Controller('cars')
 export class CarsController {
   constructor(private readonly carsService: CarsService) {}
@@ -19,12 +20,6 @@ export class CarsController {
     return this.carsService.create(createCarDto);
   }
 
-  @Post('sync-libellule')
-  @ApiOperation({ summary: 'Synchroniser la liste des véhicules depuis l\'API Libellule' })
-  syncFromLibellule() {
-    return this.carsService.syncFromLibellule();
-  }
-
   @Get('allocated-devices')
   @ApiOperation({ summary: 'Lister le matériel SaaS alloué à cette école' })
   getAllocatedDevices() {
@@ -33,6 +28,9 @@ export class CarsController {
 
   @Get()
   @ApiOperation({ summary: 'Lister tous les véhicules de l\'école' })
+  // Aussi utilisé par Courses.tsx (choix du véhicule d'une course) et
+  // LiveTracking.tsx (afficher les détails du bus sur la carte en direct).
+  @RequireFeature('cars', 'courses', 'live')
   findAll() {
     return this.carsService.findAll();
   }

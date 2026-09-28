@@ -27,13 +27,38 @@ export class ParentsService {
     return parent;
   }
 
+  /** 4 chiffres, jamais '0000' (évident/faible) — voir CreateParentDto.pinCode. */
+  private genererPinAleatoire(): string {
+    let pin: string;
+    do {
+      pin = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+    } while (pin === '0000');
+    return pin;
+  }
+
   async create(createParentDto: CreateParentDto): Promise<Parent> {
     const repo = await this.getRepo();
     const existing = await repo.findOne({ where: { phone: createParentDto.phone } });
     if (existing) {
       throw new ConflictException(`Un parent avec ce numéro de téléphone existe déjà.`);
     }
-    const parent = repo.create(createParentDto);
+    const parent = repo.create({
+      ...createParentDto,
+      pinCode: createParentDto.pinCode || this.genererPinAleatoire(),
+    });
+    return repo.save(parent);
+  }
+
+  /**
+   * Régénère le code PIN d'un parent (oublié, ou à révoquer après l'avoir
+   * communiqué par un canal jugé compromis). Retourne le parent avec le
+   * nouveau PIN en clair — jamais stocké ailleurs que dans `parents.pin_code`,
+   * jamais journalisé.
+   */
+  async regeneratePin(id: string): Promise<Parent> {
+    const repo = await this.getRepo();
+    const parent = await this.findOne(id);
+    parent.pinCode = this.genererPinAleatoire();
     return repo.save(parent);
   }
 

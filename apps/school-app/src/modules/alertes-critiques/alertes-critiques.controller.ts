@@ -11,31 +11,37 @@ import {
   DefaultValuePipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
+import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
 import { UserRole } from '@app/database';
 import { AlertesCritiquesService } from './alertes-critiques.service';
 
 @ApiTags('Alertes Critiques')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FeaturesGuard)
+// Consommé par CentreAlertes.tsx (/centre-alertes), pas par AlertesTransport.tsx (/alertes, voir montees.controller.ts).
+@RequireFeature('centre-alertes')
 @Controller('alertes-critiques')
 export class AlertesCritiquesController {
   constructor(private readonly alertesCritiquesService: AlertesCritiquesService) {}
 
   /**
    * GET /api/v1/alertes-critiques
-   * Retourne les anomalies non résolues pour le tableau de bord de l'école.
+   * Retourne les anomalies pour le tableau de bord de l'école. `statut`
+   * (unresolved par défaut, resolved, ou all) permet aux onglets « Résolues »/
+   * « Toutes » de CentreAlertes.tsx de lire de vraies données en base plutôt
+   * que le seul historique accumulé côté client depuis l'ouverture de la page.
    */
   @Get()
   @Roles(UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: 'Lister les anomalies de pointage non résolues' })
+  @ApiOperation({ summary: 'Lister les anomalies de pointage' })
   @ApiResponse({ status: 200, description: 'Liste des anomalies critiques' })
   async getUnresolved(
     @Request() req: any,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('statut') statut?: 'unresolved' | 'resolved' | 'all',
   ) {
     const tenantId = req.user?.organisationId;
-    return this.alertesCritiquesService.getUnresolved(tenantId, limit);
+    return this.alertesCritiquesService.getUnresolved(tenantId, limit, statut ?? 'unresolved');
   }
 
   /**

@@ -3,20 +3,23 @@ import {
   Param, Body, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@app/common';
+import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
 import { TrajetsService } from './trajets.service';
 import { CreateTrajetDto } from './dto/create-trajet.dto';
 import { UpdateTrajetDto } from './dto/update-trajet.dto';
 
 @ApiTags('Trajets')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, FeaturesGuard)
+@RequireFeature('trajets')
 @Controller('trajets')
 export class TrajetsController {
   constructor(private readonly trajetsService: TrajetsService) {}
 
   @Get()
   @ApiOperation({ summary: 'Liste tous les trajets géographiques' })
+  // Aussi utilisé par Courses.tsx (associer un trajet à une course).
+  @RequireFeature('trajets', 'courses')
   findAll() {
     return this.trajetsService.findAll();
   }

@@ -2,13 +2,14 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DriversService } from './drivers.service';
 import { CreateDriverDto, UpdateDriverDto } from './dto/drivers.dto';
-import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
+import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
 import { UserRole } from '@app/database';
 
 @ApiTags('drivers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FeaturesGuard)
 @Roles(UserRole.SCHOOL_ADMIN)
+@RequireFeature('drivers')
 @Controller('drivers')
 export class DriversController {
   constructor(private readonly driversService: DriversService) {}
@@ -21,6 +22,9 @@ export class DriversController {
 
   @Get()
   @ApiOperation({ summary: 'Lister tous les chauffeurs de l\'école' })
+  // Aussi utilisé par Courses.tsx (affectation d'un chauffeur à une course)
+  // et CentreAlertes.tsx (afficher le nom du chauffeur sur chaque alerte).
+  @RequireFeature('drivers', 'courses', 'centre-alertes')
   findAll() {
     return this.driversService.findAll();
   }

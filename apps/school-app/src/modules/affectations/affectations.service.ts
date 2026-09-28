@@ -43,7 +43,13 @@ export class AffectationsService {
   async create(dto: CreateAffectationDto): Promise<Affectation> {
     const repo = await this.getRepo();
 
-    // Vérifier si l'enfant est déjà affecté à un point
+    // Vérification applicative — utile pour un message clair immédiat, mais
+    // une recherche-puis-écriture n'est jamais atomique : deux requêtes
+    // concurrentes pour le même enfant peuvent toutes les deux la franchir
+    // avant qu'aucune n'ait validé. La contrainte UNIQUE en base
+    // (`UQ_affectations_child_id`, migration `UniqueChildIdOnAffectations`)
+    // est le vrai garde-fou ; le `catch` ci-dessous en traduit juste le
+    // rejet en message clair plutôt qu'une erreur Postgres brute.
     const existing = await this.findByChild(dto.childId);
     if (existing) {
       throw new ConflictException(
@@ -52,9 +58,21 @@ export class AffectationsService {
     }
 
     const affectation = repo.create(dto as Partial<Affectation>);
-    const saved = await repo.save(affectation);
-    this.logger.log(`Affectation créée : enfant ${dto.childId} → point ${dto.pointId}`);
-    return saved as Affectation;
+    try {
+      const saved = await repo.save(affectation);
+      this.logger.log(`Affectation créée : enfant ${dto.childId} → point ${dto.pointId}`);
+      return saved as Affectation;
+    } catch (err: any) {
+      if (err.code === '23505') {
+        // Violation de la contrainte unique : la vérification ci-dessus a
+        // été franchie par une requête concurrente entre-temps.
+        const concurrent = await this.findByChild(dto.childId);
+        throw new ConflictException(
+          `L'enfant ${dto.childId} est déjà affecté au point ${concurrent?.pointId ?? '?'}. Veuillez d'abord supprimer l'affectation existante.`,
+        );
+      }
+      throw err;
+    }
   }
 
   async delete(id: string): Promise<void> {

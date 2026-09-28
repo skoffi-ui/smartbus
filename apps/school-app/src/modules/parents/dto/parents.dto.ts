@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, Matches } from 'class-validator';
 
 export class CreateParentDto {
   @IsString()
@@ -16,6 +16,19 @@ export class CreateParentDto {
   @IsString()
   @IsOptional()
   email?: string;
+
+  /**
+   * Code d'accès à l'app parent (4 chiffres). Optionnel : si omis,
+   * `ParentsService.create` en génère un aléatoirement — sans ce champ nulle
+   * part (ni ici, ni dans le formulaire de Parents.tsx), tout parent créé
+   * depuis l'interface école avait `pin_code` NULL en base et ne pouvait
+   * jamais se connecter à l'app (`ParentPortalService.login` compare
+   * `parent.pinCode === pinCode`, toujours faux contre `NULL`).
+   */
+  @IsString()
+  @IsOptional()
+  @Matches(/^\d{4}$/, { message: 'Le code PIN doit être composé de 4 chiffres.' })
+  pinCode?: string;
 }
 
 export class UpdateParentDto {
@@ -38,4 +51,9 @@ export class UpdateParentDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @IsString()
+  @IsOptional()
+  @Matches(/^\d{4}$/, { message: 'Le code PIN doit être composé de 4 chiffres.' })
+  pinCode?: string;
 }

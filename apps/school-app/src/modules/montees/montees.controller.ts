@@ -1,8 +1,8 @@
 import {
-  Controller, Get, Post, Param, Body, UseGuards, ParseUUIDPipe,
+  Controller, Get, Param, UseGuards, ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '@app/common';
+import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
 import { MonteesService } from './montees.service';
 
 @ApiTags('Montées & Validation')
@@ -12,7 +12,8 @@ export class MonteesController {
 
   @Get()
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeaturesGuard)
+  @RequireFeature('suivi')
   @ApiOperation({ summary: 'Historique des 200 dernières montées/descentes' })
   findAll() {
     return this.monteesService.findAll();
@@ -20,7 +21,8 @@ export class MonteesController {
 
   @Get('enfant/:childId')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeaturesGuard)
+  @RequireFeature('suivi')
   @ApiOperation({ summary: 'Historique de transport d\'un enfant spécifique' })
   findByChild(@Param('childId', ParseUUIDPipe) childId: string) {
     return this.monteesService.findByChild(childId);
@@ -28,33 +30,14 @@ export class MonteesController {
 
   @Get('alertes')
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, FeaturesGuard)
+  @RequireFeature('alertes')
   @ApiOperation({ summary: 'Liste les 100 dernières alertes de transport' })
   findAlertes() {
     return this.monteesService.findAlertes();
   }
 
-  /**
-   * Endpoint de validation biométrique.
-   * Appelé par la badgeuse ou le service BioTime.
-   * NE REQUIERT PAS d'authentification JWT pour permettre les appels matériels.
-   * Répond instantanément et délègue le traitement à BullMQ.
-   */
-  @Post('validation')
-  @ApiOperation({
-    summary: 'Validation biométrique (point d\'entrée BioTime / Badgeuse)',
-    description: 'Met en file un job asynchrone BullMQ. Répond immédiatement sans attendre le calcul GPS.',
-  })
-  async enqueueValidation(
-    @Body() payload: {
-      empCode: string;
-      terminalSn: string;
-      gpsLat?: number;
-      gpsLng?: number;
-      punchTime: string;
-      tenantId?: string;
-    },
-  ) {
-    return this.monteesService.enqueueValidation(payload);
-  }
+  // `POST /montees/validation` (ingestion biométrique via BullMQ) a été
+  // retiré : bloqué à la gateway (BLOCKED_ROUTES) et jamais appelé en
+  // interne — voir la note en tête de `montees.service.ts`.
 }

@@ -2,13 +2,14 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpExcep
 import { ChildrenService } from './children.service';
 import { CreateChildDto, UpdateChildDto } from './dto/children.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
+import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
 import { UserRole } from '@app/database';
 
 @ApiTags('Children')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, FeaturesGuard)
 @Roles(UserRole.SCHOOL_ADMIN)
+@RequireFeature('children')
 @Controller('children')
 export class ChildrenController {
   constructor(private readonly childrenService: ChildrenService) {}
@@ -32,6 +33,10 @@ export class ChildrenController {
 
   @Get()
   @ApiOperation({ summary: 'Lister tous les élèves' })
+  // Aussi utilisé par AffectationEleves.tsx (choisir l'élève à affecter à un arrêt)
+  // et par Settings.tsx (onglets BioTime et Classes : statut de synchro, répartition
+  // par classe), qui vivent sous la fonctionnalité `settings`.
+  @RequireFeature('children', 'affectation', 'settings')
   findAll() {
     return this.childrenService.findAll();
   }
@@ -56,12 +61,16 @@ export class ChildrenController {
 
   @Post('sync-classes')
   @ApiOperation({ summary: 'Synchroniser les classes locales vers les départements BioTime' })
+  // Déclenché depuis Settings.tsx (onglet BioTime), sous la fonctionnalité `settings`.
+  @RequireFeature('children', 'settings')
   async syncClasses(@Req() req: any) {
     return this.childrenService.syncClassesToBiotime(this.jeton(req));
   }
 
   @Post('retry-sync')
   @ApiOperation({ summary: 'Resynchroniser vers BioTime les élèves en échec ou en attente' })
+  // Déclenché depuis Settings.tsx (onglet BioTime), sous la fonctionnalité `settings`.
+  @RequireFeature('children', 'settings')
   async retrySync(@Req() req: any) {
     return this.childrenService.retryFailedSync(this.jeton(req));
   }

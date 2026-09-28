@@ -1,23 +1,12 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import { MonteesController } from './montees.controller';
-import { MonteesService, VALIDATION_QUEUE } from './montees.service';
-import { ValidationProcessor } from './validation.processor';
+import { MonteesService } from './montees.service';
 import { TenantModule } from '../tenant/tenant.module';
-import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [
-    TenantModule,
-    NotificationsModule,
-    // Enregistrement de la file BullMQ dédiée à la validation
-    BullModule.registerQueue({ name: VALIDATION_QUEUE }),
-  ],
+  imports: [TenantModule],
   controllers: [MonteesController],
-  providers: [
-    MonteesService,
-    ValidationProcessor, // Worker qui consomme la file
-  ],
+  providers: [MonteesService],
   exports: [MonteesService],
 })
 export class MonteesModule {}
