@@ -22,22 +22,35 @@ toute valeur par défaut, et un service sans elles ne démarre pas :
 
 ## 1. Démarrer les services
 
-Quatre fenêtres de terminal, dans cet ordre. Attendez que chacune affiche sa
+Cinq fenêtres de terminal, dans cet ordre. Attendez que chacune affiche sa
 ligne de démarrage avant de lancer la suivante.
 
 ```bash
-# Fenêtre 1 — Super App (port 3000)
+# Fenêtre 1 — Serveur BioTime FICTIF (port 4010) — voir encadré ci-dessous
+npm run demo:biotime-serveur
+
+# Fenêtre 2 — Super App (port 3000)
 npm run build super-app && node dist/apps/super-app/main.js
 
-# Fenêtre 2 — App École (port 3001)
+# Fenêtre 3 — App École (port 3001)
 npm run build school-app && node dist/apps/school-app/main.js
 
-# Fenêtre 3 — API Gateway (port 3002) — la seule porte d'entrée
+# Fenêtre 4 — API Gateway (port 3002) — la seule porte d'entrée
 npm run build api-gateway && node dist/apps/api-gateway/main.js
 
-# Fenêtre 4 — Interface École (port 5174)
+# Fenêtre 5 — Interface École (port 5174)
 cd apps/school-web && npx vite
 ```
+
+> **Serveur BioTime central : FICTIF, temporairement.** Le vrai serveur est
+> HS. `npm run demo:biotime-serveur` en fait tourner un faux à la place —
+> même API (créer un département, un élève, lister les badgeuses...), aucune
+> vraie donnée. `.env` (`BIOTIME_CENTRAL_URL=http://localhost:4010`) pointe
+> déjà vers lui ; c'est pour ça qu'il doit démarrer **avant** la super-app.
+> Sans lui, la création d'une école ou d'un élève échouera avec une erreur
+> BioTime. Une fois le vrai serveur rétabli : remplacez ces deux lignes de
+> `.env` par ses vraies coordonnées, redémarrez la super-app, et vous pouvez
+> arrêter cette fenêtre — rien d'autre à changer dans le code.
 
 Les ports 3000 et 3001 n'écoutent que sur `127.0.0.1` : c'est voulu, la gateway
 est le seul point d'entrée réseau. Tout passe par le port 3002.
@@ -55,11 +68,26 @@ curl http://localhost:3002/health
 ```bash
 npm run demo:peupler    # 3 trajets, 17 points, 3 courses, 12 élèves, 7 jours d'historique
 npm run demo:balises    # rattache les balises GPS des véhicules à l'école
+npm run demo:biotime    # département, badgeuses et statut de synchro BioTime — fictifs
 ```
 
-Les deux scripts sont idempotents : les relancer n'écrase rien d'existant.
+Les trois scripts sont idempotents : les relancer n'écrase rien d'existant.
 Ils ciblent la première école de la base centrale — pour en viser une autre,
 passez son code : `DEMO_ORG_CODE=NNG-3146 npm run demo:peupler`.
+
+`demo:biotime` n'appelle jamais de serveur BioTime (fictif ou réel) — il
+écrit directement en base un département, 3 badgeuses et un statut de
+synchro pour les élèves déjà créés par `demo:peupler`, pour peupler d'un
+coup les écrans (Réglages École, Gestion BioTime centralisée) sans repasser
+par chaque élève un par un. Tout ce qu'il crée est visiblement préfixé
+`[DÉMO]`/`DEMO-`.
+
+Pour toute action faite *pendant* la démo (créer une école, ajouter un
+élève...), c'est le serveur fictif de la fenêtre 1 qui répond réellement,
+en HTTP, comme le ferait le vrai serveur — à dire clairement si la question
+vient : les identifiants BioTime qui s'affichent alors sont fictifs, mais le
+mécanisme de bout en bout (l'appel réseau, la création du département/élève,
+le retour du statut) est authentique.
 
 ## 3. Faire rouler les bus
 
@@ -115,7 +143,11 @@ super-app a redémarré. Les positions vivent en mémoire du processus : un
 redémarrage les efface. Relancez `npm run demo:gps`.
 
 **Erreurs 502 dans la console du navigateur** — la gateway ne joint pas un
-service. Vérifiez que les fenêtres 1 et 2 tournent toujours.
+service. Vérifiez que les fenêtres 2 et 3 tournent toujours.
+
+**Création d'école ou d'élève qui échoue avec une erreur BioTime** — le
+serveur fictif (fenêtre 1) n'est pas lancé, ou a démarré après la super-app.
+Lancez/relancez-le, puis redémarrez la super-app.
 
 **Erreurs 401 partout** — jeton expiré ou secret changé. Déconnectez-vous et
 reconnectez-vous.
@@ -135,3 +167,8 @@ valeur de repli sûre pour un secret de signature.
   les leurs.
 - L'ingestion matérielle (balises, badgeuses) n'est pas encore authentifiée
   appareil par appareil.
+- Le **vrai** serveur BioTime central n'est pas fonctionnel. Un serveur
+  fictif tourne à la place (`npm run demo:biotime-serveur`, voir plus haut) :
+  les identifiants (département, élève) qu'il renvoie sont inventés, mais
+  chaque appel réseau est réel. À remplacer par les vraies coordonnées dans
+  `.env` dès que le serveur réel est rétabli — aucun autre changement requis.

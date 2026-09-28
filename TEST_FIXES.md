@@ -15,6 +15,7 @@
 **Problème** : Utilisation de valeurs incorrectes `PLANIFIEE` et `TERMINEE`
 
 **Cause** : L'enum `CourseStatus` ne contient que :
+
 ```typescript
 export enum CourseStatus {
   ACTIVE = 'active',
@@ -23,6 +24,7 @@ export enum CourseStatus {
 ```
 
 **Correction** :
+
 - Remplacé `CourseStatus.PLANIFIEE` par `CourseStatus.ACTIVE`
 - Remplacé `CourseStatus.TERMINEE` par `CourseStatus.INACTIVE`
 
@@ -35,12 +37,14 @@ export enum CourseStatus {
 **Problème** : Mismatch de types pour `heureDepart`, `heureArrivee`
 
 **Cause** : L'entité `Course` utilise le type `string` (PostgreSQL `time`), pas `Date` :
+
 ```typescript
 @Column({ name: 'heure_depart', type: 'time', nullable: true })
 heureDepart: string; // '07:00' pas new Date()
 ```
 
 **Correction** :
+
 ```typescript
 // Avant
 heureDepart: new Date('2026-09-19T07:00:00'),
@@ -59,7 +63,8 @@ heureArrivee: '08:30',
 
 **Problème** : Le DTO `CreateCourseDto` requiert le champ `type`
 
-**Cause** : 
+**Cause** :
+
 ```typescript
 export class CreateCourseDto {
   @IsEnum(CourseType)
@@ -68,6 +73,7 @@ export class CreateCourseDto {
 ```
 
 **Correction** :
+
 ```typescript
 const createDto = {
   nom: 'Nouvelle course',
@@ -78,7 +84,8 @@ const createDto = {
 };
 ```
 
-**Fichiers** : 
+**Fichiers** :
+
 - [courses.service.spec.ts](apps/school-app/src/modules/courses/courses.service.spec.ts)
 - Import ajouté : `CourseType`
 
@@ -89,12 +96,14 @@ const createDto = {
 **Problème** : `dateOfBirth` doit être un `Date`, pas un `string`
 
 **Cause** : L'entité `Child` utilise :
+
 ```typescript
 @Column({ name: 'date_of_birth', type: 'date' })
 dateOfBirth: Date; // pas string
 ```
 
 **Correction** :
+
 ```typescript
 // Avant
 dateOfBirth: '2018-05-15',
@@ -112,6 +121,7 @@ dateOfBirth: new Date('2018-05-15'),
 **Problème** : L'entité `Parent` utilise `phone`, pas `phoneNumber`
 
 **Cause** :
+
 ```typescript
 @Entity('parents')
 export class Parent {
@@ -121,6 +131,7 @@ export class Parent {
 ```
 
 **Correction** :
+
 ```typescript
 const mockParent: Partial<Parent> = {
   id: '456...',
@@ -139,12 +150,14 @@ const mockParent: Partial<Parent> = {
 **Problème** : TypeScript strict empêche les casts avec `null`/`undefined`
 
 **Cause** :
+
 ```typescript
 photoUrl: null, // ❌ Type 'null' is not assignable
 trajet: null,   // ❌ Type 'null' is not assignable
 ```
 
 **Correction** :
+
 ```typescript
 // Utiliser undefined ou any pour les tests de cas limites
 photoUrl: undefined,
@@ -154,7 +167,8 @@ trajet: undefined,
 mockChildRepo.findOne.mockResolvedValue(childWithoutPhoto as any);
 ```
 
-**Fichiers** : 
+**Fichiers** :
+
 - [courses.service.spec.ts](apps/school-app/src/modules/courses/courses.service.spec.ts)
 - [children.service.spec.ts](apps/school-app/src/modules/children/children.service.spec.ts)
 
@@ -165,6 +179,7 @@ mockChildRepo.findOne.mockResolvedValue(childWithoutPhoto as any);
 **Problème** : TypeScript empêche de passer `id: string | undefined` à une fonction attendant `string`
 
 **Correction** : Ajout de l'opérateur `!` pour affirmer que la valeur n'est pas `undefined`
+
 ```typescript
 // Avant
 await service.findById(mockCourse.id);
@@ -174,6 +189,7 @@ await service.findById(mockCourse.id!);
 ```
 
 **Fichiers** :
+
 - [courses.service.spec.ts](apps/school-app/src/modules/courses/courses.service.spec.ts) (5 occurrences)
 - [children.service.spec.ts](apps/school-app/src/modules/children/children.service.spec.ts) (6 occurrences)
 
@@ -182,6 +198,7 @@ await service.findById(mockCourse.id!);
 ## Imports manquants ajoutés
 
 ### courses.service.spec.ts
+
 ```typescript
 import { Course, CourseStatus, CourseType } from '@app/database';
 //                              ^^^^^^^^^^^ Ajouté
@@ -192,6 +209,7 @@ import { Course, CourseStatus, CourseType } from '@app/database';
 ## Résultat final
 
 ### Avant corrections
+
 ```bash
 FAIL apps/school-app/src/modules/courses/courses.service.spec.ts
 FAIL apps/school-app/src/modules/children/children.service.spec.ts
@@ -201,6 +219,7 @@ FAIL apps/school-app/src/modules/children/children.service.spec.ts
 ```
 
 ### Après corrections
+
 ```bash
 ✅ Test Suites: 3 passed, 3 total
 ✅ Tests:       37 passed, 37 total
@@ -212,6 +231,7 @@ FAIL apps/school-app/src/modules/children/children.service.spec.ts
 ## Tests couverts
 
 ### CoursesService (12 tests)
+
 ✅ findAll - retourne tous les courses  
 ✅ findAll - retourne tableau vide si aucun  
 ✅ findById - retourne course par ID  
@@ -223,9 +243,10 @@ FAIL apps/school-app/src/modules/children/children.service.spec.ts
 ✅ update - throw NotFoundException si inexistant  
 ✅ updateStatus - met à jour le statut  
 ✅ delete - supprime course  
-✅ delete - ne throw pas d'erreur si inexistant  
+✅ delete - ne throw pas d'erreur si inexistant
 
 ### ChildrenService (18 tests)
+
 ✅ findAll - retourne tous les enfants  
 ✅ findAll - retourne tableau vide si aucun  
 ✅ findOne - retourne enfant par ID  
@@ -243,7 +264,7 @@ FAIL apps/school-app/src/modules/children/children.service.spec.ts
 ✅ getPunches - retourne tableau vide en cas d'erreur HTTP  
 ✅ bulkImport - importe enfants depuis empCodes  
 ✅ bulkImport - retourne 0 si tableau vide  
-✅ bulkImport - throw HttpException en cas d'erreur API  
+✅ bulkImport - throw HttpException en cas d'erreur API
 
 ---
 
