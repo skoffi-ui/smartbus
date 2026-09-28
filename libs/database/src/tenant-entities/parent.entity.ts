@@ -25,6 +25,18 @@ export class Parent extends SoftDeleteEntityModel {
   @Column({ default: true })
   active: boolean;
 
+  /**
+   * Préférences de notification de l'app parent — un parent qui trouve les
+   * alertes de proximité trop fréquentes peut les couper sans perdre les
+   * notifications de pointage (et inversement). Coupé = ni push, ni
+   * entrée dans l'historique consultable (voir ParentPortalService).
+   */
+  @Column({ name: 'notif_punch_enabled', default: true })
+  notifPunchEnabled: boolean;
+
+  @Column({ name: 'notif_proximity_enabled', default: true })
+  notifProximityEnabled: boolean;
+
   @OneToMany(() => Child, (child) => child.parent)
   children: Child[];
 }

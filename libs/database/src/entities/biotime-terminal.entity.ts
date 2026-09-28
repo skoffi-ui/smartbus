@@ -76,7 +76,7 @@ export class BiotimeTerminal {
   organisation: Organisation;
 
   @Column({ name: 'organisation_id', nullable: true })
-  organisationId: string;
+  organisationId: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

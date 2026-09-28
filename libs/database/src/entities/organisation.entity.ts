@@ -8,6 +8,7 @@ import {
 import { BaseEntityModel } from './base.entity';
 import { Subscription } from './subscription.entity';
 import { BiotimeTerminal } from './biotime-terminal.entity';
+import { OrganisationDbPasswordTransformer } from './organisation-db-password.transformer';
 
 /**
  * Enumération des statuts d'une organisation
@@ -72,7 +73,13 @@ export class Organisation extends BaseEntityModel {
   @Column({ name: 'db_user', nullable: true })
   dbUser: string;
 
-  @Column({ name: 'db_password', nullable: true, select: false })
+  /**
+   * Chiffré au repos (AES-256-GCM, voir `OrganisationDbPasswordTransformer`) :
+   * ce mot de passe ouvre la connexion Postgres de l'école, et une lecture de
+   * cette table ne doit jamais l'exposer en clair. `select: false` reste en
+   * plus, en défense en profondeur (ne sort pas par défaut d'une requête).
+   */
+  @Column({ name: 'db_password', nullable: true, select: false, transformer: OrganisationDbPasswordTransformer })
   dbPassword: string;
 
   @Column({ name: 'db_provisioned', default: false })
@@ -98,6 +105,24 @@ export class Organisation extends BaseEntityModel {
 
   @Column({ name: 'biotime_department_name', nullable: true })
   biotimeDepartmentName: string;
+
+  /**
+   * Permissions par école : clés de fonctionnalités school-web (voir
+   * `@app/common` SCHOOL_FEATURES) que le directeur de cette organisation
+   * peut utiliser. NULL = aucune restriction (toutes les écoles existantes).
+   * Assigné par le Super Admin depuis super-admin-web.
+   */
+  @Column({ name: 'allowed_features', type: 'jsonb', nullable: true })
+  allowedFeatures: string[] | null;
+
+  /**
+   * Autorise le directeur de cette école à créer des comptes directeur
+   * supplémentaires pour ses collaborateurs (voir UsersService.createDirector,
+   * UsersService.toggleStatus). Par défaut désactivé — accordé par le Super
+   * Admin, école par école, une fois l'école créée.
+   */
+  @Column({ name: 'allow_additional_directors', default: false })
+  allowAdditionalDirectors: boolean;
 
   // ---- Relation vers les terminaux BioTime ----
   @OneToMany(() => BiotimeTerminal, terminal => terminal.organisation)

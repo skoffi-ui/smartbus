@@ -16,7 +16,13 @@ export class Affectation extends BaseEntityModel {
   @JoinColumn({ name: 'child_id' })
   child: Child;
 
-  @Column({ name: 'child_id' })
+  // `unique: true` : `AffectationsService.create()` vérifiait déjà "un seul
+  // point par enfant" en applicatif (recherche puis insertion), mais sans
+  // contrainte en base c'est une vérification-puis-écriture non atomique —
+  // deux requêtes concurrentes pour le même enfant pouvaient toutes les deux
+  // passer la vérification avant qu'aucune n'ait encore validé, produisant
+  // deux affectations pour le même enfant malgré l'invariant documenté.
+  @Column({ name: 'child_id', unique: true })
   childId: string;
 
   @Column({ name: 'ordre_montee', default: 0 })

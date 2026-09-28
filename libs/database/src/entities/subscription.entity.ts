@@ -57,11 +57,17 @@ export class Subscription extends BaseEntityModel {
   @Column({ name: 'end_date', type: 'date' })
   endDate: Date;
 
+  // `transformer` : une colonne `decimal` revient de Postgres/pg en chaîne
+  // ("50000.00", pas le nombre 50000) — sans conversion, ça casse
+  // silencieusement `sub.pricePerMonth.toLocaleString()` (super-admin-web/
+  // Subscriptions.tsx, apps/school-web/Abonnement.tsx) et toute validation
+  // `@IsNumber()` sur une valeur relue puis renvoyée telle quelle.
   @Column({
     name: 'price_per_month',
     type: 'decimal',
     precision: 10,
     scale: 2,
+    transformer: { to: (v: number) => v, from: (v: string | null) => (v === null ? null : parseFloat(v)) },
   })
   pricePerMonth: number;
 

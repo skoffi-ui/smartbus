@@ -5,6 +5,7 @@ export * from './entities/base.entity';
 export * from './entities/organisation.entity';
 export * from './entities/user.entity';
 export * from './entities/subscription.entity';
+export * from './entities/plan-tarif.entity';
 export * from './entities/billing-record.entity';
 export * from './entities/metadata.entity';
 export * from './entities/payment.entity';
@@ -34,6 +35,7 @@ export * from './tenant-entities/device-assignment.entity';
 export * from './tenant-entities/biometric-consent.entity';
 export * from './tenant-entities/course-execution.entity';
 export * from './tenant-entities/alerte-critique.entity';
+export * from './tenant-entities/position-historique.entity';
 export { TENANT_ENTITIES } from './tenant-entity-list';
 export { TenantConnectionService } from './tenant-connection.service';
 

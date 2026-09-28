@@ -81,13 +81,21 @@ export class User extends BaseEntityModel {
   @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
   lastLoginAt: Date;
 
-  // Relation vers l'organisation (null pour super_admin)
+  /**
+   * Date à laquelle le Super Admin a activé ce compte directeur — distincte
+   * de `createdAt` (la date d'inscription). `null` tant qu'il est `PENDING`.
+   */
+  @Column({ name: 'activated_at', type: 'timestamptz', nullable: true })
+  activatedAt: Date | null;
+
+  // Relation vers l'organisation (null pour super_admin, et pour un directeur
+  // activé qui n'a pas encore créé sa propre école — voir AuthService.creerMonEcole)
   @ManyToOne(() => Organisation, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'organisation_id' })
   organisation: Organisation;
 
   @Column({ name: 'organisation_id', nullable: true })
-  organisationId: string;
+  organisationId: string | null;
 
   // Getter pour le nom complet
   get fullName(): string {

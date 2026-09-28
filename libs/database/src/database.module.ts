@@ -14,6 +14,7 @@ import { SuperAppChild } from './entities/super-app-child.entity';
 import { SuperAppPunch } from './entities/super-app-punch.entity';
 import { TenantSchemaVersion } from './entities/tenant-schema-version.entity';
 import { BiotimeConfig } from './entities/biotime-config.entity';
+import { BiotimeTerminal } from './entities/biotime-terminal.entity';
 import { TenantConnectionService } from './tenant-connection.service';
 
 @Module({
@@ -27,8 +28,16 @@ import { TenantConnectionService } from './tenant-connection.service';
         username: configService.get<string>('SUPER_DB_USER', 'postgres'),
         password: configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
         database: configService.get<string>('SUPER_DB_NAME', 'smartbus_super'),
-        // On déclare uniquement les entités globales de la super-app
-        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion, BiotimeConfig],
+        // On déclare uniquement les entités globales de la super-app.
+        // BiotimeTerminal doit y figurer même si aucun contrôleur ne l'utilise
+        // ici : `Organisation.biotimeTerminals` (OneToMany) exige que les deux
+        // côtés de la relation soient enregistrés sur la même connexion, sinon
+        // TypeORM échoue au démarrage avec "Entity metadata ... was not found"
+        // — repéré uniquement dans school-app, qui n'a pas d'autre module
+        // enregistrant BiotimeTerminal via `forFeature` pour compenser via
+        // `autoLoadEntities` (contrairement à super-app, où biotime.module.ts
+        // le fait — coïncidence qui masquait le problème).
+        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion, BiotimeConfig, BiotimeTerminal],
         // En développement uniquement – à désactiver en production
         synchronize: configService.get<string>('NODE_ENV') === 'development',
         logging: configService.get<string>('NODE_ENV') === 'development',

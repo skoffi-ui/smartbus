@@ -12,6 +12,15 @@ export enum TypeAlerte {
   GPS_HORS_ZONE = 'gps_hors_zone',
   BADGE_HORS_HORAIRE = 'badge_hors_horaire',
   DOUBLE_VALIDATION = 'double_validation',
+  /**
+   * Bus à proximité d'un arrêt (événement bénin, informatif — pas un
+   * badgeage rejeté). `hardware-stream.service.ts` réutilisait auparavant
+   * `GPS_HORS_ZONE` pour ça : chaque approche de bus polluait Alertes
+   * Transport avec une entrée « Badgeage hors zone GPS » usurpée, alors
+   * qu'aucun badgeage n'avait eu lieu — contredisant l'état vide de cette
+   * page qui affirme n'apparaître qu'en cas de vrai rejet.
+   */
+  PROXIMITE_ARRET = 'proximite_arret',
 }
 
 @Entity('alertes')

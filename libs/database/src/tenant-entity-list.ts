@@ -16,6 +16,7 @@ import { Device } from './tenant-entities/device.entity';
 import { DeviceAssignment } from './tenant-entities/device-assignment.entity';
 import { BiometricConsent } from './tenant-entities/biometric-consent.entity';
 import { CourseExecution } from './tenant-entities/course-execution.entity';
+import { PositionHistorique } from './tenant-entities/position-historique.entity';
 
 /**
  * Source unique des entités présentes dans chaque base école.
@@ -41,4 +42,5 @@ export const TENANT_ENTITIES = [
   DeviceAssignment,
   BiometricConsent,
   CourseExecution,
+  PositionHistorique,
 ];
