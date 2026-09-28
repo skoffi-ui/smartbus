@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Calendar, DollarSign, Building2, Check, XCircle, Clock, Ban, AlertTriangle } from 'lucide-react';
+import { Plus, X, Calendar, DollarSign, Building2, Check, XCircle, Clock, Ban, AlertTriangle, Tag, Save } from 'lucide-react';
 import api, { messageFromError } from '../services/api';
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
 
 interface Subscription {
   id: string;
@@ -16,6 +18,15 @@ interface Subscription {
     code: string;
   };
   createdAt: string;
+}
+
+interface PlanTarif {
+  plan: string;
+  label: string;
+  description: string;
+  pricePerMonth: number;
+  maxCars: number;
+  maxChildren: number | null;
 }
 
 interface Organisation {
@@ -51,12 +62,21 @@ const STATUS_CONFIG = {
 };
 
 export default function Subscriptions() {
+  const toast = useToast();
+  const confirmer = useConfirm();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+
+  // Grille tarifaire — voir PlanTarif (backend). Avant, aucun tarif central
+  // n'existait : prix saisi à la main à chaque abonnement, et incohérent
+  // ailleurs (PaymentsService.sandboxCheckout, Abonnement.tsx école).
+  const [tarifs, setTarifs] = useState<PlanTarif[]>([]);
+  const [tarifsEdites, setTarifsEdites] = useState<Record<string, { pricePerMonth: number; maxCars: number }>>({});
+  const [enregistrementTarif, setEnregistrementTarif] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     organisationId: '',
@@ -91,9 +111,38 @@ export default function Subscriptions() {
     }
   };
 
+  const fetchTarifs = async () => {
+    try {
+      const response = await api.get('/plan-tarifs');
+      const liste: PlanTarif[] = response.data.data || response.data;
+      setTarifs(liste);
+      setTarifsEdites(
+        Object.fromEntries(liste.map((t) => [t.plan, { pricePerMonth: t.pricePerMonth, maxCars: t.maxCars }])),
+      );
+    } catch (err) {
+      console.error('Erreur de chargement de la grille tarifaire', err);
+    }
+  };
+
+  const sauvegarderTarif = async (plan: string) => {
+    const valeurs = tarifsEdites[plan];
+    if (!valeurs) return;
+    setEnregistrementTarif(plan);
+    try {
+      await api.patch(`/plan-tarifs/${plan}`, valeurs);
+      toast.success('Tarif mis à jour.');
+      await fetchTarifs();
+    } catch (err) {
+      toast.error(messageFromError(err, 'Erreur lors de la mise à jour du tarif.'));
+    } finally {
+      setEnregistrementTarif(null);
+    }
+  };
+
   useEffect(() => {
     fetchSubscriptions();
     fetchOrganisations();
+    fetchTarifs();
   }, []);
 
   const handleLogout = () => {
@@ -115,13 +164,14 @@ export default function Subscriptions() {
       });
     } else {
       setEditingSubscription(null);
+      const tarifStandard = tarifs.find((t) => t.plan === 'standard');
       setFormData({
         organisationId: '',
         plan: 'standard',
         startDate: new Date().toISOString().split('T')[0],
         endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        pricePerMonth: 50000,
-        maxCars: 15,
+        pricePerMonth: tarifStandard?.pricePerMonth ?? 0,
+        maxCars: tarifStandard?.maxCars ?? 15,
       });
     }
     setShowModal(true);
@@ -132,15 +182,17 @@ export default function Subscriptions() {
     setEditingSubscription(null);
   };
 
+  // Pré-remplit prix/maxCars depuis la grille tarifaire réelle (PlanTarif) —
+  // reste modifiable ensuite pour un cas particulier négocié, la grille
+  // n'est qu'une valeur par défaut, pas une contrainte sur un abonnement déjà créé.
   const handlePlanChange = (plan: string) => {
-    const selectedPlan = PLANS.find(p => p.value === plan);
-    if (selectedPlan) {
-      setFormData(prev => ({
-        ...prev,
-        plan,
-        maxCars: selectedPlan.maxCars,
-      }));
-    }
+    const tarif = tarifs.find((t) => t.plan === plan);
+    setFormData(prev => ({
+      ...prev,
+      plan,
+      maxCars: tarif?.maxCars ?? prev.maxCars,
+      pricePerMonth: tarif?.pricePerMonth ?? prev.pricePerMonth,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -165,34 +217,94 @@ export default function Subscriptions() {
       fetchSubscriptions();
       handleCloseModal();
     } catch (err) {
-      alert(messageFromError(err, 'Erreur lors de la sauvegarde.'));
+      toast.error(messageFromError(err, 'Erreur lors de la sauvegarde.'));
     }
   };
 
   const handleCancel = async (id: string) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir annuler cet abonnement ?')) return;
+    if (!(await confirmer('Êtes-vous sûr de vouloir annuler cet abonnement ?', { danger: true }))) return;
 
     try {
       await api.patch(`/subscriptions/${id}/cancel`, {});
       fetchSubscriptions();
     } catch (err) {
-      alert(messageFromError(err, 'Erreur lors de l\'annulation.'));
+      toast.error(messageFromError(err, 'Erreur lors de l\'annulation.'));
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('⚠️ DANGER : Êtes-vous sûr de vouloir supprimer définitivement cet abonnement ?')) return;
+    const ok = await confirmer(
+      'Cette action est irréversible.',
+      { titre: '⚠️ DANGER : Supprimer définitivement cet abonnement ?', danger: true },
+    );
+    if (!ok) return;
 
     try {
       await api.delete(`/subscriptions/${id}`);
       fetchSubscriptions();
     } catch (err) {
-      alert(messageFromError(err, 'Erreur lors de la suppression.'));
+      toast.error(messageFromError(err, 'Erreur lors de la suppression.'));
     }
   };
 
   return (
     <div className="animate-fade-in">
+      <div className="glass-panel p-6 mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Tag size={20} className="text-brand-400" />
+          <h2 className="text-xl font-bold text-white">Grille tarifaire</h2>
+        </div>
+        <p className="text-navy-300 text-sm mb-5">
+          Prix et plafond de véhicules par forfait — référence appliquée automatiquement au paiement
+          en libre-service du directeur (voir Abonnement.tsx, app école) et pré-remplie ici à la création
+          d'un abonnement.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {tarifs.map((t) => {
+            const edite = tarifsEdites[t.plan] ?? { pricePerMonth: t.pricePerMonth, maxCars: t.maxCars };
+            const modifie = edite.pricePerMonth !== t.pricePerMonth || edite.maxCars !== t.maxCars;
+            return (
+              <div key={t.plan} className="p-4 rounded-lg border border-white/10 bg-navy-800/30">
+                <div className="font-bold text-white text-sm mb-1">{t.label}</div>
+                <div className="text-xs text-navy-300 mb-3">{t.description}</div>
+
+                <label className="block text-xs text-navy-300 mb-1">Prix / mois (FCFA)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={edite.pricePerMonth}
+                  onChange={(e) =>
+                    setTarifsEdites((prev) => ({ ...prev, [t.plan]: { ...edite, pricePerMonth: Number(e.target.value) } }))
+                  }
+                  className="w-full px-3 py-1.5 bg-navy-800/50 border border-white/10 rounded-md text-white text-sm mb-2 focus:border-brand-400 focus:outline-none"
+                />
+
+                <label className="block text-xs text-navy-300 mb-1">Max véhicules</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={edite.maxCars}
+                  onChange={(e) =>
+                    setTarifsEdites((prev) => ({ ...prev, [t.plan]: { ...edite, maxCars: Number(e.target.value) } }))
+                  }
+                  className="w-full px-3 py-1.5 bg-navy-800/50 border border-white/10 rounded-md text-white text-sm mb-3 focus:border-brand-400 focus:outline-none"
+                />
+
+                <button
+                  onClick={() => sauvegarderTarif(t.plan)}
+                  disabled={!modifie || enregistrementTarif === t.plan}
+                  className="btn-secondary text-xs w-full flex items-center justify-center gap-1.5 disabled:opacity-40"
+                >
+                  <Save size={13} />
+                  {enregistrementTarif === t.plan ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="glass-panel p-6">
         <div className="flex justify-between items-center mb-6">
           <div>

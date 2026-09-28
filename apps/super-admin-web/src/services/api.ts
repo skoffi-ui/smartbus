@@ -19,12 +19,98 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function logout(): void {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  if (window.location.pathname !== '/login') window.location.href = '/login';
+}
+
+/**
+ * Rafraîchissement automatique du jeton — sans ça, un jeton d'accès reste
+ * valable 7 jours (JWT_EXPIRES_IN) sans jamais être renouvelé, ce qui forçait
+ * une déconnexion/reconnexion manuelle pour obtenir un jeton à jour.
+ *
+ * `refreshingPromise` : si plusieurs requêtes échouent en même temps, une
+ * seule déclenche l'appel à /auth/refresh — les autres attendent son résultat.
+ */
+let refreshingPromise: Promise<string> | null = null;
+
+function decoderUserId(accessToken: string): string | null {
+  try {
+    return JSON.parse(atob(accessToken.split('.')[1])).sub ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function rafraichirJeton(): Promise<string> {
+  const accessTokenActuel = localStorage.getItem('accessToken');
+  const refreshToken = localStorage.getItem('refreshToken');
+  const userId = accessTokenActuel ? decoderUserId(accessTokenActuel) : null;
+
+  if (!refreshToken || !userId) {
+    throw new Error('Pas de jeton de rafraîchissement disponible.');
+  }
+
+  // `axios` brut, pas `api` : éviter de redéclencher cet intercepteur en boucle.
+  const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { userId, refreshToken });
+  localStorage.setItem('accessToken', response.data.accessToken);
+  localStorage.setItem('refreshToken', response.data.refreshToken);
+  return response.data.accessToken;
+}
+
+/**
+ * Le jeton de rafraîchissement est à usage unique côté serveur (rotation) :
+ * si deux onglets expirent en même temps et l'envoient tous les deux, le
+ * premier réussit et invalide le second, qui se ferait alors déconnecter à
+ * tort. Web Locks API : verrou réel partagé entre tous les onglets de la même
+ * origine — un seul appelle vraiment /auth/refresh, les autres relisent le
+ * jeton déjà rafraîchi en localStorage.
+ */
+async function rafraichirAvecVerrouInterOnglets(): Promise<string> {
+  const accessTokenAvant = localStorage.getItem('accessToken');
+
+  const executer = async (): Promise<string> => {
+    const actuel = localStorage.getItem('accessToken');
+    if (actuel && actuel !== accessTokenAvant) return actuel; // un autre onglet vient de le faire
+    return rafraichirJeton();
+  };
+
+  if (typeof navigator === 'undefined' || !('locks' in navigator)) {
+    return executer(); // repli navigateur ancien : dédoublonnage dans l'onglet seulement
+  }
+  return navigator.locks.request('smartbus:jeton-refresh', executer);
+}
+
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ code?: string; message?: string }>) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('accessToken');
-      if (window.location.pathname !== '/login') window.location.href = '/login';
+  async (error: AxiosError<{ code?: string; message?: string }>) => {
+    const status = error.response?.status;
+    const requeteOriginale = error.config as (typeof error.config & { _dejaRejouee?: boolean }) | undefined;
+
+    const rafraichissable =
+      status === 401 &&
+      requeteOriginale &&
+      !requeteOriginale._dejaRejouee &&
+      !!localStorage.getItem('refreshToken');
+
+    if (rafraichissable) {
+      requeteOriginale._dejaRejouee = true;
+      try {
+        refreshingPromise ??= rafraichirAvecVerrouInterOnglets().finally(() => { refreshingPromise = null; });
+        const nouveauAccessToken = await refreshingPromise;
+        if (requeteOriginale.headers) {
+          requeteOriginale.headers.Authorization = `Bearer ${nouveauAccessToken}`;
+        }
+        return api(requeteOriginale);
+      } catch {
+        logout();
+        return Promise.reject(error);
+      }
+    }
+
+    if (status === 401) {
+      logout();
     }
     return Promise.reject(error);
   },

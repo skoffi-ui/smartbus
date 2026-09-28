@@ -5,7 +5,6 @@ import {
   Wifi,
   RefreshCw,
   Plus,
-  Trash2,
   Link as LinkIcon,
   Unlink,
   AlertCircle,
@@ -13,6 +12,7 @@ import {
   Search,
 } from 'lucide-react';
 import api, { messageFromError } from '../services/api';
+import { useConfirm } from '../components/ConfirmProvider';
 
 interface Organisation {
   id: string;
@@ -39,17 +39,10 @@ interface Terminal {
   createdAt: string;
 }
 
-interface Department {
-  id: number;
-  dept_name: string;
-  dept_code: string;
-  parent: number | null;
-}
-
 export default function BiotimeGestionCentrale() {
+  const confirmer = useConfirm();
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [terminaux, setTerminaux] = useState<Terminal[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -68,14 +61,23 @@ export default function BiotimeGestionCentrale() {
     setLoading(true);
     setError('');
     try {
-      const [orgsRes, termsRes, deptsRes] = await Promise.all([
-        api.get('/organisations'),
-        api.get('/admin/biotime/terminals/available'),
-        api.get('/admin/biotime/departments'),
+      // Ces deux-là viennent de notre base (via /organisations et la table
+      // biotime_terminals) — jamais du vrai serveur BioTime. Contrairement à
+      // avant, un serveur BioTime injoignable ne doit plus empêcher d'afficher
+      // les écoles et les terminaux déjà connus localement.
+      //
+      // /organisations est paginé (PaginationResponseDto : { data, total, page,
+      // limit }, jamais un tableau brut) — `Array.isArray(orgsRes.data)` était
+      // donc toujours faux et "Total organisations" affichait 0 quel que soit
+      // le vrai total. `limit: 100` (le maximum accepté par l'API) pour que
+      // cette page, qui doit voir TOUTES les écoles, ne se limite pas aux 10
+      // premières par défaut.
+      const [orgsRes, termsRes] = await Promise.all([
+        api.get('/organisations', { params: { limit: 100 } }),
+        api.get('/admin/biotime/terminals'),
       ]);
-      setOrganisations(Array.isArray(orgsRes.data) ? orgsRes.data : []);
+      setOrganisations(Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : []);
       setTerminaux(Array.isArray(termsRes.data) ? termsRes.data : []);
-      setDepartments(Array.isArray(deptsRes.data) ? deptsRes.data : []);
     } catch (err) {
       setError(messageFromError(err, 'Impossible de charger les données.'));
     } finally {
@@ -138,7 +140,7 @@ export default function BiotimeGestionCentrale() {
   };
 
   const desassignerTerminal = async (terminalId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir désassigner ce terminal ?')) return;
+    if (!(await confirmer('Êtes-vous sûr de vouloir désassigner ce terminal ?', { danger: true }))) return;
     setError('');
     setSuccess('');
     try {

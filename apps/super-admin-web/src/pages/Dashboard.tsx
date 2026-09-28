@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ShieldCheck, Users } from 'lucide-react';
 
 interface Organisation {
   id: string;
@@ -9,21 +10,43 @@ interface Organisation {
   dbProvisioned: boolean;
   createdAt: string;
   subscriptions?: any[];
+  allowedFeatures?: string[] | null;
+  allowAdditionalDirectors?: boolean;
 }
 
 import api, { messageFromError } from '../services/api';
+import { useToast } from '../components/ToastProvider';
+import { useConfirm } from '../components/ConfirmProvider';
+import { SCHOOL_FEATURES, SCHOOL_FEATURE_LABELS } from '../constants/schoolFeatures';
 
 export default function Dashboard() {
+  const toast = useToast();
+  const confirmer = useConfirm();
   // ... (le code d'avant ne bouge pas, on remplace juste le render de TopNav)
   const [organisations, setOrganisations] = useState<Organisation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deviceAlerts, setDeviceAlerts] = useState<any[]>([]);
+  const [orgPourAcces, setOrgPourAcces] = useState<Organisation | null>(null);
+  const [featuresSelectionnees, setFeaturesSelectionnees] = useState<string[]>([]);
+  const [toutAutoriser, setToutAutoriser] = useState(true);
+  const [enregistrementAcces, setEnregistrementAcces] = useState(false);
+
+  // Autorisation "cette école peut créer des comptes directeur
+  // supplémentaires" (voir Organisation.allowAdditionalDirectors, accordée
+  // école par école — les écoles elles-mêmes sont désormais créées par les
+  // directeurs eux-mêmes, voir CreerMonEcole.tsx côté school-web, pas depuis
+  // ici).
+  const [orgPourEquipe, setOrgPourEquipe] = useState<Organisation | null>(null);
+  const [autoriserEquipe, setAutoriserEquipe] = useState(false);
+  const [enregistrementEquipe, setEnregistrementEquipe] = useState(false);
 
   const fetchOrganisations = async () => {
     try {
-      const response = await api.get('/organisations');
       // L'API renvoie un objet PaginationResponseDto { data, total, page, limit }
+      // (défaut 10 par page) — cette liste doit voir TOUTES les écoles, donc
+      // `limit: 100` (le maximum accepté) plutôt que de se limiter aux 10 premières.
+      const response = await api.get('/organisations', { params: { limit: 100 } });
       setOrganisations(response.data.data);
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -69,18 +92,73 @@ export default function Dashboard() {
       await api.patch(`/organisations/${id}/${action}`, {});
       fetchOrganisations(); // Recharge la liste après modification
     } catch (err) {
-      alert(messageFromError(err, 'Action non autorisée ou erreur serveur.'));
+      toast.error(messageFromError(err, 'Action non autorisée ou erreur serveur.'));
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("⚠️ DANGER : Êtes-vous sûr de vouloir supprimer cette école ? Toutes ses données seront définitivement effacées !")) return;
+    const ok = await confirmer(
+      "Toutes ses données seront définitivement effacées !",
+      { titre: '⚠️ DANGER : Supprimer cette école ?', danger: true },
+    );
+    if (!ok) return;
 
     try {
       await api.delete(`/organisations/${id}`);
       fetchOrganisations();
     } catch (err) {
-      alert(messageFromError(err, 'Erreur lors de la suppression.'));
+      toast.error(messageFromError(err, 'Erreur lors de la suppression.'));
+    }
+  };
+
+  const ouvrirAcces = (org: Organisation) => {
+    setOrgPourAcces(org);
+    setToutAutoriser(!org.allowedFeatures);
+    setFeaturesSelectionnees(org.allowedFeatures ?? [...SCHOOL_FEATURES]);
+  };
+
+  const basculerFeature = (feature: string) => {
+    setFeaturesSelectionnees((prev) =>
+      prev.includes(feature) ? prev.filter((f) => f !== feature) : [...prev, feature],
+    );
+  };
+
+  const enregistrerAcces = async () => {
+    if (!orgPourAcces) return;
+    setEnregistrementAcces(true);
+    try {
+      await api.patch(`/organisations/${orgPourAcces.id}`, {
+        allowedFeatures: toutAutoriser ? null : featuresSelectionnees,
+      });
+      toast.success(`Accès mis à jour pour ${orgPourAcces.name}.`);
+      setOrgPourAcces(null);
+      fetchOrganisations();
+    } catch (err) {
+      toast.error(messageFromError(err, "Erreur lors de la mise à jour des accès."));
+    } finally {
+      setEnregistrementAcces(false);
+    }
+  };
+
+  const ouvrirEquipe = (org: Organisation) => {
+    setOrgPourEquipe(org);
+    setAutoriserEquipe(!!org.allowAdditionalDirectors);
+  };
+
+  const enregistrerEquipe = async () => {
+    if (!orgPourEquipe) return;
+    setEnregistrementEquipe(true);
+    try {
+      await api.patch(`/organisations/${orgPourEquipe.id}`, {
+        allowAdditionalDirectors: autoriserEquipe,
+      });
+      toast.success(`Droit de gestion d'équipe mis à jour pour ${orgPourEquipe.name}.`);
+      setOrgPourEquipe(null);
+      fetchOrganisations();
+    } catch (err) {
+      toast.error(messageFromError(err, "Erreur lors de la mise à jour."));
+    } finally {
+      setEnregistrementEquipe(false);
     }
   };
 
@@ -116,9 +194,12 @@ export default function Dashboard() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-white">Liste des Écoles Clientes</h2>
           <div className="text-sm text-navy-300 font-medium">
-            {organisations.length} établissement(s) actif(s)
+            {organisations.length} établissement(s)
           </div>
         </div>
+        {/* Plus de bouton "Créer une école" ici : un directeur s'inscrit lui-même
+            (voir CandidatureDirecteur.tsx), est activé ci-dessous puis crée son
+            école lui-même une fois connecté (voir CreerMonEcole.tsx). */}
 
         {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-4">{error}</div>}
 
@@ -181,6 +262,22 @@ export default function Dashboard() {
                     </td>
                     <td className="p-4 text-right">
                       <button
+                        onClick={() => ouvrirAcces(org)}
+                        className="btn-secondary mr-2 text-xs"
+                        title={org.allowedFeatures ? `${org.allowedFeatures.length} fonctionnalité(s) autorisée(s)` : 'Aucune restriction'}
+                      >
+                        <ShieldCheck size={13} className="inline mr-1" />
+                        Accès
+                      </button>
+                      <button
+                        onClick={() => ouvrirEquipe(org)}
+                        className="btn-secondary mr-2 text-xs"
+                        title={org.allowAdditionalDirectors ? 'Peut créer des directeurs supplémentaires' : 'Un seul directeur autorisé'}
+                      >
+                        <Users size={13} className="inline mr-1" />
+                        Équipe
+                      </button>
+                      <button
                         onClick={() => handleStatusToggle(org.id, org.status)}
                         className="btn-secondary mr-2 text-xs"
                       >
@@ -208,6 +305,93 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      {orgPourAcces && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel p-6 max-w-lg w-full">
+            <h3 className="text-xl font-bold text-white mb-1">Accès de {orgPourAcces.name}</h3>
+            <p className="text-navy-300 text-sm mb-6">
+              Fonctionnalités school-web accessibles au directeur de cette école.
+            </p>
+
+            <label
+              className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 mb-4 cursor-pointer"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <input
+                type="checkbox"
+                checked={toutAutoriser}
+                onChange={(e) => setToutAutoriser(e.target.checked)}
+                style={{ accentColor: 'var(--accent-primary)' }}
+              />
+              <span className="font-semibold text-sm">Tout autoriser (aucune restriction)</span>
+            </label>
+
+            {!toutAutoriser && (
+              <div className="grid grid-cols-2 gap-2 mb-6 max-h-72 overflow-y-auto pr-1">
+                {SCHOOL_FEATURES.map((feature) => (
+                  <label
+                    key={feature}
+                    className="flex items-center gap-2 p-2.5 rounded-lg bg-white/5 border border-white/10 cursor-pointer text-sm"
+                    style={{ color: 'var(--text-primary)' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={featuresSelectionnees.includes(feature)}
+                      onChange={() => basculerFeature(feature)}
+                      style={{ accentColor: 'var(--accent-primary)' }}
+                    />
+                    {SCHOOL_FEATURE_LABELS[feature]}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button className="btn-secondary flex-1" onClick={() => setOrgPourAcces(null)}>
+                Annuler
+              </button>
+              <button className="btn-primary flex-1" onClick={enregistrerAcces} disabled={enregistrementAcces}>
+                {enregistrementAcces ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {orgPourEquipe && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-panel p-6 max-w-lg w-full">
+            <h3 className="text-xl font-bold text-white mb-1">Équipe de {orgPourEquipe.name}</h3>
+            <p className="text-navy-300 text-sm mb-6">
+              Autorise le directeur de cette école à inviter lui-même des collaborateurs
+              (comptes directeur supplémentaires) et à les bloquer/débloquer.
+            </p>
+
+            <label
+              className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10 mb-6 cursor-pointer"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <input
+                type="checkbox"
+                checked={autoriserEquipe}
+                onChange={(e) => setAutoriserEquipe(e.target.checked)}
+                style={{ accentColor: 'var(--accent-primary)' }}
+              />
+              <span className="font-semibold text-sm">Autoriser la création de comptes directeur supplémentaires</span>
+            </label>
+
+            <div className="flex gap-3">
+              <button className="btn-secondary flex-1" onClick={() => setOrgPourEquipe(null)}>
+                Annuler
+              </button>
+              <button className="btn-primary flex-1" onClick={enregistrerEquipe} disabled={enregistrementEquipe}>
+                {enregistrementEquipe ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

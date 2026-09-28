@@ -10,10 +10,14 @@ const traductions = {
   'enregistrer':             { fr: 'Enregistrer',          en: 'Save' },
   'enregistrement':          { fr: 'Enregistrement…',      en: 'Saving…' },
   'annuler':                 { fr: 'Annuler',              en: 'Cancel' },
+  'confirmer':               { fr: 'Confirmer',            en: 'Confirm' },
+  'confirmation_titre':      { fr: 'Confirmation',         en: 'Confirmation' },
   'modifier':                { fr: 'Modifier',             en: 'Edit' },
   'supprimer':               { fr: 'Supprimer',            en: 'Delete' },
   'fermer':                  { fr: 'Fermer',               en: 'Close' },
   'rechercher':              { fr: 'Rechercher…',          en: 'Search…' },
+  'recherche.chargement':    { fr: 'Recherche…',           en: 'Searching…' },
+  'recherche.aucun_resultat': { fr: 'Aucune école trouvée', en: 'No school found' },
   'pages':                   { fr: 'Pages',                en: 'Pages' },
 
   /* ── Navbar ──────────────────────────────────────────────────── */
@@ -29,6 +33,7 @@ const traductions = {
   'sidebar.equipe':          { fr: 'Équipe',               en: 'Team' },
   'sidebar.abonnements':     { fr: 'Abonnements',          en: 'Subscriptions' },
   'sidebar.centrale':        { fr: 'BioTime Centrale',     en: 'Central BioTime' },
+  'sidebar.vehicules_gps':   { fr: 'Véhicules GPS',        en: 'GPS Vehicles' },
   'sidebar.parametres':      { fr: 'Paramètres',           en: 'Settings' },
   'sidebar.aide':            { fr: 'Besoin d\'aide ?',     en: 'Need help?' },
   'sidebar.aide_desc':       { fr: 'Consultez la documentation technique', en: 'Check the technical documentation' },
@@ -70,6 +75,8 @@ const traductions = {
 
   /* ── Notifications ───────────────────────────────────────────── */
   'notif.titre':             { fr: 'Préférences de notification',     en: 'Notification preferences' },
+  'notif.push_actives':      { fr: 'Notifications push réellement envoyées', en: 'Push notifications actually sent' },
+  'notif.push_simulees':     { fr: 'Notifications push simulées uniquement', en: 'Push notifications simulated only' },
   'notif.serveur_down':      { fr: 'Serveur BioTime hors ligne',     en: 'BioTime server offline' },
   'notif.serveur_down_desc': { fr: 'Recevoir une alerte quand un serveur BioTime d\'une école ne répond plus.', en: 'Get alerted when a school\'s BioTime server stops responding.' },
   'notif.badgeuse_off':      { fr: 'Badgeuse déconnectée',           en: 'Badge reader disconnected' },

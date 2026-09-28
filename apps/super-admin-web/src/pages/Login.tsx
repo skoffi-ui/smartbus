@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api, { messageFromError } from '../services/api';
+import ChampMotDePasse from '../components/ChampMotDePasse';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,10 +19,11 @@ export default function Login() {
         password
       });
       
-      const token = response.data.tokens.accessToken;
-      // On sauvegarde la clé secrète dans le navigateur
-      localStorage.setItem('accessToken', token);
-      
+      // Les deux jetons sont nécessaires : sans refreshToken, la session ne
+      // peut jamais se renouveler automatiquement (voir services/api.ts).
+      localStorage.setItem('accessToken', response.data.tokens.accessToken);
+      localStorage.setItem('refreshToken', response.data.tokens.refreshToken);
+
       // On recharge la page pour que le routeur nous envoie vers le tableau de bord
       window.location.href = '/dashboard';
     } catch (err: any) {
@@ -60,9 +62,7 @@ export default function Login() {
 
           <div className="form-group mb-6">
             <label className="form-label">Mot de passe</label>
-            <input 
-              type="password" 
-              className="form-input" 
+            <ChampMotDePasse
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

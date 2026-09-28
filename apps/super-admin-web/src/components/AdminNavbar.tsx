@@ -1,8 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Bell, LogOut, Sun, Moon, Settings, User, Shield } from 'lucide-react';
+import { Search, Bell, LogOut, Sun, Moon, Settings, User, Shield, Building2 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getInitialTheme, setTheme, type Theme } from '../theme';
 import { useI18n } from '../i18n';
+import api from '../services/api';
+
+interface ResultatRecherche {
+  id: string;
+  name: string;
+  code: string;
+  status: string;
+}
 
 export default function AdminNavbar() {
   const { t } = useI18n();
@@ -29,6 +37,54 @@ export default function AdminNavbar() {
     document.addEventListener('mousedown', gererClic);
     return () => document.removeEventListener('mousedown', gererClic);
   }, []);
+
+  // Recherche globale d'écoles — cette barre n'avait ni `value` ni `onChange` :
+  // un champ purement décoratif qui n'a jamais rien fait, quel que soit ce
+  // qu'on y tapait. `GET /organisations?search=` filtre déjà nom/code côté
+  // serveur (voir `OrganisationsService.findAll`) : rien à ajouter côté API.
+  const [requeteRecherche, setRequeteRecherche] = useState('');
+  const [resultatsRecherche, setResultatsRecherche] = useState<ResultatRecherche[]>([]);
+  const [rechercheOuverte, setRechercheOuverte] = useState(false);
+  const [rechercheEnCours, setRechercheEnCours] = useState(false);
+  const refRecherche = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const gererClic = (e: MouseEvent) => {
+      if (refRecherche.current && !refRecherche.current.contains(e.target as Node)) {
+        setRechercheOuverte(false);
+      }
+    };
+    document.addEventListener('mousedown', gererClic);
+    return () => document.removeEventListener('mousedown', gererClic);
+  }, []);
+
+  useEffect(() => {
+    const terme = requeteRecherche.trim();
+    if (terme.length < 2) {
+      setResultatsRecherche([]);
+      setRechercheEnCours(false);
+      return;
+    }
+
+    setRechercheEnCours(true);
+    const minuteur = setTimeout(() => {
+      api
+        .get('/organisations', { params: { search: terme, limit: 6 } })
+        .then((res) => setResultatsRecherche(Array.isArray(res.data?.data) ? res.data.data : []))
+        .catch(() => setResultatsRecherche([]))
+        .finally(() => setRechercheEnCours(false));
+    }, 300); // Anti-rafale : une requête par frappe saturerait l'API sans utilité.
+
+    return () => clearTimeout(minuteur);
+  }, [requeteRecherche]);
+
+  const allerVersEcole = (_org: ResultatRecherche) => {
+    setRechercheOuverte(false);
+    setRequeteRecherche('');
+    // Pas de fiche dédiée par école aujourd'hui : `Dashboard` reste le seul
+    // endroit où retrouver ses actions (Équipe/Accès/Suspendre...).
+    naviguer('/dashboard');
+  };
 
   const deconnecter = () => {
     localStorage.removeItem('accessToken');
@@ -65,13 +121,43 @@ export default function AdminNavbar() {
       </div>
 
       <div className="mt-2 flex h-full items-center justify-between gap-4 sm:justify-end sm:mt-0">
-        <div className="flex h-10 items-center rounded-full bg-navy-900/60 border border-white/10 px-4 text-white">
-          <Search size={16} className="text-navy-300" />
-          <input
-            type="text"
-            placeholder={t('rechercher')}
-            className="ml-2 w-full bg-transparent text-sm outline-none placeholder:text-navy-300"
-          />
+        <div className="relative" ref={refRecherche}>
+          <div className="flex h-10 items-center rounded-full bg-navy-900/60 border border-white/10 px-4 text-white w-56">
+            <Search size={16} className="text-navy-300 shrink-0" />
+            <input
+              type="text"
+              placeholder={t('rechercher')}
+              value={requeteRecherche}
+              onChange={(e) => {
+                setRequeteRecherche(e.target.value);
+                setRechercheOuverte(true);
+              }}
+              onFocus={() => setRechercheOuverte(true)}
+              className="ml-2 w-full bg-transparent text-sm outline-none placeholder:text-navy-300"
+            />
+          </div>
+
+          {rechercheOuverte && requeteRecherche.trim().length >= 2 && (
+            <div className="absolute left-0 mt-2 w-72 rounded-xl glass-panel shadow-lg border border-white/10 overflow-hidden" style={{ zIndex: 50 }}>
+              {rechercheEnCours ? (
+                <div className="px-4 py-3 text-sm text-navy-300">{t('recherche.chargement')}</div>
+              ) : resultatsRecherche.length === 0 ? (
+                <div className="px-4 py-3 text-sm text-navy-300">{t('recherche.aucun_resultat')}</div>
+              ) : (
+                resultatsRecherche.map((org) => (
+                  <button
+                    key={org.id}
+                    onClick={() => allerVersEcole(org)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-navy-300 hover:bg-white/5 hover:text-white transition-colors text-left"
+                  >
+                    <Building2 size={16} className="shrink-0" />
+                    <span className="flex-1 truncate">{org.name}</span>
+                    <span className="font-mono text-xs text-navy-400">{org.code}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         <button

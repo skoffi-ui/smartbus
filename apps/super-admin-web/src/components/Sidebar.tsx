@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, Settings, Network } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, Settings, Network, MapPin } from 'lucide-react';
 import { useI18n } from '../i18n';
 
 export default function Sidebar() {
@@ -10,6 +10,7 @@ export default function Sidebar() {
     { nom: t('sidebar.equipe'), chemin: '/users', icone: Users },
     { nom: t('sidebar.abonnements'), chemin: '/subscriptions', icone: Calendar },
     { nom: t('sidebar.centrale'), chemin: '/biotime-centrale', icone: Network },
+    { nom: t('sidebar.vehicules_gps'), chemin: '/vehicules-gps', icone: MapPin },
     { nom: t('sidebar.parametres'), chemin: '/settings', icone: Settings },
   ];
 

@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import Users from './pages/Users';
 import Subscriptions from './pages/Subscriptions';
 import BiotimeGestionCentrale from './pages/BiotimeGestionCentrale';
+import VehiculesGps from './pages/VehiculesGps';
 import Settings from './pages/Settings';
 import AdminLayout from './layouts/AdminLayout';
 
@@ -19,6 +20,7 @@ function App() {
           <Route path="users" element={<Users />} />
           <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="biotime-centrale" element={<BiotimeGestionCentrale />} />
+          <Route path="vehicules-gps" element={<VehiculesGps />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>

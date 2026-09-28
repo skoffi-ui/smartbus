@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { User, Lock, Bell, Shield, Eye, EyeOff, Save, Globe } from 'lucide-react';
+import { User, Lock, Bell, Shield, Save, Globe, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import api, { messageFromError } from '../services/api';
 import { useI18n, type Langue } from '../i18n';
-import type { FormEvent } from 'react';
+import ChampMotDePasse from '../components/ChampMotDePasse';
 
 interface ProfilUtilisateur {
   id: string;
@@ -31,16 +31,24 @@ export default function Parametres() {
   const [mdpActuel, setMdpActuel] = useState('');
   const [mdpNouveau, setMdpNouveau] = useState('');
   const [mdpConfirmation, setMdpConfirmation] = useState('');
-  const [voirMdpActuel, setVoirMdpActuel] = useState(false);
-  const [voirMdpNouveau, setVoirMdpNouveau] = useState(false);
 
   const [notifServeurDown, setNotifServeurDown] = useState(true);
   const [notifBadgeuseOff, setNotifBadgeuseOff] = useState(true);
   const [notifAboExpire, setNotifAboExpire] = useState(true);
   const [notifNouvelleEcole, setNotifNouvelleEcole] = useState(false);
 
+  // Statut réel de l'envoi des notifications push (proximité, pointages) —
+  // la chaîne fonctionne déjà de bout en bout côté serveur, mais reste
+  // simulée/journalisée tant que Firebase n'a pas de vraies clés. Sans cet
+  // encart, ça ne se voit que dans un log de démarrage que personne ne lit.
+  const [statutFcm, setStatutFcm] = useState<{ fcmConfigure: boolean; message: string } | null>(null);
+
   useEffect(() => {
     chargerProfil();
+    api
+      .get('/admin/notifications/statut')
+      .then((res) => setStatutFcm(res.data))
+      .catch(() => {}); // Absence d'info non bloquante : l'onglet reste utilisable sans elle.
   }, []);
 
   const chargerProfil = async () => {
@@ -208,38 +216,15 @@ export default function Parametres() {
             <form onSubmit={changerMotDePasse} className="space-y-4">
               <div>
                 <label className="form-label">{t('secu.mdp_actuel')}</label>
-                <div className="relative">
-                  <input
-                    type={voirMdpActuel ? 'text' : 'password'}
-                    value={mdpActuel}
-                    onChange={(e) => setMdpActuel(e.target.value)}
-                    className="form-input pr-12"
-                    required
-                  />
-                  <button type="button" onClick={() => setVoirMdpActuel(!voirMdpActuel)} className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-300 hover:text-white">
-                    {voirMdpActuel ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
+                <ChampMotDePasse value={mdpActuel} onChange={(e) => setMdpActuel(e.target.value)} required />
               </div>
               <div>
                 <label className="form-label">{t('secu.mdp_nouveau')}</label>
-                <div className="relative">
-                  <input
-                    type={voirMdpNouveau ? 'text' : 'password'}
-                    value={mdpNouveau}
-                    onChange={(e) => setMdpNouveau(e.target.value)}
-                    className="form-input pr-12"
-                    required
-                    minLength={8}
-                  />
-                  <button type="button" onClick={() => setVoirMdpNouveau(!voirMdpNouveau)} className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-300 hover:text-white">
-                    {voirMdpNouveau ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
+                <ChampMotDePasse value={mdpNouveau} onChange={(e) => setMdpNouveau(e.target.value)} required minLength={8} />
               </div>
               <div>
                 <label className="form-label">{t('secu.mdp_confirmer')}</label>
-                <input type="password" value={mdpConfirmation} onChange={(e) => setMdpConfirmation(e.target.value)} className="form-input" required minLength={8} />
+                <ChampMotDePasse value={mdpConfirmation} onChange={(e) => setMdpConfirmation(e.target.value)} required minLength={8} />
               </div>
               <div className="pt-2">
                 <button type="submit" disabled={enCours} className="btn-primary">
@@ -274,6 +259,29 @@ export default function Parametres() {
               <Bell size={20} />
               {t('notif.titre')}
             </h2>
+
+            {statutFcm && (
+              <div
+                className={`mb-6 p-4 rounded-xl border flex items-start gap-3 ${
+                  statutFcm.fcmConfigure
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-300'
+                }`}
+              >
+                {statutFcm.fcmConfigure ? (
+                  <CheckCircle2 size={20} className="shrink-0 mt-0.5" />
+                ) : (
+                  <AlertTriangle size={20} className="shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <p className="font-semibold">
+                    {statutFcm.fcmConfigure ? t('notif.push_actives') : t('notif.push_simulees')}
+                  </p>
+                  <p className="text-sm opacity-80 mt-0.5">{statutFcm.message}</p>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-4">
               <LigneBascule label={t('notif.serveur_down')} description={t('notif.serveur_down_desc')} active={notifServeurDown} surChangement={setNotifServeurDown} />
               <LigneBascule label={t('notif.badgeuse_off')} description={t('notif.badgeuse_off_desc')} active={notifBadgeuseOff} surChangement={setNotifBadgeuseOff} />
