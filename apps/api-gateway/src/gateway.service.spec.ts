@@ -28,6 +28,7 @@ describe('GatewayService', () => {
   let service: GatewayService;
   let jwt: JwtService;
   let verdict: TenantVerdict;
+  let allowedFeatures: string[] | null;
   let handler: ReturnType<GatewayService['handler']>;
 
   const token = (payload: object) => jwt.sign(payload);
@@ -35,13 +36,16 @@ describe('GatewayService', () => {
   beforeEach(() => {
     Object.keys(proxyMocks).forEach((k) => delete proxyMocks[k]);
     verdict = 'ok';
+    allowedFeatures = null;
     jwt = new JwtService({ secret: SECRET });
 
     const config = {
       get: (key: string, def?: string) =>
         ({ SUPER_APP_URL: SUPER, SCHOOL_APP_URL: SCHOOL, APP_MIN_VERSION: '2.0.0' } as Record<string, string>)[key] ?? def,
     } as unknown as ConfigService;
-    const tenantGate = { check: jest.fn(async () => verdict) } as unknown as TenantGateService;
+    const tenantGate = {
+      check: jest.fn(async () => ({ verdict, allowedFeatures })),
+    } as unknown as TenantGateService;
 
     service = new GatewayService(config, jwt, tenantGate);
     handler = service.handler();
@@ -70,6 +74,26 @@ describe('GatewayService', () => {
     expect(req.headers['x-user-id']).toBe('u1');
     expect(req.headers['x-user-role']).toBe('school_admin');
     expect(req.headers['x-tenant-schema']).toBeUndefined();
+  });
+
+  it('pose x-allowed-features à jour depuis la base (pas le JWT) et écrase toute valeur usurpée', async () => {
+    allowedFeatures = ['live', 'drivers'];
+    // Le JWT prétend n'avoir aucune restriction : la valeur fraîche de la base doit gagner.
+    const t = token({ sub: 'u1', role: 'school_admin', organisationId: 'org-A', allowedFeatures: null });
+    const { req } = await call('GET', '/api/v1/children', {
+      authorization: `Bearer ${t}`,
+      'x-allowed-features': '["cars","parents"]',
+    });
+
+    expect(req.headers['x-allowed-features']).toBe(JSON.stringify(['live', 'drivers']));
+  });
+
+  it('pose x-allowed-features à "null" pour une école sans restriction', async () => {
+    allowedFeatures = null;
+    const t = token({ sub: 'u1', organisationId: 'org-A' });
+    const { req } = await call('GET', '/api/v1/children', { authorization: `Bearer ${t}` });
+
+    expect(req.headers['x-allowed-features']).toBe('null');
   });
 
   it('retire les en-têtes d’identité même sur une route publique', async () => {

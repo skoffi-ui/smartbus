@@ -24,6 +24,7 @@ const SUPER_RESOURCES = new Set([
   'organisations',
   'roles',
   'subscriptions',
+  'plan-tarifs',
   'billing',
   'payments',
   'provisioning',
@@ -32,6 +33,12 @@ const SUPER_RESOURCES = new Set([
   'biotime',
   'hardware',
   'parent',
+  // BiotimeAdminController vit sous `admin/biotime/...` (apps/super-app/src/modules/biotime/
+  // biotime-admin.controller.ts) — sans cette entrée, tout /admin/biotime/* renvoyait 404
+  // à travers la gateway (le premier segment de chemin est "admin", pas "biotime") : la
+  // page "Gestion BioTime Centralisée" de super-admin-web était donc inaccessible en
+  // pratique. Seul ce contrôleur utilise ce préfixe aujourd'hui, entièrement côté super-app.
+  'admin',
 ]);
 
 /** Ressources servies par l'APP ÉCOLE (JWT + école active exigés). */
@@ -55,10 +62,19 @@ const SCHOOL_RESOURCES = new Set([
 const PUBLIC_ROUTES = new Set([
   'POST auth/login',
   'POST auth/register',
-  'POST auth/register-school',
+  // Aucun compte n'existe encore à ce stade — voir AuthController.candidatureDirecteur.
+  // Ne crée qu'un compte PENDING, sans jeton ni école : pas le risque d'abus
+  // qu'avait l'ancien /auth/register-school (qui provisionnait une base
+  // complète sans authentification), retiré du public pour cette raison.
+  'POST auth/candidature-directeur',
+  // 'POST auth/creer-mon-ecole' : PAS public — réservé à un directeur déjà
+  // authentifié et activé (voir AuthController.creerMonEcole).
   'POST auth/refresh',
   'POST auth/forgot-password',
   'POST auth/reset-password',
+  // Un collaborateur n'a encore aucun compte à ce stade — protégé par le
+  // jeton d'invitation lui-même (voir AuthController.rejoindreEcole), pas par le JWT.
+  'POST auth/rejoindre-ecole',
   'POST auth/parent/login',
   'POST payments/webhook',
   // Ingestion depuis les appareils (badgeuse BioTime, trackers GPS)

@@ -5,15 +5,30 @@ import { Organisation, OrganisationStatus, TENANT_ACCESS_STATUSES } from '@app/d
 
 export type TenantVerdict = 'ok' | 'not_found' | 'suspended' | 'inactive';
 
-interface CacheEntry {
+export interface TenantCheckResult {
   verdict: TenantVerdict;
+  /**
+   * Permissions par école (voir `Organisation.allowedFeatures`), lues fraîchement
+   * ici plutôt que depuis le JWT : sans ça, un compte directeur déjà connecté
+   * garderait ses anciennes permissions (voire un accès total si le jeton a été
+   * émis avant toute restriction) jusqu'à l'expiration du jeton — jusqu'à 7 jours.
+   * `null` = aucune restriction.
+   */
+  allowedFeatures: string[] | null;
+}
+
+interface CacheEntry {
+  result: TenantCheckResult;
   expiresAt: number;
 }
 
 /**
- * Vérifie le statut d'une école dans la base centrale avant de router vers l'APP école.
- * Le verdict est mis en cache quelques secondes pour ne pas interroger la base à chaque requête ;
- * une suspension prend donc effet en au plus `TTL_MS`.
+ * Vérifie le statut ET les permissions d'une école dans la base centrale avant de
+ * router vers l'APP école. Le résultat est mis en cache quelques secondes pour ne
+ * pas interroger la base à chaque requête ; une suspension ou un changement de
+ * permissions prend donc effet en au plus `TTL_MS`, plutôt que d'attendre
+ * l'expiration du jeton d'accès (voir `GatewayService.checkTenant` et l'en-tête
+ * de confiance `x-allowed-features` qu'il pose sur la requête relayée à l'école).
  */
 @Injectable()
 export class TenantGateService {
@@ -26,13 +41,13 @@ export class TenantGateService {
     private readonly organisations: Repository<Organisation>,
   ) {}
 
-  async check(organisationId: string): Promise<TenantVerdict> {
+  async check(organisationId: string): Promise<TenantCheckResult> {
     const cached = this.cache.get(organisationId);
-    if (cached && cached.expiresAt > Date.now()) return cached.verdict;
+    if (cached && cached.expiresAt > Date.now()) return cached.result;
 
     const org = await this.organisations.findOne({
       where: { id: organisationId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, allowedFeatures: true },
     });
 
     let verdict: TenantVerdict;
@@ -41,11 +56,12 @@ export class TenantGateService {
     else if (org.status === OrganisationStatus.SUSPENDED) verdict = 'suspended';
     else verdict = 'inactive';
 
-    this.cache.set(organisationId, { verdict, expiresAt: Date.now() + TenantGateService.TTL_MS });
-    return verdict;
+    const result: TenantCheckResult = { verdict, allowedFeatures: org?.allowedFeatures ?? null };
+    this.cache.set(organisationId, { result, expiresAt: Date.now() + TenantGateService.TTL_MS });
+    return result;
   }
 
-  /** Invalide le cache (utile aux tests). */
+  /** Invalide le cache (utile aux tests, et après une mise à jour des permissions). */
   clear(): void {
     this.cache.clear();
   }

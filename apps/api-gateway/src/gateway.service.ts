@@ -10,7 +10,7 @@ import { TenantGateService } from './tenant-gate.service';
 import { compareVersions } from './version.util';
 
 /** En-têtes d'identité posés par la gateway : jamais acceptés depuis l'extérieur. */
-const TRUSTED_HEADERS = ['x-tenant-id', 'x-tenant-schema', 'x-user-id', 'x-user-role'];
+const TRUSTED_HEADERS = ['x-tenant-id', 'x-tenant-schema', 'x-user-id', 'x-user-role', 'x-allowed-features'];
 
 interface TokenPayload {
   sub: string;
@@ -103,7 +103,15 @@ export class GatewayService {
       if (!this.isAppVersionSupported(req, res)) return;
 
       if (route.target === 'school') {
-        if (!(await this.checkTenant(payload, res))) return;
+        const tenantResult = await this.checkTenant(payload, res);
+        if (!tenantResult.ok) return;
+        // Lu frais depuis la base centrale (voir TenantGateService), pas depuis le
+        // jeton : une restriction ou un déblocage de fonctionnalité prend donc
+        // effet en au plus TenantGateService.TTL_MS, sans attendre l'expiration
+        // du jeton d'accès ni un rafraîchissement déclenché côté client. Toujours
+        // posé (y compris `"null"` = aucune restriction) pour que school-app ne
+        // retombe jamais sur la valeur potentiellement périmée du JWT.
+        req.headers['x-allowed-features'] = JSON.stringify(tenantResult.allowedFeatures);
       }
 
       req.headers['x-user-id'] = payload.sub;
@@ -150,25 +158,28 @@ export class GatewayService {
     return true;
   }
 
-  private async checkTenant(payload: TokenPayload, res: Response): Promise<boolean> {
+  private async checkTenant(
+    payload: TokenPayload,
+    res: Response,
+  ): Promise<{ ok: true; allowedFeatures: string[] | null } | { ok: false }> {
     if (!payload.organisationId) {
       this.reject(res, 403, 'NO_ORGANISATION', "Aucune école n'est associée à ce compte.");
-      return false;
+      return { ok: false };
     }
 
-    const verdict = await this.tenantGate.check(payload.organisationId);
+    const { verdict, allowedFeatures } = await this.tenantGate.check(payload.organisationId);
     switch (verdict) {
       case 'ok':
-        return true;
+        return { ok: true, allowedFeatures };
       case 'suspended':
         this.reject(res, 403, 'TENANT_SUSPENDED', 'Votre établissement est suspendu. Contactez SMARTBUS pour régulariser votre abonnement.');
-        return false;
+        return { ok: false };
       case 'inactive':
         this.reject(res, 403, 'TENANT_INACTIVE', "Votre établissement n'est pas encore activé.");
-        return false;
+        return { ok: false };
       default:
         this.reject(res, 403, 'TENANT_NOT_FOUND', 'Établissement introuvable.');
-        return false;
+        return { ok: false };
     }
   }
 
