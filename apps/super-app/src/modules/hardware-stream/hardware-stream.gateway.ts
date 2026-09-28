@@ -9,9 +9,11 @@ import {
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
+import { ContextIdFactory, ModuleRef } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
 import { OnEvent } from '@nestjs/event-emitter';
+import { TenantConnectionService } from '@app/database';
 
 /** Salon recevant tous les événements d'une école, toutes courses confondues. */
 const schoolRoom = (organisationId: string) => `school:${organisationId}`;
@@ -34,7 +36,55 @@ export class HardwareStreamGateway
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly jwtService: JwtService,
+    private readonly moduleRef: ModuleRef,
+  ) {}
+
+  /**
+   * Connexion à la base d'une école, hors contexte HTTP — même mécanisme que
+   * `CronService.connexionEcole` (apps/super-app/.../cron.service.ts) :
+   * `TenantConnectionService` est en portée requête (lit un en-tête HTTP),
+   * qu'un handshake WebSocket n'a jamais. Un contexte vide suffit puisque
+   * l'identifiant d'école est déjà connu (extrait du JWT).
+   */
+  private async connexionEcole(organisationId: string) {
+    const contextId = ContextIdFactory.create();
+    this.moduleRef.registerRequestByContextId({}, contextId);
+    const service = await this.moduleRef.resolve(TenantConnectionService, contextId, {
+      strict: false,
+    });
+    return service.getTenantConnection(organisationId);
+  }
+
+  /**
+   * Salons `course:{courseId}` des courses réellement utilisées par les
+   * enfants de ce parent — jamais `schoolRoom` (voir `handleConnection`).
+   * Même jointure que `ParentPortalService.getChildren`
+   * (apps/super-app/.../parent-portal.service.ts), dupliquée ici plutôt que
+   * d'importer tout `ParentPortalModule` dans `HardwareStreamModule` pour
+   * une seule requête — évite un couplage inter-modules superflu.
+   */
+  private async coursesDuParent(organisationId: string, parentId: string): Promise<string[]> {
+    try {
+      const tenantDS = await this.connexionEcole(organisationId);
+      const lignes = await tenantDS.query(
+        `
+          SELECT DISTINCT co.id
+          FROM children c
+          INNER JOIN affectations aff ON aff.child_id = c.id
+          INNER JOIN points_recuperation pr ON pr.id = aff.point_id
+          INNER JOIN courses co ON co.trajet_id = pr.trajet_id AND co.deleted_at IS NULL
+          WHERE c.parent_id = $1 AND c.deleted_at IS NULL
+        `,
+        [parentId],
+      );
+      return lignes.map((l: { id: string }) => l.id);
+    } catch (err: any) {
+      this.logger.error(`[WS Parent] Résolution des courses du parent ${parentId} impossible : ${err.message}`);
+      return [];
+    }
+  }
 
   afterInit(server: Server) {
     this.logger.log('Passerelle WebSocket Temps Réel initialisée.');
@@ -62,6 +112,7 @@ export class HardwareStreamGateway
       const payload = await this.jwtService.verifyAsync<{
         sub: string;
         organisationId?: string;
+        role?: string;
       }>(token);
 
       if (!payload.organisationId) {
@@ -71,16 +122,30 @@ export class HardwareStreamGateway
         return;
       }
 
-      client.data.organisationId = payload.organisationId;
+      const organisationId = payload.organisationId;
+      client.data.organisationId = organisationId;
       client.data.userId = payload.sub;
 
-      // Abonnement immédiat à toute l'activité de SON école (carte de suivi live).
-      client.join(schoolRoom(payload.organisationId));
+      if (payload.role === 'PARENT') {
+        // Jamais `schoolRoom` : un parent ne doit recevoir ni la position ni
+        // les pointages des enfants des autres familles — seulement les
+        // courses réellement utilisées par SES enfants. La liste est aussi
+        // gardée dans `client.data` : `handleSubscribe` s'en sert pour
+        // refuser toute tentative de rejoindre une AUTRE course de l'école.
+        client.data.role = 'PARENT';
+        const courseIds = await this.coursesDuParent(organisationId, payload.sub);
+        client.data.allowedCourseIds = courseIds;
+        courseIds.forEach((courseId) => client.join(courseRoom(organisationId, courseId)));
+        this.logger.log(
+          `Client parent connecté : ${client.id} (école ${organisationId}, ${courseIds.length} course(s))`,
+        );
+      } else {
+        // Compte école : déjà admin de toute l'école, abonnement à son activité complète.
+        client.join(schoolRoom(organisationId));
+        this.logger.log(`Client connecté : ${client.id} (école ${organisationId})`);
+      }
 
-      this.logger.log(
-        `Client connecté : ${client.id} (école ${payload.organisationId})`,
-      );
-      client.emit('connected', { organisationId: payload.organisationId });
+      client.emit('connected', { organisationId });
     } catch {
       this.logger.warn(`Connexion refusée (token invalide) : ${client.id}`);
       client.emit('unauthorized', { message: 'Session invalide ou expirée.' });
@@ -111,6 +176,29 @@ export class HardwareStreamGateway
     }
 
     const courseId = payload?.courseId;
+
+    // Un parent ne peut jamais rejoindre une course qui n'est pas celle
+    // d'un de ses propres enfants — sans ce garde, `handleConnection`
+    // scoperait correctement la connexion initiale, mais n'importe quel
+    // parent pourrait ensuite demander explicitement `{ courseId: '<celle
+    // d'une autre famille>' }` et l'obtenir.
+    if (client.data.role === 'PARENT') {
+      const autorisees: string[] = client.data.allowedCourseIds || [];
+      if (!courseId || courseId === '*') {
+        client.emit('subscribed', { room: 'toutes vos courses (déjà rejointes)', status: 'success' });
+        return;
+      }
+      if (!autorisees.includes(courseId)) {
+        this.logger.warn(`[WS Parent] Tentative refusée : ${client.id} → course ${courseId} (pas la sienne)`);
+        client.emit('unauthorized', { message: "Cette course n'appartient pas à l'un de vos enfants." });
+        return;
+      }
+      const room = courseRoom(organisationId, courseId);
+      client.join(room); // déjà rejoint à la connexion — idempotent
+      client.emit('subscribed', { room, status: 'success' });
+      return;
+    }
+
     if (!courseId || courseId === '*') {
       // Déjà couvert par le salon de l'école, rejoint à la connexion.
       const room = schoolRoom(organisationId);
@@ -180,5 +268,21 @@ export class HardwareStreamGateway
   @OnEvent('hardware.critical_anomaly')
   handleCriticalAnomalyBroadcast(payload: { tenantId: string; courseId: string; data: any }) {
     this.broadcast('critical_anomaly', 'Anomalie critique', payload);
+  }
+
+  /**
+   * Écoute le changement de permissions par école (voir OrganisationsService.update)
+   * pour prévenir en temps réel les clients déjà connectés de cette école.
+   *
+   * Aucune donnée de permission n'est envoyée ici, seulement un signal : le
+   * client réagit en rafraîchissant son jeton (voir school-web/App.tsx), qui
+   * seul fait foi (relu en direct par la gateway, voir TenantGateService).
+   * Ce salon est déjà rejoint par tout client connecté (suivi live/alertes) :
+   * aucune connexion ni requête supplémentaire n'est nécessaire pour ce signal.
+   */
+  @OnEvent('organisation.permissions_updated')
+  handlePermissionsUpdatedBroadcast(payload: { organisationId: string }) {
+    this.server.to(schoolRoom(payload.organisationId)).emit('permissions_updated');
+    this.logger.log(`[WS Broadcast] Permissions mises à jour, école ${payload.organisationId}`);
   }
 }

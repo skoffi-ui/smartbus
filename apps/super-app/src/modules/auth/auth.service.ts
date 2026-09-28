@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  NotFoundException,
   Logger,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -15,16 +16,24 @@ import * as crypto from 'crypto';
 import { User, UserStatus, UserRole, Subscription, SubscriptionPlan, SubscriptionStatus } from '@app/database';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { RegisterSchoolDto } from './dto/register-school.dto';
+import { CandidatureDirecteurDto } from './dto/candidature-directeur.dto';
+import { CreateMySchoolDto } from './dto/create-my-school.dto';
+import { InscriptionDirecteurDto } from './dto/inscription-directeur.dto';
+import { UpdateMeDto } from './dto/update-me.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { OrganisationsService } from '../organisations/organisations.service';
 import { ProvisioningService } from '../provisioning/provisioning.service';
-import { jwtSecretRequis } from '@app/common';
+import { jwtSecretRequis, DirectorInvitationService } from '@app/common';
 
 export interface JwtPayload {
   sub: string;
   email: string;
   role: string;
-  organisationId?: string;
+  organisationId?: string | null;
+  /** Permissions par école — voir `Organisation.allowedFeatures`. Absent/null = pas de restriction. */
+  allowedFeatures?: string[] | null;
+  /** Cette école peut-elle créer des comptes directeur supplémentaires ? Affichage seulement (voir DirectorInvitationService/UsersService pour la vérification réelle, toujours relue en base). */
+  allowAdditionalDirectors?: boolean;
 }
 
 export interface AuthTokens {
@@ -43,6 +52,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly organisationsService: OrganisationsService,
     private readonly provisioningService: ProvisioningService,
+    private readonly directorInvitationService: DirectorInvitationService,
   ) {}
 
   /**
@@ -63,57 +73,79 @@ export class AuthService {
       throw new UnauthorizedException('Compte suspendu. Contactez l\'administrateur.');
     }
 
+    // Auto-inscription (voir `candidatureDirecteur`) en attente de validation
+    // par le Super Admin — voir UsersService.activate. Aucune session tant
+    // que ce n'est pas fait, pas un simple écran d'attente sans accès.
+    if (user.status === UserStatus.PENDING) {
+      throw new UnauthorizedException("Votre compte est en attente d'activation par l'administrateur.");
+    }
+
     return user;
   }
 
   /**
-   * Inscription Self-Service d'une école (Organisation + Admin + Base de données)
+   * Auto-inscription ouverte d'un directeur, depuis school-web — sans
+   * invitation, sans école. Compte créé `PENDING`, sans `organisationId` :
+   * ne peut pas encore se connecter (voir `validateUser`). Apparaît dans
+   * "Directeurs d'écoles" avec sa date d'inscription (`createdAt`) ; le
+   * Super Admin doit l'activer (voir `UsersService.activate`) avant qu'il
+   * puisse se connecter et créer lui-même son école (voir `creerMonEcole`).
    */
-  async registerSchool(dto: RegisterSchoolDto) {
-    // 1. Vérifier si l'email de l'admin existe déjà
-    const existingUser = await this.userRepository.findOne({
-      where: { email: dto.adminEmail },
-    });
-    if (existingUser) {
+  async candidatureDirecteur(dto: CandidatureDirecteurDto): Promise<void> {
+    const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+    if (existing) {
       throw new ConflictException('Un compte avec cet email existe déjà');
     }
 
-    // 2. Créer l'école (Organisation)
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    const user = this.userRepository.create({
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: dto.email,
+      password: hashedPassword,
+      role: UserRole.SCHOOL_ADMIN,
+      status: UserStatus.PENDING,
+      organisationId: null,
+    });
+    await this.userRepository.save(user);
+  }
+
+  /**
+   * Un directeur déjà activé (mais sans école) crée lui-même son
+   * établissement — Organisation + base de données dédiée + abonnement
+   * d'essai, comme le faisait l'ancien `registerSchool`, mais déclenché par
+   * le directeur pour son propre compte plutôt que par le Super Admin pour
+   * un tiers. Un directeur ne peut créer qu'une seule école.
+   */
+  async creerMonEcole(userId: string, dto: CreateMySchoolDto): Promise<{ organisation: any; tokens: AuthTokens }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+    if (user.organisationId) {
+      throw new ConflictException('Vous avez déjà une école.');
+    }
+
+    // 1. Créer l'école (Organisation)
     const organisation = await this.organisationsService.create({
       name: dto.schoolName,
       address: dto.address,
       phone: dto.phone,
-      email: dto.adminEmail,
     } as any);
 
-    // 3. Créer le compte utilisateur Directeur
-    const hashedPassword = await bcrypt.hash(dto.adminPassword, 12);
-    const user = this.userRepository.create({
-      firstName: dto.adminFirstName,
-      lastName: dto.adminLastName,
-      email: dto.adminEmail,
-      password: hashedPassword,
-      role: UserRole.SCHOOL_ADMIN,
-      status: UserStatus.ACTIVE,
-      organisationId: organisation.id,
-    });
-    const savedUser = await this.userRepository.save(user);
-
-    // 4. Déclencher le provisionnement de la base de données.
-    // En cas d'échec on annule l'inscription : sinon l'école existerait sans base et l'email
-    // serait "déjà utilisé", empêchant toute nouvelle tentative.
+    // 2. Déclencher le provisionnement de la base de données.
+    // En cas d'échec on annule la création : sinon l'école existerait sans base.
     const provisioning = await this.provisioningService.provisionOrganisation(organisation.id);
     if (provisioning.status === 'error') {
-      await this.userRepository.delete(savedUser.id);
       await this.organisationsService.remove(organisation.id);
       // La base a pu être créée avant l'échec (l'organisation n'est alors pas marquée provisionnée)
       await this.provisioningService.dropOrganisationDatabase(provisioning.dbName);
       throw new InternalServerErrorException(
-        "La création de la base de données de l'école a échoué. Aucun compte n'a été créé, veuillez réessayer.",
+        "La création de la base de données de l'école a échoué. Aucune école n'a été créée, veuillez réessayer.",
       );
     }
 
-    // 4.5 Créer un abonnement d'essai gratuit de 7 jours
+    // 3. Créer un abonnement d'essai gratuit de 7 jours
     const now = new Date();
     const endDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 jours
     const subscription = this.subscriptionRepository.create({
@@ -127,18 +159,52 @@ export class AuthService {
     });
     await this.subscriptionRepository.save(subscription);
 
-    // 5. Connecter l'utilisateur automatiquement (optionnel) et renvoyer
+    // 4. Rattacher l'école au directeur, et réémettre des jetons frais :
+    // ceux qu'il avait n'ont pas d'organisationId.
+    user.organisationId = organisation.id;
+    const savedUser = await this.userRepository.save(user);
+    const tokens = await this.generateTokens(savedUser);
+    await this.saveRefreshToken(savedUser.id, tokens.refreshToken);
+
+    return { organisation, tokens };
+  }
+
+  /**
+   * Un collaborateur termine son inscription à partir d'un lien d'invitation
+   * généré par un directeur déjà autorisé (voir `DirectorInvitationService`
+   * et `UsersService.createDirector` — seule source de ce jeton désormais).
+   * Prénom, nom, email et mot de passe sont tous choisis ici par le
+   * collaborateur lui-même — c'est à cet instant précis que son compte
+   * existe et qu'il apparaît dans "Directeurs d'écoles", pas avant. Comme il
+   * vient de choisir son propre mot de passe, la connexion automatique est
+   * légitime ici.
+   */
+  async rejoindreEcole(dto: InscriptionDirecteurDto): Promise<{ user: Partial<User>; tokens: AuthTokens }> {
+    const organisationId = await this.directorInvitationService.verifier(dto.token);
+    await this.organisationsService.findOne(organisationId); // 404 si l'école n'existe plus
+
+    const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+    if (existing) {
+      throw new ConflictException('Un compte avec cet email existe déjà');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    const user = this.userRepository.create({
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      email: dto.email,
+      password: hashedPassword,
+      role: UserRole.SCHOOL_ADMIN,
+      status: UserStatus.ACTIVE,
+      organisationId,
+    });
+    const savedUser = await this.userRepository.save(user);
+
     const tokens = await this.generateTokens(savedUser);
     await this.saveRefreshToken(savedUser.id, tokens.refreshToken);
 
     const { password: _pw, ...userWithoutPassword } = savedUser as User & { password: string };
-    
-    return {
-      message: 'École créée et provisionnée avec succès !',
-      organisation,
-      user: userWithoutPassword,
-      tokens,
-    };
+    return { user: userWithoutPassword, tokens };
   }
 
   /**
@@ -214,14 +280,35 @@ export class AuthService {
   }
 
   /**
-   * Génère les tokens d'accès et de rafraîchissement
+   * Génère les tokens d'accès et de rafraîchissement.
+   *
+   * Recharge `allowedFeatures` depuis l'organisation à chaque émission
+   * (login, refresh) plutôt que de le figer une fois pour toutes : un
+   * changement de permissions par le Super Admin s'applique donc au
+   * prochain jeton émis, pas seulement à la prochaine reconnexion complète.
    */
   private async generateTokens(user: User): Promise<AuthTokens> {
+    let allowedFeatures: string[] | null | undefined;
+    let allowAdditionalDirectors = false;
+    if (user.role === UserRole.SCHOOL_ADMIN && user.organisationId) {
+      try {
+        const organisation = await this.organisationsService.findOne(user.organisationId);
+        allowedFeatures = organisation.allowedFeatures;
+        allowAdditionalDirectors = organisation.allowAdditionalDirectors;
+      } catch {
+        // École introuvable/supprimée : on n'empêche pas l'émission du jeton
+        // pour autant, ce n'est pas le rôle de generateTokens de trancher ça.
+        allowedFeatures = undefined;
+      }
+    }
+
     const payload: JwtPayload = {
       sub: user.id,
       email: user.email,
       role: user.role,
       organisationId: user.organisationId,
+      allowedFeatures,
+      allowAdditionalDirectors,
     };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -267,7 +354,13 @@ export class AuthService {
   }
 
   /**
-   * Réinitialisation du mot de passe
+   * Pose un nouveau mot de passe à partir d'un jeton valide.
+   *
+   * Sert à la fois à un "mot de passe oublié" classique ET à la toute
+   * première activation d'un compte directeur (voir `registerSchool`,
+   * `UsersService.createDirector`, `UsersService.resetPassword`) : dans les
+   * trois cas, c'est le même jeton — voir `genererJetonActivation`. Si le
+   * compte était `PENDING` (jamais encore activé), il passe `ACTIVE` ici.
    */
   async resetPassword(token: string, newPassword: string): Promise<void> {
     const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -283,6 +376,60 @@ export class AuthService {
     user.password = await bcrypt.hash(newPassword, 12);
     user.resetPasswordToken = null as any;
     user.resetPasswordExpires = null as any;
+    if (user.status === UserStatus.PENDING) {
+      user.status = UserStatus.ACTIVE;
+    }
+    await this.userRepository.save(user);
+  }
+
+  /**
+   * Met à jour les informations personnelles de l'utilisateur connecté
+   * (prénom, nom, email). Rôle et statut ne sont volontairement pas
+   * modifiables ici, voir `UpdateMeDto`.
+   */
+  async updateMe(userId: string, dto: UpdateMeDto): Promise<Partial<User>> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    if (dto.email && dto.email !== user.email) {
+      const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+      if (existing) {
+        throw new ConflictException('Un compte avec cet email existe déjà');
+      }
+    }
+
+    Object.assign(user, dto);
+    const saved = await this.userRepository.save(user);
+
+    const { password: _pw, refreshToken: _rt, ...userWithoutSensitive } = saved as User & {
+      password: string;
+      refreshToken: string;
+    };
+    return userWithoutSensitive;
+  }
+
+  /**
+   * Change le mot de passe de l'utilisateur connecté, après vérification de
+   * l'ancien. Contrairement à `resetPassword` (jeton par email), celui-ci
+   * exige de connaître le mot de passe actuel.
+   */
+  async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      select: { id: true, password: true },
+    });
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable');
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Mot de passe actuel incorrect');
+    }
+
+    user.password = await bcrypt.hash(dto.newPassword, 12);
     await this.userRepository.save(user);
   }
 }

@@ -166,4 +166,45 @@ export class CronService {
     }
     this.logger.debug(`Planificateur : annuaire mis en file pour ${configs.length} ecole(s).`);
   }
+
+  /**
+   * Purge l'historique des positions GPS (`gps_position_history`) au-delà de
+   * 30 jours, chaque nuit. Une ligne est écrite à chaque position ingérée
+   * (voir `HardwareStreamService.enregistrerHistoriquePosition`, toutes les
+   * ~20s par véhicule actif) : sans purge, cette table grossirait sans
+   * limite. La table peut ne pas encore exister pour une école qui n'a
+   * jamais reçu de position GPS — `DROP`/`DELETE` sur une table absente est
+   * silencieusement ignoré (`IF EXISTS` sur la requête elle-même n'existe pas
+   * pour DELETE, d'où la vérification préalable).
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async purgerHistoriquePositionsGps() {
+    const schools = await this.organisationRepository.find({ where: { dbProvisioned: true } });
+    if (schools.length === 0) return;
+
+    let totalSupprime = 0;
+    for (const school of schools) {
+      try {
+        const tenantDS = await this.connexionEcole(school.id);
+        const existe = await tenantDS.query(
+          `SELECT to_regclass('public.gps_position_history') IS NOT NULL AS existe`,
+        );
+        if (!existe?.[0]?.existe) continue;
+
+        // `RETURNING id` pour compter de façon fiable : la forme du résultat
+        // brut d'un DELETE sans RETURNING varie selon le pilote, alors qu'un
+        // tableau de lignes est toujours prévisible.
+        const result = await tenantDS.query(
+          `DELETE FROM gps_position_history WHERE created_at < now() - INTERVAL '30 days' RETURNING id`,
+        );
+        totalSupprime += Array.isArray(result) ? result.length : 0;
+      } catch (err: any) {
+        this.logger.warn(`Purge historique GPS impossible pour ${school.name} : ${err.message}`);
+      }
+    }
+
+    if (totalSupprime > 0) {
+      this.logger.log(`Purge historique GPS : ${totalSupprime} position(s) de plus de 30 jours supprimée(s).`);
+    }
+  }
 }

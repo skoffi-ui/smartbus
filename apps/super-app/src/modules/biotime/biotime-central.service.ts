@@ -25,9 +25,13 @@ export class BiotimeCentralService {
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    // Configuration du serveur BioTime central (identique pour toutes les orgs)
-    this.API_BASE = this.configService.get<string>('BIOTIME_CENTRAL_URL');
-    this.AUTH_TOKEN = this.configService.get<string>('BIOTIME_CENTRAL_TOKEN');
+    // Configuration du serveur BioTime central (identique pour toutes les orgs).
+    // Valeur par défaut '' plutôt que `getOrThrow` : le serveur BioTime n'est
+    // pas encore fonctionnel aujourd'hui, et ça ne doit pas empêcher toute
+    // l'application de démarrer. Les appels HTTP échoueront simplement (déjà
+    // interceptés par des try/catch dans ce service) tant qu'il n'est pas configuré.
+    this.API_BASE = this.configService.get<string>('BIOTIME_CENTRAL_URL', '');
+    this.AUTH_TOKEN = this.configService.get<string>('BIOTIME_CENTRAL_TOKEN', '');
   }
 
   // ==================== GESTION DES DÉPARTEMENTS ====================
@@ -231,12 +235,24 @@ export class BiotimeCentralService {
   }
 
   /**
+   * Lister tous les terminaux connus localement (assignés ou non), avec leur
+   * école le cas échéant. Toujours servi depuis notre base : contrairement à
+   * `fetchAllTerminalsFromBiotime`, ne dépend pas du serveur BioTime central.
+   */
+  async getAllTerminals(): Promise<BiotimeTerminal[]> {
+    return await this.terminalRepo.find({
+      relations: { organisation: true },
+      order: { serialNumber: 'ASC' },
+    });
+  }
+
+  /**
    * Lister les terminaux assignés à une organisation
    */
   async getOrganisationTerminals(organisationId: string): Promise<BiotimeTerminal[]> {
     return await this.terminalRepo.find({
       where: { organisationId },
-      relations: ['organisation'],
+      relations: { organisation: true },
       order: { terminalName: 'ASC' },
     });
   }
@@ -247,7 +263,7 @@ export class BiotimeCentralService {
   async getTerminalBySerialNumber(serialNumber: string): Promise<BiotimeTerminal> {
     const terminal = await this.terminalRepo.findOne({
       where: { serialNumber },
-      relations: ['organisation'],
+      relations: { organisation: true },
     });
 
     if (!terminal) {

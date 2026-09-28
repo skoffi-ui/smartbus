@@ -5,11 +5,13 @@ import { OrganisationsController } from './organisations.controller';
 import { OrganisationsService } from './organisations.service';
 
 import { ProvisioningModule } from '../provisioning/provisioning.module';
+import { BiotimeModule } from '../biotime/biotime.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Organisation]),
-    ProvisioningModule
+    ProvisioningModule,
+    BiotimeModule,
   ],
   controllers: [OrganisationsController],
   providers: [OrganisationsService],

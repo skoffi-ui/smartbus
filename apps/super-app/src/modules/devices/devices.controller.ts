@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DevicesService, DeviceData } from './devices.service';
 import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
 import { UserRole } from '@app/database';
+import { GpswoxService } from '../gpswox/gpswox.service';
 
 @ApiTags('devices')
 @ApiBearerAuth()
@@ -10,12 +11,21 @@ import { UserRole } from '@app/database';
 @Roles(UserRole.SUPER_ADMIN)
 @Controller('devices')
 export class DevicesController {
-  constructor(private readonly devicesService: DevicesService) {}
+  constructor(
+    private readonly devicesService: DevicesService,
+    private readonly gpswoxService: GpswoxService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Lister tout le matériel du parc SaaS' })
   findAll() {
     return this.devicesService.findAll();
+  }
+
+  @Get('gpswox-sante')
+  @ApiOperation({ summary: 'Santé du sondage GPSWOX (dernier succès, échecs consécutifs)' })
+  getGpswoxSante() {
+    return this.gpswoxService.getSante();
   }
 
   @Post()

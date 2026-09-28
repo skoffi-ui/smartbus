@@ -24,9 +24,8 @@ import {
 } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { JwtAuthGuard, RolesGuard, Roles, UserRole, Public, CurrentUser } from '@app/common';
+import { JwtAuthGuard, RolesGuard, Roles, UserRole, CurrentUser } from '@app/common';
 import { BiotimeService } from './biotime.service';
-import { BiotimeConfigService, EnregistrerConfigDto } from './biotime-config.service';
 import {
   CreateBiotimeEmployeeDto,
   UpdateBiotimeEmployeeDto,
@@ -39,10 +38,17 @@ import {
 } from './dto/biotime-write.dto';
 
 /**
- * Supervision des serveurs BioTime des écoles.
+ * Annuaire/employés/pointages BioTime, par école.
  *
- * Chaque école a son propre serveur : toutes les routes sont paramétrées par
- * `organisationId`. Réservé au super admin, hormis le webhook d'ingestion.
+ * L'ancien réglage par école (URL/identifiants propres, webhook d'ingestion
+ * poussée) a été retiré : `biotime_configs` était vide dans les 2 seules
+ * écoles réelles à ce jour, et l'architecture cible est un serveur BioTime
+ * central unique (voir `BiotimeCentralService`/`BiotimeAdminController`,
+ * page Super Admin « Gestion BioTime Centralisée »). `BiotimeConfigService`
+ * reste néanmoins un vrai dépendance interne de `BiotimeService`
+ * (résolution des identifiants, suivi succès/échec) — seules les routes
+ * CRUD/test/webhook, qui n'étaient plus appelées par aucun frontend, ont
+ * été retirées ici.
  */
 @ApiTags('BioTime')
 @ApiBearerAuth()
@@ -52,7 +58,6 @@ import {
 export class BiotimeController {
   constructor(
     private readonly biotimeService: BiotimeService,
-    private readonly configService: BiotimeConfigService,
     @InjectQueue('biotime-sync') private readonly biotimeQueue: Queue,
   ) {}
 
@@ -61,52 +66,6 @@ export class BiotimeController {
   @ApiOperation({ summary: 'Affiche le tableau de bord visuel' })
   getDashboard() {
     return { title: 'Tableau de Bord SMARTBUS' };
-  }
-
-  // ── Configuration par école ─────────────────────────────────────────────
-
-  @Get('configs')
-  @ApiOperation({ summary: 'Configurations BioTime de toutes les écoles' })
-  listerConfigs() {
-    return this.configService.listerToutes();
-  }
-
-  @Get('configs/:organisationId')
-  @ApiOperation({ summary: "Configuration BioTime d'une école" })
-  obtenirConfig(@Param('organisationId') organisationId: string) {
-    return this.configService.obtenirPublique(organisationId);
-  }
-
-  @Post('configs/:organisationId')
-  @ApiOperation({ summary: "Crée ou met à jour le serveur BioTime d'une école" })
-  @ApiBody({
-    schema: {
-      example: {
-        url: 'http://192.168.1.50:8080',
-        username: 'admin',
-        password: 'secret',
-        isActive: true,
-      },
-    },
-  })
-  enregistrerConfig(
-    @Param('organisationId') organisationId: string,
-    @Body() dto: EnregistrerConfigDto,
-  ) {
-    return this.configService.enregistrer(organisationId, dto);
-  }
-
-  @Delete('configs/:organisationId')
-  @ApiOperation({ summary: "Supprime la configuration BioTime d'une école" })
-  async supprimerConfig(@Param('organisationId') organisationId: string) {
-    await this.configService.supprimer(organisationId);
-    return { success: true };
-  }
-
-  @Post('configs/:organisationId/test')
-  @ApiOperation({ summary: "Teste la connexion au serveur BioTime d'une école" })
-  testerConnexion(@Param('organisationId') organisationId: string) {
-    return this.biotimeService.testerConnexion(organisationId);
   }
 
   // ── Répertoire de SA propre école (responsable d'établissement) ─────────
@@ -623,21 +582,4 @@ export class BiotimeController {
     return this.biotimeService.deletePosition(organisationId, posId);
   }
 
-  // ── Ingestion poussée ───────────────────────────────────────────────────
-
-  /**
-   * Sans JWT : l'appelant est un relais ou un agent installé chez l'école, pas un
-   * utilisateur. L'école est déduite de l'appairage du terminal.
-   *
-   * À FAIRE : authentifier par secret d'appareil (HMAC).
-   */
-  @Public()
-  @Post('webhook')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards()
-  @ApiOperation({ summary: 'Réception poussée de pointages (relais / agent)' })
-  @ApiResponse({ status: 200, description: 'Webhook traité.' })
-  receiveWebhook(@Body() payload: any) {
-    return this.biotimeService.handleWebhook(payload);
-  }
 }

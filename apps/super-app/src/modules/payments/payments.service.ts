@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment, SandboxPaymentStatus, SandboxPaymentMethod, Subscription, SubscriptionStatus, SubscriptionPlan, Organisation, OrganisationStatus } from '@app/database';
+import { PlanTarifsService } from '../plan-tarifs/plan-tarifs.service';
 
 @Injectable()
 export class PaymentsService {
@@ -14,10 +15,18 @@ export class PaymentsService {
     private readonly subscriptionRepository: Repository<Subscription>,
     @InjectRepository(Organisation)
     private readonly organisationRepository: Repository<Organisation>,
+    private readonly planTarifsService: PlanTarifsService,
   ) {}
 
   /**
-   * Simule un paiement réussi en Sandbox et prolonge l'abonnement de 5 minutes.
+   * Simule un paiement réussi en Sandbox et prolonge l'abonnement d'un mois.
+   *
+   * Prolongeait auparavant de 5 minutes ("mode test") — un reliquat de
+   * développement qui rendait ce point d'entrée inutilisable comme vrai
+   * geste de paiement pour un directeur (voir Abonnement.tsx, school-web) :
+   * même si l'argent lui-même reste simulé (vrai CinetPay hors périmètre),
+   * la durée accordée doit être réelle. Même calcul que
+   * `CinetpayService.handleWebhook` (flux Mobile Money).
    */
   async sandboxCheckout(organisationId: string, plan: SubscriptionPlan = SubscriptionPlan.STARTER) {
     const org = await this.organisationRepository.findOne({ where: { id: organisationId } });
@@ -27,17 +36,29 @@ export class PaymentsService {
 
     // 1. Chercher l'abonnement existant ou en créer un nouveau
     let subscription = await this.subscriptionRepository.findOne({ where: { organisationId } });
-    
+
+    // Tarif réel du forfait demandé (voir PlanTarif) — avant ce correctif,
+    // seuls 2 prix existaient en dur pour les 5 forfaits (BASIC/STANDARD/
+    // PREMIUM/ENTERPRISE partageaient tous le même prix "par défaut", sans
+    // rapport avec leurs plafonds réels de véhicules).
+    const tarif = await this.planTarifsService.findOne(plan);
+
     const now = new Date();
-    // En mode test Sandbox, on ajoute 5 minutes (au lieu de 1 mois)
-    const endDate = new Date(now.getTime() + 5 * 60 * 1000); 
+    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
 
     if (subscription) {
+      // Lu AVANT d'écraser le statut ci-dessous : sinon la comparaison
+      // suivante ("était-il expiré ?") se faisait déjà contre la nouvelle
+      // valeur ACTIVE qu'on venait d'assigner, toujours vraie — la date de
+      // début n'était donc jamais réinitialisée après une vraie expiration.
+      const statutAvant = subscription.status;
       subscription.plan = plan;
       subscription.status = SubscriptionStatus.ACTIVE;
       subscription.endDate = endDate;
-      // S'il était expiré, la date de début devient "maintenant", sinon on la laisse telle quelle
-      if (subscription.status !== SubscriptionStatus.ACTIVE) {
+      subscription.pricePerMonth = tarif.pricePerMonth;
+      subscription.maxCars = tarif.maxCars;
+      subscription.maxChildren = tarif.maxChildren;
+      if (statutAvant !== SubscriptionStatus.ACTIVE) {
         subscription.startDate = now;
       }
       subscription = await this.subscriptionRepository.save(subscription);
@@ -48,8 +69,9 @@ export class PaymentsService {
         status: SubscriptionStatus.ACTIVE,
         startDate: now,
         endDate,
-        pricePerMonth: plan === SubscriptionPlan.STARTER ? 50000 : 100000, // Faux prix pour le test
-        maxCars: plan === SubscriptionPlan.STARTER ? 2 : 10,
+        pricePerMonth: tarif.pricePerMonth,
+        maxCars: tarif.maxCars,
+        maxChildren: tarif.maxChildren,
       });
       subscription = await this.subscriptionRepository.save(subscription);
     }

@@ -20,8 +20,11 @@ import {
 import { OrganisationsService } from './organisations.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
-import { JwtAuthGuard, RolesGuard, Roles, PaginationDto } from '@app/common';
+import { UpdateMySchoolDto } from './dto/update-my-school.dto';
+import { SearchOrganisationsDto } from './dto/search-organisations.dto';
+import { JwtAuthGuard, RolesGuard, Roles, CurrentUser } from '@app/common';
 import { UserRole } from '@app/common';
+import { User } from '@app/database';
 
 @ApiTags('organisations')
 @ApiBearerAuth()
@@ -41,16 +44,34 @@ export class OrganisationsController {
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Lister toutes les organisations' })
   @ApiQuery({ name: 'search', required: false })
-  findAll(
-    @Query() pagination: PaginationDto,
-    @Query('search') search?: string,
-  ) {
-    return this.service.findAll(pagination, search);
+  findAll(@Query() query: SearchOrganisationsDto) {
+    return this.service.findAll(query, query.search);
+  }
+
+  // Déclarées avant les routes `:id` : sinon Nest/Express matcherait
+  // "mon-ecole" comme si c'était un `:id` (premier enregistré = prioritaire).
+  @Get('mon-ecole')
+  @Roles(UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Récupérer les informations de ma propre école (directeur)" })
+  findMine(@CurrentUser() user: User) {
+    return this.service.findMine(user.organisationId);
+  }
+
+  @Patch('mon-ecole')
+  @Roles(UserRole.SCHOOL_ADMIN)
+  @ApiOperation({ summary: "Modifier les informations de ma propre école (directeur)" })
+  updateMine(@CurrentUser() user: User, @Body() dto: UpdateMySchoolDto) {
+    return this.service.updateMine(user.organisationId, dto);
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Récupérer une organisation par son ID' })
+  // Réservé au Super Admin : un directeur qui connaîtrait/deviendrait l'ID
+  // d'une autre école pourrait sinon lire tout son enregistrement (dbName,
+  // biotimeDepartmentId, etc. — aucun contrôle de propriété ici). Un
+  // directeur consulte désormais SA PROPRE école via `GET /organisations/mon-ecole`
+  // ci-dessus, qui ne se fie jamais à un ID fourni par le client.
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
   }

@@ -3,7 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { DatabaseModule } from '@app/database';
-import { CryptoModule } from '@app/common';
+import { CryptoModule, DirectorInvitationModule } from '@app/common';
 import { BullModule } from '@nestjs/bullmq';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -20,6 +20,8 @@ import { BiotimeModule } from './modules/biotime/biotime.module';
 import { HardwareStreamModule } from './modules/hardware-stream/hardware-stream.module';
 import { ParentPortalModule } from './modules/parent-portal/parent-portal.module';
 import { DevicesModule } from './modules/devices/devices.module';
+import { GpswoxModule } from './modules/gpswox/gpswox.module';
+import { PlanTarifsModule } from './modules/plan-tarifs/plan-tarifs.module';
 
 @Module({
   imports: [
@@ -34,6 +36,9 @@ import { DevicesModule } from './modules/devices/devices.module';
 
     // Chiffrement des secrets tiers (identifiants BioTime des écoles)
     CryptoModule,
+
+    // Invitations directeur (sans base de données, voir director-invitation.service.ts)
+    DirectorInvitationModule,
 
     // Base de données centrale
     DatabaseModule,
@@ -66,6 +71,8 @@ import { DevicesModule } from './modules/devices/devices.module';
     HardwareStreamModule,
     ParentPortalModule,
     DevicesModule,
+    GpswoxModule,
+    PlanTarifsModule,
   ],
 })
 export class SuperAppModule {}

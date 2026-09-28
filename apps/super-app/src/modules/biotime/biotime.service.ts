@@ -158,22 +158,6 @@ export class BiotimeService {
     }
   }
 
-  /** Vérifie qu'une configuration répond, sans rien synchroniser. */
-  async testerConnexion(organisationId: string): Promise<{ ok: boolean; message: string }> {
-    try {
-      const data = await this.lire(organisationId, '/personnel/api/employees/?page_size=1');
-      const total = data?.count ?? 0;
-      await this.configService.enregistrerSucces(organisationId, null, 0);
-      return { ok: true, message: `Connexion établie. ${total} employé(s) visible(s) sur ce serveur.` };
-    } catch (error: any) {
-      const message = error?.response?.status
-        ? `HTTP ${error.response.status}`
-        : error.message || 'Serveur injoignable';
-      await this.configService.enregistrerEchec(organisationId, message);
-      return { ok: false, message };
-    }
-  }
-
   // ───────────────────────────────────────────────────────────────────────────
   // SYNCHRONISATION DES ENFANTS (ANNUAIRE)
   // ───────────────────────────────────────────────────────────────────────────
@@ -344,14 +328,15 @@ export class BiotimeService {
     try {
       let data: any;
 
-      // NOUVEAU : Utiliser le serveur central si l'organisation a un département
+      // NOUVEAU : Utiliser le serveur central si l'organisation a un département.
+      // `getOrganisationTransactions` prend des `Date` et les sérialise elle-même
+      // (`.toISOString()`) — contrairement à l'ancien chemin par-école plus bas,
+      // qui a besoin du format `formatBiotime` directement dans l'URL.
       if (organisation.biotimeDepartmentId) {
-        const startDate = this.formatBiotime(debut);
-        const endDate = this.formatBiotime(fin);
         const transactions = await this.biotimeCentralService.getOrganisationTransactions(
           organisationId,
-          startDate,
-          endDate,
+          debut,
+          fin,
         );
         data = { data: transactions };
         this.logger.log(
@@ -490,99 +475,6 @@ export class BiotimeService {
       `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
       `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
     );
-  }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // WEBHOOK (si un serveur ou un relais sait pousser)
-  // ───────────────────────────────────────────────────────────────────────────
-
-  /**
-   * Réception poussée de pointages.
-   *
-   * L'API BioTime 8.5 ne sait pas appeler un tiers : cet endpoint ne sert qu'à un
-   * relais ou un agent installé sur place. L'école est déduite du numéro de série
-   * du terminal via l'appairage central, jamais du contenu du message.
-   */
-  async handleWebhook(payload: any): Promise<any> {
-    const transactions = Array.isArray(payload) ? payload : [payload];
-    let traites = 0;
-    let sansEcole = 0;
-
-    for (const txn of transactions) {
-      if (!txn.emp_code || !txn.punch_time || !txn.terminal_sn) continue;
-
-      const organisationId = await this.resoudreEcoleDuTerminal(txn.terminal_sn);
-      if (!organisationId) {
-        sansEcole++;
-        this.logger.warn(
-          `[BioTime] Terminal "${txn.terminal_sn}" non appairé : pointage conservé nulle part.`,
-        );
-        continue;
-      }
-
-      const identifiant = txn.id
-        ? String(txn.id)
-        : `WH-${new Date(txn.punch_time).getTime()}-${txn.emp_code}`;
-
-      const existant = await this.punchRepository.findOne({
-        where: { organisationId, biotimePunchId: identifiant },
-      });
-      if (existant) continue;
-
-      const enfant = await this.childRepository.findOne({
-        where: { organisationId, empCode: txn.emp_code },
-      });
-
-      await this.autoRegisterDevice(txn.terminal_sn);
-
-      const punch = this.punchRepository.create({
-        organisationId,
-        biotimePunchId: identifiant,
-        childId: enfant?.id,
-        empCode: txn.emp_code,
-        punchTime: new Date(txn.punch_time),
-        punchState: txn.punch_state,
-        verifyType: txn.verify_type,
-        terminalSn: txn.terminal_sn,
-      });
-      await this.punchRepository.save(punch);
-      traites++;
-
-      this.eventEmitter.emit('punch.received', {
-        child:
-          enfant ?? {
-            id: null,
-            firstName: 'Élève',
-            lastName: `Inconnu (${txn.emp_code})`,
-            empCode: txn.emp_code,
-          },
-        punch,
-      });
-    }
-
-    return { message: 'Webhook traité', processed: traites, sansEcole };
-  }
-
-  /** École propriétaire d'un terminal, d'après l'appairage central. */
-  private async resoudreEcoleDuTerminal(serialNumber: string): Promise<string | null> {
-    try {
-      const lignes = await this.centralDataSource.query(
-        `
-          SELECT od.organisation_id AS "organisationId"
-          FROM organisation_devices od
-          INNER JOIN devices d ON d.id = od.device_id
-          WHERE (d.serial_number = $1 OR d.imei = $1)
-            AND od.released_at IS NULL
-            AND d.deleted_at IS NULL
-          LIMIT 1
-        `,
-        [serialNumber],
-      );
-      return lignes?.[0]?.organisationId ?? null;
-    } catch (err: any) {
-      this.logger.error(`Résolution du terminal ${serialNumber} impossible : ${err.message}`);
-      return null;
-    }
   }
 
   // ───────────────────────────────────────────────────────────────────────────

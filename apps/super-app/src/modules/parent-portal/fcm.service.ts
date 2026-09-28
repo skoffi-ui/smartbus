@@ -38,6 +38,19 @@ export class FcmService implements OnModuleInit {
   }
 
   /**
+   * Indique si Firebase Admin SDK est réellement initialisé (`FIREBASE_PROJECT_ID`/
+   * `FIREBASE_CLIENT_EMAIL`/`FIREBASE_PRIVATE_KEY` valides), ou si les push sont
+   * seulement simulées/journalisées. Exposé au Super Admin (voir
+   * `ParentPortalController.getStatutNotifications`) — cet état ne doit pas
+   * rester enterré dans un log de démarrage : sans lui, "les parents ne
+   * reçoivent jamais rien" paraît être un bug applicatif alors que c'est
+   * juste une configuration manquante.
+   */
+  estConfigure(): boolean {
+    return this.isInitialized;
+  }
+
+  /**
    * Envoie une notification push via FCM.
    * Retourne false si le token est invalide ou expiré (pour nettoyage en BDD).
    */

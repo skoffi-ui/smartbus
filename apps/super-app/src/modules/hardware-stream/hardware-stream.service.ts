@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import Redis from 'ioredis';
 import {
   Organisation,
   Child,
@@ -18,7 +19,6 @@ import {
   BiometricEvent,
   Parent,
   Driver,
-  Notification,
   Pointage,
   BiometricEventType,
   CourseStatus,
@@ -30,6 +30,23 @@ import {
   TENANT_ENTITIES,
 } from '@app/database';
 import { INTERNAL_API_KEY_HEADER } from '@app/common';
+import { obtenirCleChiffrementDepuisEnv, dechiffrerAvecCle, deballerSecret } from '@app/common/crypto/secret-crypto.util';
+
+/**
+ * `organisations.db_password` est chiffré au repos (voir
+ * `OrganisationDbPasswordTransformer`) — transparent pour tout code qui
+ * passe par l'entité `Organisation`, mais ce fichier lit cette colonne en
+ * SQL brut (`centralDataSource.query`, pas de repository), qui ne connaît
+ * rien des transformers TypeORM. Sans ce déchiffrement explicite, la valeur
+ * chiffrée (un JSON) était utilisée telle quelle comme mot de passe Postgres
+ * pour ouvrir la connexion tenant — échec d'authentification systématique.
+ */
+function dechiffrerMotDePasseTenant(brut: string | null | undefined): string | null | undefined {
+  if (!brut) return brut;
+  const secret = deballerSecret(brut);
+  if (!secret) return brut; // legacy non chiffré
+  return dechiffrerAvecCle(secret, obtenirCleChiffrementDepuisEnv());
+}
 
 /**
  * Résultat de la résolution du propriétaire d'un appareil.
@@ -65,17 +82,37 @@ export interface LiveCarPosition {
   lng: number;
   speed?: number;
   time?: string;
+  /**
+   * Statut brut du fournisseur GPSWOX (`'online' | 'ack' | 'offline'`),
+   * absent pour Libellule/Traccar (qui n'exposent pas cette notion — une
+   * trame reçue vaut présence). Informatif uniquement : la fraîcheur de
+   * `time` reste le seul signal universel de « en ligne » côté client,
+   * car un appareil qui redevient réellement `offline` chez GPSWOX est
+   * tout simplement exclu des cycles suivants (voir `estAllumeOuEnDeplacement`)
+   * et ne renverra donc plus jamais de mise à jour ici.
+   */
+  online?: string;
 }
 
 @Injectable()
-export class HardwareStreamService {
+export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(HardwareStreamService.name);
   private readonly tenantDataSources = new Map<string, DataSource>();
   private readonly triggeredAlerts = new Map<string, Set<string>>(); // courseId -> Set<childId>
   // Clé : `${organisationId}:${carId}`. La position d'un bus n'est jamais lisible
   // depuis une autre école : le filtrage est structurel, pas applicatif.
+  //
+  // Miroir Redis (même préfixe, `gps:` devant la même clé) pour survivre à un
+  // redémarrage de super-app : cette Map en mémoire seule perdait TOUTES les
+  // positions connues à chaque redémarrage (arrivé plusieurs fois pendant
+  // cette session), la carte /live repartant de zéro jusqu'à la prochaine
+  // position reçue. La Map reste la lecture rapide au quotidien (`getLiveLocations`) ;
+  // Redis n'est là que pour la re-remplir une fois au démarrage (`onModuleInit`).
   private readonly latestCarGps = new Map<string, LiveCarPosition>();
   private lastCleanupDate = new Date().toDateString();
+  private readonly redis: Redis;
+  /** Une position plus vieille que ça n'a plus de sens à réafficher comme "en direct" après un redémarrage. */
+  private static readonly TTL_REDIS_SECONDES = 30 * 60;
 
   constructor(
     @InjectRepository(Organisation)
@@ -84,7 +121,58 @@ export class HardwareStreamService {
     private readonly configService: ConfigService,
     private readonly httpService: HttpService,
     private readonly eventEmitter: EventEmitter2,
-  ) {}
+  ) {
+    this.redis = new Redis({
+      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
+      port: this.configService.get<number>('REDIS_PORT', 6379),
+      lazyConnect: false,
+      // Ne jamais faire planter super-app si Redis est momentanément
+      // indisponible : le cache en mémoire continue de fonctionner pour la
+      // session en cours, seule la survie au redémarrage est perdue.
+      retryStrategy: (attempt) => Math.min(attempt * 500, 5000),
+    });
+    this.redis.on('error', (err) => {
+      this.logger.warn(`[Redis] Connexion indisponible (positions GPS non persistées) : ${err.message}`);
+    });
+  }
+
+  /**
+   * Recharge les dernières positions connues depuis Redis au démarrage —
+   * sans ça, la carte /live repart vide jusqu'à la prochaine position
+   * reçue de chaque bus, potentiellement plusieurs minutes après un
+   * redémarrage.
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      let curseur = '0';
+      let recharges = 0;
+      do {
+        const [suivant, cles] = await this.redis.scan(curseur, 'MATCH', 'gps:*', 'COUNT', 200);
+        curseur = suivant;
+        for (const cle of cles) {
+          const brut = await this.redis.get(cle);
+          if (!brut) continue;
+          try {
+            const position: LiveCarPosition = JSON.parse(brut);
+            this.latestCarGps.set(cle.replace(/^gps:/, ''), position);
+            recharges++;
+          } catch {
+            // Entrée corrompue : ignorée plutôt que de faire échouer tout le rechargement.
+          }
+        }
+      } while (curseur !== '0');
+
+      if (recharges > 0) {
+        this.logger.log(`[Redis] ${recharges} position(s) GPS rechargée(s) depuis le dernier redémarrage.`);
+      }
+    } catch (err: any) {
+      this.logger.warn(`[Redis] Rechargement des positions GPS impossible : ${err.message}`);
+    }
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.redis.quit().catch(() => {});
+  }
 
   /**
    * Extrait l'identifiant du périphérique depuis le payload brut du Webhook.
@@ -137,6 +225,7 @@ export class HardwareStreamService {
     );
 
     if (result && result.length > 0) {
+      result[0].dbPassword = dechiffrerMotDePasseTenant(result[0].dbPassword);
       return { state: 'assigned', tenant: result[0] };
     }
     return { state: 'pending' };
@@ -145,6 +234,68 @@ export class HardwareStreamService {
   /** Déduit la nature de l'appareil à partir de la forme de son payload. */
   private inferDeviceType(payload: any): 'BADGEUSE' | 'GPS' {
     return payload?.terminal_sn || payload?.terminalSn || payload?.sn ? 'BADGEUSE' : 'GPS';
+  }
+
+  /**
+   * Résolution des badgeuses sur le modèle retenu pour la plateforme : un
+   * seul serveur BioTime central pour toutes les écoles, géré depuis
+   * « Gestion BioTime Centralisée » (table `biotime_terminals`,
+   * `organisation_id` direct sur chaque terminal — voir
+   * `BiotimeCentralService`).
+   *
+   * Avant ce correctif, `handleStream` résolvait TOUJOURS via la table
+   * générique `devices`/`organisation_devices`, quel que soit le type
+   * d'appareil — assigner une badgeuse via « Gestion BioTime Centralisée »
+   * n'avait donc AUCUN effet sur le routage réel des pointages, qui ne
+   * consultait jamais `biotime_terminals`. Cette méthode remplace
+   * `resolveTenantForDevice`+`ensureDeviceRegistered` pour la seule branche
+   * badgeuse ; la branche GPS garde les tables génériques, inchangée.
+   */
+  private async resolveEtInscrireBadgeuse(serialNumber: string): Promise<DeviceResolution> {
+    const existant = await this.centralDataSource.query(
+      `
+        SELECT bt.organisation_id as "organisationId", o.name, o.db_name as "dbName",
+               o.db_host as "dbHost", o.db_port as "dbPort", o.db_user as "dbUser",
+               o.db_password as "dbPassword", o.db_provisioned as "dbProvisioned"
+        FROM biotime_terminals bt
+        LEFT JOIN organisations o ON o.id = bt.organisation_id
+        WHERE bt.serial_number = $1
+        LIMIT 1
+      `,
+      [serialNumber],
+    );
+
+    if (existant && existant.length > 0) {
+      // Heartbeat, même esprit que `ensureDeviceRegistered` pour les GPS.
+      this.centralDataSource
+        .query(`UPDATE biotime_terminals SET last_sync_at = now() WHERE serial_number = $1`, [serialNumber])
+        .catch(() => {});
+
+      if (!existant[0].organisationId) {
+        return { state: 'pending' };
+      }
+      existant[0].dbPassword = dechiffrerMotDePasseTenant(existant[0].dbPassword);
+      return { state: 'assigned', tenant: existant[0] };
+    }
+
+    // Badgeuse jamais vue : mise en stock, sans école — apparaît dans
+    // « Terminaux disponibles » sur Gestion BioTime Centralisée, prête à
+    // être assignée, sans étape manuelle supplémentaire.
+    try {
+      await this.centralDataSource.query(
+        `INSERT INTO biotime_terminals (serial_number, terminal_name, status)
+         VALUES ($1, $1, 'ACTIVE')
+         ON CONFLICT (serial_number) DO NOTHING`,
+        [serialNumber],
+      );
+      this.logger.log(
+        `[Inventaire BioTime] Badgeuse "${serialNumber}" inconnue : mise en stock, en attente d'affectation à une école.`,
+      );
+    } catch (err: any) {
+      this.logger.error(`Impossible d'inscrire la badgeuse ${serialNumber} à l'inventaire BioTime : ${err.message}`);
+    }
+
+    return { state: 'pending' };
   }
 
   /**
@@ -243,12 +394,20 @@ export class HardwareStreamService {
       return { success: false, message: "Identifiant de périphérique introuvable dans le payload." };
     }
 
-    // 1. Inventaire central : l'appareil est inscrit s'il est inconnu, et son
-    //    heartbeat rafraîchi dans tous les cas.
-    await this.ensureDeviceRegistered(deviceId, this.inferDeviceType(payload));
+    const typeAppareil = this.inferDeviceType(payload);
 
-    // 2. À quelle école appartient-il ?
-    const resolution = await this.resolveTenantForDevice(deviceId);
+    // 1+2. Inventaire + résolution de l'école propriétaire — deux chemins
+    // distincts selon le type d'appareil (voir `resolveEtInscrireBadgeuse`) :
+    // les badgeuses sont résolues via `biotime_terminals` (modèle central
+    // retenu), les GPS restent sur l'inventaire générique `devices`.
+    const resolution =
+      typeAppareil === 'BADGEUSE'
+        ? await this.resolveEtInscrireBadgeuse(deviceId)
+        : await (async () => {
+            await this.ensureDeviceRegistered(deviceId, 'GPS');
+            return this.resolveTenantForDevice(deviceId);
+          })();
+
     if (resolution.state === 'pending') {
       return this.pendingResponse(deviceId);
     }
@@ -262,7 +421,7 @@ export class HardwareStreamService {
     const tenantDataSource = await this.getTenantDataSource(tenantDetails);
 
     // 5. Détermination du type de flux (ZKTeco vs Libellule) et traitement
-    if (payload.terminal_sn || payload.terminalSn || payload.sn) {
+    if (typeAppareil === 'BADGEUSE') {
       return this.processZktPunches(payload, tenantDetails, tenantDataSource);
     } else {
       return this.processLibelluleGps(payload, tenantDetails, tenantDataSource);
@@ -368,13 +527,10 @@ export class HardwareStreamService {
   }
 
   /**
-   * Traitement spécifique du flux de géolocalisation Libellule.
+   * Traitement spécifique du flux de géolocalisation Libellule (webhook push).
    */
   private async processLibelluleGps(payload: any, tenantDetails: any, tenantDataSource: DataSource): Promise<any> {
     this.logger.log(`[Stream Routing] Flux GPS Libellule intercepté pour le tenant ${tenantDetails.name}`);
-
-    const carRepo = tenantDataSource.getRepository(Car);
-    const notifRepo = tenantDataSource.getRepository(Notification);
 
     const deviceId = payload.device_id || payload.deviceId || payload.imei;
     const lat = parseFloat(payload.latitude || payload.lat);
@@ -382,76 +538,226 @@ export class HardwareStreamService {
     const speed = parseFloat(payload.speed || 0);
     const time = payload.time || payload.timestamp || new Date().toISOString();
 
-    // Trouver le véhicule correspondant au GPS
-    const car = await carRepo.findOne({
-      where: [{ gpsDeviceId: deviceId }, { plateNumber: deviceId }]
-    });
+    const result = await this.ingestResolvedGpsPosition(deviceId, lat, lng, speed, time, tenantDetails, tenantDataSource);
+    return { ...result, message: result.message || 'Position GPS Libellule traitée.', tenant: tenantDetails.name };
+  }
 
-    if (car) {
-      // Mettre à jour la cache en mémoire
-      if (car && lat && lng) {
-        this.latestCarGps.set(this.gpsKey(tenantDetails.organisationId, car.id), {
-          organisationId: tenantDetails.organisationId,
-          lat,
-          lng,
-          speed,
-          carId: car.id,
-          plateNumber: car.plateNumber,
-          time: payload.time || new Date().toISOString(),
-        });
-      }
-
-      // Journaliser un enregistrement de notification ou d'alerte pour le suivi de trajet
-      const notification = notifRepo.create({
-        title: `Position GPS mise à jour : ${car.plateNumber}`,
-        message: `Véhicule ${car.plateNumber} localisé à Lat: ${lat}, Lng: ${lng} (Vitesse: ${speed} km/h).`,
-        type: 'INFO',
-        metadata: {
-          carId: car.id,
-          plateNumber: car.plateNumber,
-          lat,
-          lng,
-          speed,
-          time,
-        },
-        car: { id: car.id }
-      });
-      await notifRepo.save(notification);
-      this.logger.log(`[GPS Stream] Position mise à jour pour le car ${car.plateNumber}`);
-
-      // Résoudre le trajet (course) actif pour ce véhicule
-      const courseRepo = tenantDataSource.getRepository(Course);
-      let courseId = 'default-course';
-      const activeCourse = await courseRepo.findOne({ where: { carId: car.id, statut: CourseStatus.ACTIVE } });
-      if (activeCourse) {
-        courseId = activeCourse.id;
-      }
-
-      // Émettre l'événement temps réel pour la passerelle WebSocket
-      this.eventEmitter.emit('hardware.gps', {
-        tenantId: tenantDetails.organisationId,
-        courseId,
-        data: {
-          carId: car.id,
-          plateNumber: car.plateNumber,
-          // `courseId` était absent des données diffusées : il ne servait qu'à
-          // choisir le salon. Le client ne pouvait donc pas relier une position
-          // à sa course, et n'affichait pas le tracé du bus sélectionné.
-          courseId,
-          lat,
-          lng,
-          speed,
-          time,
-        },
-      });
-
-      // Lancer le calcul de proximité pour les alertes de proximité des élèves
-      await this.checkProximityAlerts(lat, lng, courseId, car.id, tenantDetails, tenantDataSource);
-    } else {
-      this.logger.warn(`[GPS Stream] Aucun véhicule associé au périphérique GPS ${deviceId}`);
+  /**
+   * Cœur commun à toute ingestion de position GPS, une fois l'école déjà
+   * connue (par le webhook Libellule/Traccar, ou par `ingestGpsPosition` ci-
+   * dessous pour un poller comme GPSWOX) : retrouver le bus précis dans la
+   * base de cette école, mettre à jour le cache mémoire, diffuser au
+   * WebSocket, et lancer le calcul de proximité. Extrait de deux copies
+   * quasi identiques (`processLibelluleGps`/`handleTraccarStream`) qui ne
+   * différaient que par la façon dont le payload brut était décodé.
+   *
+   * Ne journalise plus une `Notification` par position reçue : ce
+   * comportement n'existait que sur le chemin Libellule (pas sur Traccar,
+   * qui fonctionne très bien sans) et deviendrait franchement excessif avec
+   * un poller qui interroge toutes les ~20 secondes (GPSWOX) — une ligne de
+   * notification par bus et par cycle aurait vite noyé le reste.
+   */
+  private async ingestResolvedGpsPosition(
+    deviceId: string | undefined | null,
+    lat: number,
+    lng: number,
+    speed: number,
+    time: string,
+    tenantDetails: any,
+    tenantDataSource: DataSource,
+    online?: string,
+  ): Promise<{ success: boolean; message?: string }> {
+    if (!deviceId) {
+      return { success: false, message: 'Identifiant de périphérique manquant.' };
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      return { success: false, message: 'Coordonnées GPS invalides.' };
     }
 
-    return { success: true, message: 'Position GPS Libellule traitée.', tenant: tenantDetails.name };
+    const carRepo = tenantDataSource.getRepository(Car);
+    const car = await carRepo.findOne({
+      where: [{ gpsDeviceId: deviceId }, { plateNumber: deviceId }],
+    });
+
+    if (!car) {
+      this.logger.warn(`[GPS] Aucun véhicule associé au périphérique ${deviceId} dans l'école ${tenantDetails.name}.`);
+      return { success: false, message: `Aucun véhicule associé au périphérique ${deviceId}.` };
+    }
+
+    const position: LiveCarPosition = {
+      organisationId: tenantDetails.organisationId,
+      lat,
+      lng,
+      speed,
+      carId: car.id,
+      plateNumber: car.plateNumber,
+      time,
+      online,
+    };
+    const cle = this.gpsKey(tenantDetails.organisationId, car.id);
+    this.latestCarGps.set(cle, position);
+    // Miroir Redis best-effort : une écriture ratée (Redis indisponible) ne
+    // doit jamais faire échouer l'ingestion elle-même, seule la survie au
+    // redémarrage serait perdue pour cette position précise.
+    this.redis
+      .set(`gps:${cle}`, JSON.stringify(position), 'EX', HardwareStreamService.TTL_REDIS_SECONDES)
+      .catch((err) => this.logger.warn(`[Redis] Écriture de la position échouée (ignorée) : ${err.message}`));
+    this.logger.log(`[GPS] Position mise à jour pour le véhicule ${car.plateNumber} (école ${tenantDetails.name}).`);
+
+    const courseRepo = tenantDataSource.getRepository(Course);
+    const activeCourse = await courseRepo.findOne({ where: { carId: car.id, statut: CourseStatus.ACTIVE } });
+    const courseId = activeCourse?.id || 'default-course';
+
+    // Historique pour audit/rejouabilité — voir `PositionHistorique`. Une
+    // ligne par position ingérée, jamais à la place du cache ci-dessus,
+    // toujours en complément. `courseId` reste `'default-course'` (pas un
+    // UUID) hors course active : la colonne l'accepte en `varchar`, pas en FK.
+    this.enregistrerHistoriquePosition(tenantDataSource, car.id, courseId, lat, lng, speed, time)
+      .catch((err) => this.logger.warn(`[Historique GPS] Écriture échouée (ignorée) : ${err.message}`));
+
+    // `courseId` doit être présent dans les données diffusées, pas seulement
+    // servir à choisir le salon : sans lui le client ne peut pas relier une
+    // position à sa course, et n'affiche pas le tracé du bus sélectionné.
+    this.eventEmitter.emit('hardware.gps', {
+      tenantId: tenantDetails.organisationId,
+      courseId,
+      data: { carId: car.id, plateNumber: car.plateNumber, courseId, lat, lng, speed, time, online },
+    });
+
+    if (activeCourse) {
+      await this.checkProximityAlerts(lat, lng, courseId, car.id, tenantDetails, tenantDataSource);
+    }
+
+    return { success: true };
+  }
+
+  /** Bases tenant où `gps_position_history` a déjà été vérifiée/créée dans ce process. */
+  private readonly historiqueTablesVerifiees = new Set<string>();
+  /** Bases tenant où l'enum `alertes_type_enum` a déjà reçu `proximite_arret` dans ce process. */
+  private readonly enumProximiteVerifie = new Set<string>();
+
+  /**
+   * S'assure que l'enum Postgres `alertes_type_enum` connaît la valeur
+   * `proximite_arret` avant d'écrire une `Alerte` de ce type — même
+   * problème et même remède que `enregistrerHistoriquePosition` :
+   * `tenantDataSource` est ouvert en `synchronize: false`, et aucun
+   * exécuteur de migrations tenant n'existe pour appliquer
+   * `AddProximiteArretToTypeAlerte` automatiquement sur les écoles déjà
+   * provisionnées. `ADD VALUE IF NOT EXISTS` (Postgres 12+) le rend
+   * idempotent et sûr à rejouer.
+   */
+  private async assurerValeurEnumProximite(tenantDataSource: DataSource): Promise<void> {
+    const cle = (tenantDataSource.options as any).database;
+    if (this.enumProximiteVerifie.has(cle)) return;
+    try {
+      await tenantDataSource.query(`ALTER TYPE "alertes_type_enum" ADD VALUE IF NOT EXISTS 'proximite_arret'`);
+    } catch (err: any) {
+      this.logger.warn(`[Alerte] Impossible d'ajouter 'proximite_arret' à l'enum (ignoré) : ${err.message}`);
+    }
+    this.enumProximiteVerifie.add(cle);
+  }
+
+  /**
+   * Écrit une ligne d'historique de position. `tenantDataSource` (voir
+   * `getTenantDataSource`) est ouvert en `synchronize: false` — et la
+   * migration tenant `CreateGpsPositionHistory` n'est pas câblée sur un
+   * exécuteur de migrations CLI pour l'instant (aucun `migration:tenant`
+   * n'existe, contrairement à `migration:central`). Plutôt que d'exiger une
+   * étape manuelle par école existante, la table est créée ici au premier
+   * usage pour cette base (idempotent, une seule fois par démarrage de
+   * processus grâce à `historiqueTablesVerifiees`) — même SQL que la
+   * migration, à garder synchronisé avec elle.
+   */
+  private async enregistrerHistoriquePosition(
+    tenantDataSource: DataSource,
+    carId: string,
+    courseId: string,
+    lat: number,
+    lng: number,
+    speed: number,
+    time: string,
+  ): Promise<void> {
+    const cleTenant = (tenantDataSource.options as any).database;
+    if (!this.historiqueTablesVerifiees.has(cleTenant)) {
+      await tenantDataSource.query(`
+        CREATE TABLE IF NOT EXISTS "gps_position_history" (
+          "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+          "created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "updated_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+          "created_by" uuid, "updated_by" uuid,
+          "created_by_type" VARCHAR(50), "updated_by_type" VARCHAR(50),
+          "last_modified_source" VARCHAR(50),
+          "car_id" uuid NOT NULL,
+          "course_id" VARCHAR(100),
+          "lat" DOUBLE PRECISION NOT NULL,
+          "lng" DOUBLE PRECISION NOT NULL,
+          "speed" INTEGER NOT NULL DEFAULT 0,
+          "reported_at" TIMESTAMPTZ,
+          CONSTRAINT "PK_gps_position_history" PRIMARY KEY ("id")
+        )
+      `);
+      await tenantDataSource.query(`
+        CREATE INDEX IF NOT EXISTS "IDX_gps_position_history_car_created" ON "gps_position_history" ("car_id", "created_at" DESC)
+      `);
+      await tenantDataSource.query(`
+        CREATE INDEX IF NOT EXISTS "IDX_gps_position_history_created_at" ON "gps_position_history" ("created_at")
+      `);
+      this.historiqueTablesVerifiees.add(cleTenant);
+    }
+
+    await tenantDataSource.query(
+      `INSERT INTO "gps_position_history" ("car_id", "course_id", "lat", "lng", "speed", "reported_at") VALUES ($1, $2, $3, $4, $5, $6)`,
+      [carId, courseId, lat, lng, speed, time || null],
+    );
+  }
+
+  /**
+   * Point d'entrée public pour un poller qui ne connaît PAS encore l'école
+   * (contrairement aux webhooks Libellule/Traccar, qui l'ont déjà résolue
+   * avant d'appeler `ingestResolvedGpsPosition`) — c'est le cas de
+   * `GpswoxService`, qui n'a qu'un identifiant d'appareil brut renvoyé par
+   * l'API GPSWOX. Fait toute la chaîne : inscription à l'inventaire central
+   * si l'appareil est inconnu, résolution de l'école propriétaire, puis
+   * ingestion. Un appareil `pending` (pas encore assigné à une école) ou
+   * sans base provisionnée n'est pas une erreur : juste rien à diffuser
+   * pour l'instant.
+   */
+  public async ingestGpsPosition(params: {
+    deviceId: string;
+    lat: number;
+    lng: number;
+    speed?: number;
+    time?: string;
+    online?: string;
+  }): Promise<{ success: boolean; message?: string }> {
+    const { deviceId, lat, lng, speed = 0, time, online } = params;
+    if (!deviceId) {
+      return { success: false, message: 'Identifiant de périphérique manquant.' };
+    }
+
+    await this.ensureDeviceRegistered(deviceId, 'GPS');
+
+    const resolution = await this.resolveTenantForDevice(deviceId);
+    if (resolution.state === 'pending') {
+      return { success: false, message: `Appareil "${deviceId}" pas encore assigné à une école.` };
+    }
+
+    const tenantDetails = resolution.tenant;
+    if (!tenantDetails.dbProvisioned || !tenantDetails.dbName) {
+      return { success: false, message: `La base de données du tenant ${tenantDetails.name} n'est pas provisionnée.` };
+    }
+
+    const tenantDataSource = await this.getTenantDataSource(tenantDetails);
+    return this.ingestResolvedGpsPosition(
+      deviceId,
+      lat,
+      lng,
+      speed ?? 0,
+      time || new Date().toISOString(),
+      tenantDetails,
+      tenantDataSource,
+      online,
+    );
   }
 
   /**
@@ -569,10 +875,15 @@ export class HardwareStreamService {
           this.markAsAlerted(courseId, target.childId);
 
           // B. Persister l'alerte en BDD isolée
+          await this.assurerValeurEnumProximite(tenantDataSource);
           const now = new Date();
           const alerte = alerteRepo.create({
-            type: TypeAlerte.GPS_HORS_ZONE, // proximity detection alert
-            message: `Alerte Proximité : Le bus est à ${distance.toFixed(2)} km de l'arrêt [${target.stopName}] pour l'élève ${target.firstName} ${target.lastName}.`,
+            // Type dédié, distinct de GPS_HORS_ZONE (réservé à un badgeage
+            // RÉELLEMENT rejeté pour incohérence GPS) — un bus qui approche
+            // n'est pas un badgeage refusé, et l'utiliser ici polluait
+            // Alertes Transport d'entrées usurpées « Badgeage hors zone GPS ».
+            type: TypeAlerte.PROXIMITE_ARRET,
+            message: `Le bus est à ${distance.toFixed(2)} km de l'arrêt [${target.stopName}] pour l'élève ${target.firstName} ${target.lastName}.`,
             date: now,
             heure: now.toTimeString().split(' ')[0],
             courseId,
@@ -681,6 +992,11 @@ export class HardwareStreamService {
         tenantId: tenantDetails.organisationId,
         courseId: 'default-course',
         data: {
+          // Le vrai id BDD (pas un id synthétique côté client) : sans lui,
+          // "Marquer comme résolue" sur une alerte reçue en direct ne
+          // pouvait jamais appeler `PATCH /alertes-critiques/:id/resolve` —
+          // l'écran affichait résolu localement, la base restait non résolue.
+          id: critAlerte.id,
           type: 'CAR_INCONNU',
           childId: child.id,
           childName: `${child.firstName} ${child.lastName}`,
@@ -714,6 +1030,7 @@ export class HardwareStreamService {
         tenantId: tenantDetails.organisationId,
         courseId: 'default-course',
         data: {
+          id: critAlerte.id,
           type: 'COURSE_INACTIVE',
           childId: child.id,
           childName: `${child.firstName} ${child.lastName}`,
@@ -783,6 +1100,8 @@ export class HardwareStreamService {
         tenantId: tenantDetails.organisationId,
         courseId: activeCourse.id,
         data: {
+          id: critAlerte.id,
+          driverId: activeCourse.driverId,
           type: typeAlerte,
           childId: child.id,
           childName: `${child.firstName} ${child.lastName}`,
@@ -835,6 +1154,8 @@ export class HardwareStreamService {
             tenantId: tenantDetails.organisationId,
             courseId: activeCourse.id,
             data: {
+              id: critAlerte.id,
+              driverId: activeCourse.driverId,
               type: 'MAUVAIS_ARRET',
               childId: child.id,
               childName: `${child.firstName} ${child.lastName}`,
@@ -901,47 +1222,8 @@ export class HardwareStreamService {
 
       const org = resolution.tenant;
       const ds = await this.getTenantDataSource(org);
-      const carRepo = ds.getRepository(Car);
-      
-      const car = await carRepo.findOne({ where: { gpsDeviceId: deviceId } });
-      if (car) {
-         this.latestCarGps.set(this.gpsKey(org.organisationId, car.id), {
-           organisationId: org.organisationId,
-           lat,
-           lng,
-           speed,
-           time,
-           carId: car.id,
-           plateNumber: car.plateNumber,
-         });
-         this.logger.log(`Traccar GPS updated for car ${car.plateNumber} (Lat: ${lat}, Lng: ${lng})`);
-
-         // Ce chemin ne diffusait rien : il alimentait le cache interne sans jamais
-         // émettre d'événement. Les positions n'étaient donc visibles qu'au
-         // chargement de la page, jamais en direct — l'écran de suivi restait figé
-         // alors que les balises émettaient correctement.
-         const courseRepo = ds.getRepository(Course);
-         const activeCourse = await courseRepo.findOne({
-           where: { carId: car.id, statut: CourseStatus.ACTIVE },
-         });
-
-         this.eventEmitter.emit('hardware.gps', {
-           tenantId: org.organisationId,
-           courseId: activeCourse?.id || 'default-course',
-           data: {
-             carId: car.id,
-             plateNumber: car.plateNumber,
-             courseId: activeCourse?.id || '',
-             lat,
-             lng,
-             speed,
-             time,
-           },
-         });
-      } else {
-         this.logger.warn(`No car mapped to Traccar device ID ${deviceId}`);
-      }
-      return { success: true };
+      const result = await this.ingestResolvedGpsPosition(deviceId, lat, lng, speed, time, org, ds);
+      return { success: result.success, error: result.success ? undefined : result.message };
     } catch (e) {
       this.logger.error("Error processing Traccar stream: " + e.message);
       return { success: false, error: e.message };

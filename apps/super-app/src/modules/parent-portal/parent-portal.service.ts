@@ -52,7 +52,8 @@ export class ParentPortalService {
         
         // Requête dans le schéma de l'école
         const parentQuery = `
-          SELECT id, first_name as "firstName", last_name as "lastName", email, phone, pin_code as "pinCode"
+          SELECT id, first_name as "firstName", last_name as "lastName", email, phone, pin_code as "pinCode",
+                 notif_punch_enabled as "notifPunchEnabled", notif_proximity_enabled as "notifProximityEnabled"
           FROM parents
           WHERE (email = $1 OR phone = $1)
             AND active = true
@@ -89,6 +90,8 @@ export class ParentPortalService {
                 lastName: parent.lastName,
                 email: parent.email,
                 phone: parent.phone,
+                notifPunchEnabled: parent.notifPunchEnabled,
+                notifProximityEnabled: parent.notifProximityEnabled,
               },
               tenantId: org.id,
               schoolName: org.name,
@@ -138,11 +141,27 @@ export class ParentPortalService {
         co.nom as "courseName",
         co.type as "courseType",
         co.heure_depart as "heureDepart",
-        co.heure_arrivee as "heureArrivee"
+        co.heure_arrivee as "heureArrivee",
+        d.first_name as "driverFirstName",
+        d.last_name as "driverLastName",
+        d.phone as "driverPhone",
+        ca.plate_number as "carPlateNumber",
+        ca.brand as "carBrand",
+        ca.model as "carModel",
+        ca.photo_url as "carPhotoUrl"
       FROM children c
       LEFT JOIN affectations aff ON aff.child_id = c.id
       LEFT JOIN points_recuperation pr ON pr.id = aff.point_id
       LEFT JOIN courses co ON co.trajet_id = pr.trajet_id AND co.deleted_at IS NULL
+      -- Course.driverId/carId (voir course.entity.ts) : nommés "Legacy" dans
+      -- leur commentaire, mais ce sont les champs réellement peuplés/utilisés
+      -- par l'app école — voir aussi CentreAlertes.tsx côté school-web, qui
+      -- s'appuie sur le même champ driverId pour son panneau chauffeur.
+      -- Colonnes stockées en varchar (pas uuid, faute de type explicite sur
+      -- la colonne d'origine) : cast explicite nécessaire pour les comparer
+      -- à drivers.id/cars.id (vrais uuid), sinon Postgres refuse la comparaison.
+      LEFT JOIN drivers d ON d.id = co.driver_id::uuid AND d.deleted_at IS NULL
+      LEFT JOIN cars ca ON ca.id = co.car_id::uuid AND ca.deleted_at IS NULL
       WHERE c.parent_id = $1
         AND c.deleted_at IS NULL
     `;
@@ -175,11 +194,91 @@ export class ParentPortalService {
           type: row.courseType,
           heureDepart: row.heureDepart,
           heureArrivee: row.heureArrivee,
+          // `null` si aucun chauffeur/véhicule assigné à cette course —
+          // l'app parent n'affiche alors pas de bouton d'appel ni de carte
+          // véhicule (pas d'info fantôme).
+          driver: row.driverPhone
+            ? { firstName: row.driverFirstName, lastName: row.driverLastName, phone: row.driverPhone }
+            : null,
+          vehicule: row.carPlateNumber
+            ? {
+                plateNumber: row.carPlateNumber,
+                brand: row.carBrand,
+                model: row.carModel,
+                photoUrl: row.carPhotoUrl,
+              }
+            : null,
         });
       }
     }
 
     return Array.from(childrenMap.values());
+  }
+
+  /**
+   * Le parent change lui-même son code PIN — jusqu'ici, seul un directeur
+   * pouvait le régénérer depuis Parents.tsx (app école). Exige l'ancien
+   * code, comme n'importe quel changement de mot de passe.
+   */
+  async changerMonPin(parentId: string, organisationId: string, ancienPin: string, nouveauPin: string) {
+    if (!/^\d{4}$/.test(nouveauPin)) {
+      throw new UnauthorizedException('Le nouveau code PIN doit être composé de 4 chiffres.');
+    }
+
+    const org = await this.organisationRepository.findOne({ where: { id: organisationId } });
+    if (!org) throw new NotFoundException('Organisation introuvable.');
+    const tenantDS = await this.tenantConnectionService.getTenantConnection(org.id);
+
+    const result = await tenantDS.query(
+      `SELECT pin_code as "pinCode" FROM parents WHERE id = $1 AND deleted_at IS NULL`,
+      [parentId],
+    );
+    if (!result || result.length === 0) throw new NotFoundException('Parent introuvable.');
+    if (result[0].pinCode !== ancienPin) {
+      throw new UnauthorizedException('Code PIN actuel incorrect.');
+    }
+
+    await tenantDS.query(
+      `UPDATE parents SET pin_code = $1, updated_at = now() WHERE id = $2`,
+      [nouveauPin, parentId],
+    );
+    return { success: true, message: 'Code PIN modifié avec succès.' };
+  }
+
+  /**
+   * Préférences de notification du parent connecté — couper un type
+   * l'exclut aussi de l'historique (voir `handlePunchNotification`/
+   * `handleProximityNotification`), pas seulement du push.
+   */
+  async updateNotificationPrefs(
+    parentId: string,
+    organisationId: string,
+    prefs: { notifPunchEnabled?: boolean; notifProximityEnabled?: boolean },
+  ) {
+    const org = await this.organisationRepository.findOne({ where: { id: organisationId } });
+    if (!org) throw new NotFoundException('Organisation introuvable.');
+    const tenantDS = await this.tenantConnectionService.getTenantConnection(org.id);
+
+    const colonnes: string[] = [];
+    const valeurs: any[] = [];
+    if (typeof prefs.notifPunchEnabled === 'boolean') {
+      colonnes.push(`notif_punch_enabled = $${colonnes.length + 1}`);
+      valeurs.push(prefs.notifPunchEnabled);
+    }
+    if (typeof prefs.notifProximityEnabled === 'boolean') {
+      colonnes.push(`notif_proximity_enabled = $${colonnes.length + 1}`);
+      valeurs.push(prefs.notifProximityEnabled);
+    }
+    if (colonnes.length === 0) {
+      return { success: true, message: 'Aucune préférence à modifier.' };
+    }
+
+    valeurs.push(parentId);
+    await tenantDS.query(
+      `UPDATE parents SET ${colonnes.join(', ')}, updated_at = now() WHERE id = $${valeurs.length}`,
+      valeurs,
+    );
+    return { success: true };
   }
 
   /**
@@ -231,28 +330,39 @@ export class ParentPortalService {
       
       const tenantDS = await this.tenantConnectionService.getTenantConnection(org.id);
       
-      // Récupérer le parent et son token FCM
+      // Récupérer le parent, son token FCM et ses préférences de notification
       const parentResult = await tenantDS.query(`
-        SELECT p.id, p.fcm_token as "fcmToken", p.first_name as "firstName"
+        SELECT p.id, p.fcm_token as "fcmToken", p.first_name as "firstName", p.notif_punch_enabled as "notifPunchEnabled"
         FROM parents p
         INNER JOIN children c ON c.parent_id = p.id
         WHERE c.id = $1 AND p.active = true AND p.deleted_at IS NULL AND c.deleted_at IS NULL
       `, [data.childId]);
 
-      if (parentResult && parentResult.length > 0 && parentResult[0].fcmToken) {
+      if (parentResult && parentResult.length > 0 && parentResult[0].notifPunchEnabled) {
         const parent = parentResult[0];
         const statusText = data.punchState === '1' ? 'descendu du' : 'monté dans le';
         const title = 'Pointage Bus SMARTBUS 🚌';
         const body = `Bonjour, votre enfant ${data.childName} est ${statusText} bus (${data.terminalSn}) à ${new Date(data.time).toLocaleTimeString('fr-FR')}.`;
 
-        const success = await this.fcmService.sendPushNotification(parent.fcmToken, title, body, {
-          type: 'punch',
-          childId: data.childId,
+        // Persistée AVANT le push : sans ça, l'onglet Notifications de l'app
+        // parent resterait vide entre deux ouvertures — seul le push système,
+        // jamais rejouable, existerait (voir `getNotifications`).
+        await this.enregistrerNotification(tenantDS, data.childId, title, body, 'PUNCH', {
+          terminalSn: data.terminalSn,
+          punchState: data.punchState,
+          time: data.time,
         });
 
-        // Nettoyage automatique du token si invalide
-        if (!success) {
-          await this.removeFcmToken(parent.id, tenantId);
+        if (parent.fcmToken) {
+          const success = await this.fcmService.sendPushNotification(parent.fcmToken, title, body, {
+            type: 'punch',
+            childId: data.childId,
+          });
+
+          // Nettoyage automatique du token si invalide
+          if (!success) {
+            await this.removeFcmToken(parent.id, tenantId);
+          }
         }
       }
     } catch (err: any) {
@@ -273,31 +383,118 @@ export class ParentPortalService {
 
       const tenantDS = await this.tenantConnectionService.getTenantConnection(org.id);
 
-      // Récupérer le parent et son token FCM
+      // Récupérer le parent, son token FCM et ses préférences de notification
       const parentResult = await tenantDS.query(`
-        SELECT p.id, p.fcm_token as "fcmToken"
+        SELECT p.id, p.fcm_token as "fcmToken", p.notif_proximity_enabled as "notifProximityEnabled"
         FROM parents p
         INNER JOIN children c ON c.parent_id = p.id
         WHERE c.id = $1 AND p.active = true AND p.deleted_at IS NULL AND c.deleted_at IS NULL
       `, [data.childId]);
 
-      if (parentResult && parentResult.length > 0 && parentResult[0].fcmToken) {
+      if (parentResult && parentResult.length > 0 && parentResult[0].notifProximityEnabled) {
         const parent = parentResult[0];
         const title = 'Approche du bus SMARTBUS 🚌';
         const body = `Le bus approche ! Il est actuellement à ${data.distance} km de l'arrêt de ${data.childName} (${data.stopName}).`;
 
-        const success = await this.fcmService.sendPushNotification(parent.fcmToken, title, body, {
-          type: 'proximity_alert',
-          childId: data.childId,
+        await this.enregistrerNotification(tenantDS, data.childId, title, body, 'PROXIMITY', {
+          distance: data.distance,
+          stopName: data.stopName,
+          time: data.time,
         });
 
-        // Nettoyage automatique du token si invalide
-        if (!success) {
-          await this.removeFcmToken(parent.id, tenantId);
+        if (parent.fcmToken) {
+          const success = await this.fcmService.sendPushNotification(parent.fcmToken, title, body, {
+            type: 'proximity_alert',
+            childId: data.childId,
+          });
+
+          // Nettoyage automatique du token si invalide
+          if (!success) {
+            await this.removeFcmToken(parent.id, tenantId);
+          }
         }
       }
     } catch (err: any) {
       this.logger.error(`Erreur d'envoi de notification push (proximité) : ${err.message}`);
     }
+  }
+
+  /**
+   * Enregistre une notification pour l'app parent (voir `getNotifications`).
+   * Toujours appelée en plus de l'envoi push, jamais à sa place : le push
+   * est éphémère (rien à revoir si l'app n'était pas ouverte au bon moment),
+   * cette ligne est l'historique consultable dans l'onglet Notifications.
+   */
+  private async enregistrerNotification(
+    tenantDS: any,
+    childId: string,
+    title: string,
+    message: string,
+    type: 'PUNCH' | 'PROXIMITY',
+    metadata: Record<string, any>,
+  ): Promise<void> {
+    try {
+      await tenantDS.query(
+        `INSERT INTO notifications (title, message, type, metadata, child_id) VALUES ($1, $2, $3, $4, $5)`,
+        [title, message, type, JSON.stringify(metadata), childId],
+      );
+    } catch (err: any) {
+      this.logger.error(`Enregistrement de la notification parent impossible : ${err.message}`);
+    }
+  }
+
+  /**
+   * Historique des notifications des enfants du parent connecté, les plus
+   * récentes d'abord. Consommé par l'onglet Notifications de l'app parent.
+   */
+  async getNotifications(parentId: string, organisationId: string, limit = 50, type?: string) {
+    const org = await this.organisationRepository.findOne({ where: { id: organisationId } });
+    if (!org) throw new NotFoundException('Organisation introuvable.');
+    const tenantDS = await this.tenantConnectionService.getTenantConnection(org.id);
+
+    // `type` optionnel : filtre l'onglet « Présence » (PUNCH uniquement) de
+    // l'onglet « Notifications » complet côté app — même endpoint, un seul
+    // paramètre en plus, rétrocompatible (absent = tout, comme avant).
+    const filtreType = type ? `AND n.type = $3` : '';
+    return tenantDS.query(
+      `
+        SELECT n.id, n.title, n.message, n.type, n."isRead" as "isRead",
+               n.metadata, n.child_id as "childId", n.created_at as "createdAt"
+        FROM notifications n
+        INNER JOIN children c ON c.id = n.child_id
+        WHERE c.parent_id = $1 AND c.deleted_at IS NULL
+        ${filtreType}
+        ORDER BY n.created_at DESC
+        LIMIT $2
+      `,
+      type ? [parentId, limit, type] : [parentId, limit],
+    );
+  }
+
+  /**
+   * Marque une notification comme lue — seulement si elle appartient bien à
+   * un enfant du parent connecté (la jointure fait aussi office de contrôle
+   * d'accès : impossible de marquer comme lue la notification d'un autre parent).
+   */
+  async markNotificationRead(notificationId: string, parentId: string, organisationId: string) {
+    const org = await this.organisationRepository.findOne({ where: { id: organisationId } });
+    if (!org) throw new NotFoundException('Organisation introuvable.');
+    const tenantDS = await this.tenantConnectionService.getTenantConnection(org.id);
+
+    const result = await tenantDS.query(
+      `
+        UPDATE notifications n
+        SET "isRead" = true
+        FROM children c
+        WHERE n.child_id = c.id AND c.parent_id = $1 AND n.id = $2
+        RETURNING n.id
+      `,
+      [parentId, notificationId],
+    );
+
+    if (!result || result.length === 0) {
+      throw new NotFoundException('Notification introuvable pour ce parent.');
+    }
+    return { success: true };
   }
 }

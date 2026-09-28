@@ -8,9 +8,14 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard, RolesGuard, Roles, CurrentUser, UserRole } from '@app/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
+import { JwtAuthGuard, RolesGuard, Roles, CurrentUser, UserRole, creerGardeCleFluxMateriel, DEVICE_STREAM_API_KEY_HEADER } from '@app/common';
 import { HardwareStreamService } from './hardware-stream.service';
+
+// Un secret distinct par flux : une fuite sur l'un (ex. la config d'un
+// forwarder Traccar mal protégée) ne compromet pas les autres.
+const GardeFluxZktLibellule = creerGardeCleFluxMateriel('HARDWARE_STREAM_API_KEY');
+const GardeFluxTraccar = creerGardeCleFluxMateriel('HARDWARE_TRACCAR_API_KEY');
 
 @ApiTags('Hardware Stream Routing')
 @Controller('hardware')
@@ -24,23 +29,33 @@ export class HardwareStreamController {
   // utilisateur. L'école est déduite de l'appairage de l'appareil en base centrale
   // (organisation_devices), jamais du contenu du payload.
   //
-  // À FAIRE : authentifier ces deux routes par secret d'appareil (HMAC) ou mTLS.
-  // En l'état, n'importe qui connaissant un numéro de série peut injecter un flux.
+  // Authentifiées par secret partagé (voir `creerGardeCleFluxMateriel`) : ces
+  // flux viennent de logiciels tiers qu'on ne programme pas (serveur Traccar,
+  // terminaux ZKTeco, forwarder Libellule) — impossible de leur faire calculer
+  // une signature HMAC par appareil, donc secret partagé + comparaison en
+  // temps constant, même principe que `InternalApiKeyGuard`. Avant ce garde,
+  // n'importe qui connaissant un numéro de série pouvait injecter un flux.
   // ───────────────────────────────────────────────────────────────────────
 
   @Post('stream')
+  @UseGuards(GardeFluxZktLibellule)
+  @ApiSecurity('device-api-key')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Point d'entrée unique de streaming matériel pour ZKTeco et Libellule",
   })
   @ApiResponse({ status: 200, description: 'Flux routé et traité avec succès.' })
+  @ApiResponse({ status: 401, description: `Secret manquant/invalide (en-tête ${DEVICE_STREAM_API_KEY_HEADER}).` })
   async receiveStream(@Body() payload: any) {
     return this.hardwareStreamService.handleStream(payload);
   }
 
   @Post('traccar')
+  @UseGuards(GardeFluxTraccar)
+  @ApiSecurity('device-api-key')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Endpoint Webhook pour la télématique Traccar' })
+  @ApiResponse({ status: 401, description: `Secret manquant/invalide (en-tête ${DEVICE_STREAM_API_KEY_HEADER}).` })
   async receiveTraccar(@Body() payload: any) {
     return this.hardwareStreamService.handleTraccarStream(payload);
   }

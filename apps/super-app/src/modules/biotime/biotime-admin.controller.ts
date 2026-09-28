@@ -56,6 +56,16 @@ export class BiotimeAdminController {
 
   // ==================== TERMINAUX ====================
 
+  @Get('terminals')
+  @ApiOperation({
+    summary: 'Lister tous les terminaux connus localement',
+    description: "Retourne tous les terminaux enregistrés dans notre base (assignés ou non), avec leur école le cas échéant. Ne dépend pas du serveur BioTime central.",
+  })
+  @ApiResponse({ status: 200, description: 'Liste complète des terminaux locaux' })
+  async getAllTerminals() {
+    return await this.biotimeService.getAllTerminals();
+  }
+
   @Get('terminals/available')
   @ApiOperation({
     summary: 'Lister les terminaux disponibles (non assignés)',

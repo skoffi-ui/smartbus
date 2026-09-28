@@ -3,15 +3,19 @@ import {
   NotFoundException,
   ConflictException,
   InternalServerErrorException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindManyOptions, Like } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Organisation, OrganisationStatus } from '@app/database';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
+import { UpdateMySchoolDto } from './dto/update-my-school.dto';
 import { PaginationDto, PaginationResponseDto } from '@app/common';
 
 import { ProvisioningService } from '../provisioning/provisioning.service';
+import { BiotimeCentralService } from '../biotime/biotime-central.service';
 
 @Injectable()
 export class OrganisationsService {
@@ -19,6 +23,8 @@ export class OrganisationsService {
     @InjectRepository(Organisation)
     private readonly organisationRepository: Repository<Organisation>,
     private readonly provisioningService: ProvisioningService,
+    private readonly biotimeCentralService: BiotimeCentralService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private generateSchoolCode(schoolName: string): string {
@@ -64,7 +70,21 @@ export class OrganisationsService {
       ...dto,
       code: generatedCode,
     });
-    return this.organisationRepository.save(org);
+    const saved = await this.organisationRepository.save(org);
+
+    // 1 organisation = 1 département BioTime : bloquant et explicite, pas de
+    // fallback silencieux. Une école sans département ne pourrait jamais
+    // synchroniser ses élèves (voir children.service.ts), donc mieux vaut
+    // échouer maintenant, clairement, que découvrir le problème plus tard
+    // à la création du premier élève.
+    try {
+      return await this.biotimeCentralService.createDepartmentForOrganisation(saved.id);
+    } catch (error: any) {
+      await this.organisationRepository.remove(saved);
+      throw new InternalServerErrorException(
+        `L'organisation n'a pas été créée : échec de la création de son département BioTime (${error.message}).`,
+      );
+    }
   }
 
   async findAll(
@@ -94,6 +114,48 @@ export class OrganisationsService {
 
   async update(id: string, dto: UpdateOrganisationDto): Promise<Organisation> {
     const org = await this.findOne(id);
+    Object.assign(org, dto);
+    const saved = await this.organisationRepository.save(org);
+
+    // `allowedFeatures` change bel et bien : on prévient tout de suite le
+    // client déjà connecté (WebSocket déjà ouvert pour le suivi live/les
+    // alertes, voir HardwareStreamGateway) plutôt que le laisser avec le
+    // menu périmé jusqu'à un rechargement de page ou l'expiration du jeton.
+    // Aucune connexion ni requête supplémentaire n'est créée : seul un
+    // évènement est émis sur le salon que le client occupe déjà.
+    if (dto.allowedFeatures !== undefined || dto.allowAdditionalDirectors !== undefined) {
+      this.eventEmitter.emit('organisation.permissions_updated', { organisationId: saved.id });
+    }
+
+    return saved;
+  }
+
+  /**
+   * Lecture par un directeur des informations de SA PROPRE école, pour
+   * Paramètres → "Mon École" (school-web) — évite de lui redemander ce
+   * qu'il a déjà saisi à la création (`AuthService.creerMonEcole`).
+   * `organisationId` vient toujours de `appelant.organisationId` (jamais
+   * d'un paramètre d'URL) : aucune énumération possible d'une autre école.
+   */
+  async findMine(organisationId: string | null): Promise<Organisation> {
+    if (!organisationId) {
+      throw new ForbiddenException("Vous n'avez pas encore d'école.");
+    }
+    return this.findOne(organisationId);
+  }
+
+  /**
+   * Modification par un directeur des informations de SA PROPRE école
+   * (nom, adresse, téléphone, email, site web uniquement — voir
+   * `UpdateMySchoolDto`). Jamais `allowedFeatures`, `allowAdditionalDirectors`,
+   * `status` ni les colonnes BioTime : celles-ci restent réservées au Super
+   * Admin via `update()`/`PATCH /organisations/:id`.
+   */
+  async updateMine(organisationId: string | null, dto: UpdateMySchoolDto): Promise<Organisation> {
+    if (!organisationId) {
+      throw new ForbiddenException("Vous n'avez pas encore d'école.");
+    }
+    const org = await this.findOne(organisationId);
     Object.assign(org, dto);
     return this.organisationRepository.save(org);
   }
