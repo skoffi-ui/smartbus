@@ -19,6 +19,8 @@
     "migration:central": "npm run typeorm -- migration:run -d libs/database/src/central-data-source.ts",
     "migration:central:revert": "npm run typeorm -- migration:revert -d libs/database/src/central-data-source.ts",
     "migration:central:show": "npm run typeorm -- migration:show -d libs/database/src/central-data-source.ts",
+    "migration:tenant:baseline": "node -r ts-node/register -r tsconfig-paths/register scripts/baseline-tenant-migrations.ts",
+    "migration:tenant": "node -r ts-node/register -r tsconfig-paths/register scripts/run-tenant-migrations.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest --config jest.config.ts",
     "test:watch": "jest --config jest.config.ts --watch",
@@ -32,7 +34,9 @@
     "test:ci": "jest --config jest.config.ts --coverage --maxWorkers=2",
     "demo:peupler": "node scripts/demo/peupler-demo.js",
     "demo:balises": "node scripts/demo/rattacher-balises.js",
-    "demo:gps": "node scripts/demo/simulateur-gps.js"
+    "demo:gps": "node scripts/demo/simulateur-gps.js",
+    "demo:biotime": "node scripts/demo/peupler-biotime-demo.js",
+    "demo:biotime-serveur": "node scripts/demo/serveur-biotime-fictif.js"
   },
   "dependencies": {
     "@nestjs/axios": "^4.0.1",

@@ -64,3 +64,4 @@ skills-lock.json
 
 # État local du serveur BioTime fictif (voir scripts/demo/serveur-biotime-fictif.js) — pas du code, juste des données de démo générées
 scripts/demo/.biotime-fictif-etat.json
+*.pdf
