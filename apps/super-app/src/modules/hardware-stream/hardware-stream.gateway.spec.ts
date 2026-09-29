@@ -1,3 +1,4 @@
+import { ModuleRef } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { HardwareStreamGateway } from './hardware-stream.gateway';
 
@@ -14,6 +15,7 @@ describe('HardwareStreamGateway — cloisonnement des salons', () => {
 
   let gateway: HardwareStreamGateway;
   let jwt: JwtService;
+  let moduleRef: ModuleRef;
 
   const makeClient = (token?: string) => ({
     id: 'socket-1',
@@ -26,7 +28,12 @@ describe('HardwareStreamGateway — cloisonnement des salons', () => {
 
   beforeEach(() => {
     jwt = new JwtService({ secret: SECRET });
-    gateway = new HardwareStreamGateway(jwt);
+    // ModuleRef simulé : exigé par le constructeur pour résoudre la connexion tenant hors HTTP.
+    moduleRef = {
+      registerRequestByContextId: jest.fn(),
+      resolve: jest.fn(),
+    } as unknown as ModuleRef;
+    gateway = new HardwareStreamGateway(jwt, moduleRef);
   });
 
   describe('handleConnection', () => {
