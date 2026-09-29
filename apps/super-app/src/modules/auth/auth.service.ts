@@ -23,7 +23,7 @@ import { UpdateMeDto } from './dto/update-me.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { OrganisationsService } from '../organisations/organisations.service';
 import { ProvisioningService } from '../provisioning/provisioning.service';
-import { jwtSecretRequis, DirectorInvitationService } from '@app/common';
+import { jwtSecretRequis, jwtRefreshSecretRequis, DirectorInvitationService } from '@app/common';
 
 export interface JwtPayload {
   sub: string;
@@ -39,6 +39,28 @@ export interface JwtPayload {
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
+}
+
+/** Claim `type` présent uniquement sur les refresh tokens. */
+export const REFRESH_TOKEN_TYPE = 'refresh' as const;
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+interface RefreshTokenPayload extends JwtPayload {
+  type: typeof REFRESH_TOKEN_TYPE;
+  exp?: number;
+}
+
+/** Empreinte du jeton entier. SHA-256 ne tronque pas, contrairement à bcrypt (72 octets). */
+function empreinteRefreshToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function empreintesEgales(stockee: string, calculee: string): boolean {
+  const a = Buffer.from(stockee);
+  const b = Buffer.from(calculee);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 }
 
 @Injectable()
@@ -257,11 +279,19 @@ export class AuthService {
   }
 
   /**
-   * Refresh tokens
+   * Renouvelle la session à partir du seul refresh token.
+   *
+   * L'identifiant est le claim `sub` du jeton vérifié : le corps de la
+   * requête ne le fournit pas. Signature, expiration et type sont contrôlés
+   * avant toute lecture en base. L'empreinte stockée est le SHA-256 du jeton
+   * entier. Chaque succès la remplace, y compris si deux requêtes arrivent
+   * ensemble : une seule mise à jour trouve encore l'empreinte présentée.
    */
-  async refreshTokens(userId: string, refreshToken: string): Promise<AuthTokens> {
+  async refreshTokens(refreshToken: string): Promise<AuthTokens> {
+    const payload = await this.verifierRefreshToken(refreshToken);
+
     const user = await this.userRepository.findOne({
-      where: { id: userId },
+      where: { id: payload.sub },
       select: { id: true, email: true, role: true, organisationId: true, refreshToken: true },
     });
 
@@ -269,14 +299,48 @@ export class AuthService {
       throw new UnauthorizedException('Accès refusé');
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refreshToken);
-    if (!isRefreshTokenValid) {
+    const empreinte = empreinteRefreshToken(refreshToken);
+    if (!empreintesEgales(user.refreshToken, empreinte)) {
       throw new UnauthorizedException('Refresh token invalide');
     }
 
     const tokens = await this.generateTokens(user);
-    await this.saveRefreshToken(user.id, tokens.refreshToken);
+    const remplacement = await this.userRepository.update(
+      { id: user.id, refreshToken: empreinte },
+      { refreshToken: empreinteRefreshToken(tokens.refreshToken) },
+    );
+    if (!remplacement.affected) {
+      throw new UnauthorizedException('Refresh token invalide');
+    }
     return tokens;
+  }
+
+  /**
+   * Signature HMAC, expiration et type `refresh`.
+   * Toute erreur de jeton (forgery, autre clé, expiration) devient un 401
+   * sans le détail renvoyé par la bibliothèque.
+   */
+  private async verifierRefreshToken(refreshToken: string): Promise<RefreshTokenPayload> {
+    let payload: RefreshTokenPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
+        secret: jwtRefreshSecretRequis(this.configService),
+        algorithms: ['HS256'],
+      });
+    } catch {
+      throw new UnauthorizedException('Refresh token invalide');
+    }
+
+    if (
+      payload?.type !== REFRESH_TOKEN_TYPE ||
+      typeof payload.sub !== 'string' ||
+      !UUID.test(payload.sub) ||
+      typeof payload.exp !== 'number'
+    ) {
+      throw new UnauthorizedException('Refresh token invalide');
+    }
+
+    return payload;
   }
 
   /**
@@ -316,21 +380,32 @@ export class AuthService {
         secret: jwtSecretRequis(this.configService),
         expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '7d') as any,
       }),
-      this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('JWT_REFRESH_SECRET', 'secret'),
-        expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '30d') as any,
-      }),
+      this.jwtService.signAsync(
+        {
+          ...payload,
+          type: REFRESH_TOKEN_TYPE,
+          // Sans identifiant unique, deux émissions dans la même seconde produisent
+          // le même JWT : la rotation ne révoquerait pas le jeton présenté.
+          jti: crypto.randomBytes(16).toString('hex'),
+        },
+        {
+          secret: jwtRefreshSecretRequis(this.configService),
+          expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '30d') as any,
+        },
+      ),
     ]);
 
     return { accessToken, refreshToken };
   }
 
   /**
-   * Sauvegarde le hash du refresh token
+   * Enregistre l'empreinte SHA-256 du refresh token (login, inscription).
+   * Le renouvellement passe par une mise à jour conditionnelle, voir `refreshTokens`.
    */
   private async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    await this.userRepository.update(userId, { refreshToken: hashedRefreshToken });
+    await this.userRepository.update(userId, {
+      refreshToken: empreinteRefreshToken(refreshToken),
+    });
   }
 
   /**

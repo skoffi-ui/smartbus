@@ -10,7 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { OrganisationsModule } from '../organisations/organisations.module';
 import { ProvisioningModule } from '../provisioning/provisioning.module';
-import { jwtSecretRequis } from '@app/common';
+import { secretsJwtAuDemarrage } from '@app/common';
 
 @Module({
   imports: [
@@ -21,7 +21,8 @@ import { jwtSecretRequis } from '@app/common';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
-        secret: jwtSecretRequis(configService),
+        // Jeton d'accès ET refresh : l'absence de l'un ou l'autre refuse le démarrage.
+        secret: secretsJwtAuDemarrage(configService),
         signOptions: {
           expiresIn: configService.get<string>('JWT_EXPIRES_IN', '7d') as any,
         },

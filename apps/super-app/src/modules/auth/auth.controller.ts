@@ -111,9 +111,18 @@ export class AuthController {
   @Public()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Rafraîchissement des tokens' })
+  @ApiOperation({
+    summary: 'Rafraîchissement des tokens',
+    description:
+      "Vérifie la signature HMAC, l'expiration et le type `refresh` du jeton. " +
+      "L'identifiant utilisateur est le claim `sub` de ce jeton : le corps n'accepte pas `userId`. " +
+      'Chaque succès révoque le jeton présenté et en émet un nouveau.',
+  })
+  @ApiResponse({ status: 200, description: 'Nouveaux jetons émis (accessToken, refreshToken)' })
+  @ApiResponse({ status: 400, description: 'Corps invalide (jeton absent, ou champ non prévu comme userId)' })
+  @ApiResponse({ status: 401, description: 'Jeton forgé, expiré, signé avec une autre clé, ou déjà utilisé' })
   async refresh(@Body() dto: RefreshTokenDto) {
-    return this.authService.refreshTokens(dto.userId, dto.refreshToken);
+    return this.authService.refreshTokens(dto.refreshToken);
   }
 
   @UseGuards(JwtAuthGuard)
