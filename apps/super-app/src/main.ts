@@ -4,6 +4,10 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { SuperAppModule } from './super-app.module';
+import {
+  CINETPAY_WEBHOOK_SECRET_HEADER,
+  CINETPAY_WEBHOOK_SECURITY_SCHEME,
+} from './modules/payments/payment-webhook.constants';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(SuperAppModule);
@@ -39,12 +43,23 @@ async function bootstrap() {
     )
     .setVersion('1.0')
     .addBearerAuth()
+    .addApiKey(
+      {
+        type: 'apiKey',
+        in: 'header',
+        name: CINETPAY_WEBHOOK_SECRET_HEADER,
+        description:
+          'Secret partagé du webhook de paiement (variable CINETPAY_WEBHOOK_SECRET). Distinct du JWT utilisateur.',
+      },
+      CINETPAY_WEBHOOK_SECURITY_SCHEME,
+    )
     .addTag('auth', 'Authentification et gestion des sessions')
     .addTag('users', 'Gestion des utilisateurs')
     .addTag('organisations', 'Gestion des organisations / établissements')
     .addTag('roles', 'Gestion des rôles et permissions RBAC')
     .addTag('subscriptions', 'Gestion des abonnements')
     .addTag('billing', 'Facturation et paiements')
+    .addTag('payments', 'Paiements et notification CinetPay (secret partagé, sans JWT)')
     .addTag('provisioning', 'Provisionnement des bases de données école')
     .addTag('metadata', 'Versionnage du schéma (table meta_data)')
     .build();

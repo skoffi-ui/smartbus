@@ -19,6 +19,7 @@ describe('resolveRoute', () => {
   it('autorise sans JWT uniquement les routes publiques déclarées', () => {
     expect(resolveRoute('POST', '/api/v1/auth/login')).toEqual({ target: 'super', isPublic: true });
     expect(resolveRoute('POST', '/api/v1/auth/parent/login')).toEqual({ target: 'super', isPublic: true });
+    // Public au sens « pas de JWT » : le secret partagé est vérifié dans la super-app.
     expect(resolveRoute('POST', '/api/v1/payments/webhook')).toEqual({ target: 'super', isPublic: true });
   });
 
