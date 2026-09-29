@@ -22,7 +22,9 @@ export class AffectationsController {
   }
 
   @Get('by-child/:childId')
-  @ApiOperation({ summary: 'Récupère l\'affectation d\'un enfant spécifique' })
+  @ApiOperation({
+    summary: "Liste les affectations d'un enfant (une par course : matin, retour midi, remontée 14h...)",
+  })
   findByChild(@Param('childId', ParseUUIDPipe) childId: string) {
     return this.affectationsService.findByChild(childId);
   }

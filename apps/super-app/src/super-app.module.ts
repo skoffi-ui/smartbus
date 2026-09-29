@@ -22,6 +22,7 @@ import { ParentPortalModule } from './modules/parent-portal/parent-portal.module
 import { DevicesModule } from './modules/devices/devices.module';
 import { GpswoxModule } from './modules/gpswox/gpswox.module';
 import { PlanTarifsModule } from './modules/plan-tarifs/plan-tarifs.module';
+import { StatsModule } from './modules/stats/stats.module';
 
 @Module({
   imports: [
@@ -73,6 +74,7 @@ import { PlanTarifsModule } from './modules/plan-tarifs/plan-tarifs.module';
     DevicesModule,
     GpswoxModule,
     PlanTarifsModule,
+    StatsModule,
   ],
 })
 export class SuperAppModule {}

@@ -30,6 +30,7 @@ const SUPER_RESOURCES = new Set([
   'provisioning',
   'metadata',
   'devices',
+  'stats',
   'biotime',
   'hardware',
   'parent',

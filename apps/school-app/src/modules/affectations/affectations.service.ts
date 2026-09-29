@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { TenantService } from '../tenant/tenant.service';
 import { Affectation } from '@app/database';
 import { CreateAffectationDto } from './dto/create-affectation.dto';
@@ -23,10 +23,23 @@ export class AffectationsService {
     });
   }
 
-  async findByChild(childId: string): Promise<Affectation | null> {
+  /**
+   * Toutes les affectations d'un enfant — potentiellement une par course
+   * (matin, retour midi, remontée 14h, descente 16h...), plus éventuellement
+   * une affectation héritée de TrajetEditor.tsx (`courseId` null).
+   */
+  async findByChild(childId: string): Promise<Affectation[]> {
+    const repo = await this.getRepo();
+    return repo.find({
+      where: { childId },
+      relations: { pointRecuperation: true },
+    });
+  }
+
+  async findByChildAndCourse(childId: string, courseId: string): Promise<Affectation | null> {
     const repo = await this.getRepo();
     return repo.findOne({
-      where: { childId },
+      where: { childId, courseId },
       relations: { pointRecuperation: true },
     });
   }
@@ -42,31 +55,40 @@ export class AffectationsService {
 
   async create(dto: CreateAffectationDto): Promise<Affectation> {
     const repo = await this.getRepo();
+    const courseFilter = dto.courseId ?? IsNull();
 
     // Vérification applicative — utile pour un message clair immédiat, mais
     // une recherche-puis-écriture n'est jamais atomique : deux requêtes
-    // concurrentes pour le même enfant peuvent toutes les deux la franchir
-    // avant qu'aucune n'ait validé. La contrainte UNIQUE en base
-    // (`UQ_affectations_child_id`, migration `UniqueChildIdOnAffectations`)
-    // est le vrai garde-fou ; le `catch` ci-dessous en traduit juste le
-    // rejet en message clair plutôt qu'une erreur Postgres brute.
-    const existing = await this.findByChild(dto.childId);
+    // concurrentes pour le même (enfant, course) peuvent toutes les deux la
+    // franchir avant qu'aucune n'ait validé. La contrainte UNIQUE en base
+    // (`UQ_affectations_child_course`, migration `AddCourseIdToAffectations`)
+    // est le vrai garde-fou ; le `catch` ci-dessous en traduit juste le rejet
+    // en message clair plutôt qu'une erreur Postgres brute.
+    //
+    // L'unicité porte sur (child_id, course_id), pas sur child_id seul : un
+    // enfant peut avoir une affectation par course (matin, retour midi,
+    // remontée 14h, descente 16h...).
+    const existing = await repo.findOne({ where: { childId: dto.childId, courseId: courseFilter } });
     if (existing) {
       throw new ConflictException(
-        `L'enfant ${dto.childId} est déjà affecté au point ${existing.pointId}. Veuillez d'abord supprimer l'affectation existante.`
+        `L'enfant ${dto.childId} est déjà affecté au point ${existing.pointId}` +
+          `${dto.courseId ? ' pour cette course' : ''}. Veuillez d'abord supprimer l'affectation existante.`,
       );
     }
 
     const affectation = repo.create(dto as Partial<Affectation>);
     try {
       const saved = await repo.save(affectation);
-      this.logger.log(`Affectation créée : enfant ${dto.childId} → point ${dto.pointId}`);
+      this.logger.log(
+        `Affectation créée : enfant ${dto.childId} → point ${dto.pointId}` +
+          `${dto.courseId ? ` (course ${dto.courseId})` : ''}`,
+      );
       return saved as Affectation;
     } catch (err: any) {
       if (err.code === '23505') {
         // Violation de la contrainte unique : la vérification ci-dessus a
         // été franchie par une requête concurrente entre-temps.
-        const concurrent = await this.findByChild(dto.childId);
+        const concurrent = await repo.findOne({ where: { childId: dto.childId, courseId: courseFilter } });
         throw new ConflictException(
           `L'enfant ${dto.childId} est déjà affecté au point ${concurrent?.pointId ?? '?'}. Veuillez d'abord supprimer l'affectation existante.`,
         );

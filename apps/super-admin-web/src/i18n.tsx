@@ -29,6 +29,7 @@ const traductions = {
   'nav.theme_sombre':        { fr: 'Passer au thème sombre', en: 'Switch to dark theme' },
 
   /* ── Sidebar ─────────────────────────────────────────────────── */
+  'sidebar.dashboard':       { fr: 'Tableau de bord',      en: 'Dashboard' },
   'sidebar.ecoles':          { fr: 'Écoles',               en: 'Schools' },
   'sidebar.equipe':          { fr: 'Équipe',               en: 'Team' },
   'sidebar.abonnements':     { fr: 'Abonnements',          en: 'Subscriptions' },

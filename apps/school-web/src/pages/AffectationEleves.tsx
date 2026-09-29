@@ -30,6 +30,7 @@ interface Affectation {
   id: string;
   childId: string;
   pointId: string;
+  courseId?: string | null;
   ordreMontee?: number;
   child?: Eleve;
 }
@@ -38,12 +39,13 @@ const nomComplet = (e?: Eleve) =>
   e ? `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || 'Élève sans nom' : 'Élève inconnu';
 
 /**
- * Affectation des élèves aux points de récupération.
+ * Affectation des élèves aux points de récupération, PAR COURSE.
  *
- * Un élève ne peut être affecté qu'à un seul point : le serveur refuse une
- * seconde affectation. L'écran distingue donc explicitement les élèves libres
- * de ceux déjà placés ailleurs, plutôt que de laisser l'utilisateur découvrir
- * le refus après coup.
+ * Un élève peut avoir une affectation par course (matin, retour midi,
+ * remontée 14h, descente 16h...) — le serveur refuse seulement une seconde
+ * affectation pour LA MÊME course. Toutes les listes/statistiques de cet
+ * écran sont donc scopées à `courseId` (`affectationsDeLaCourse` ci-dessous) :
+ * un élève déjà affecté sur une AUTRE course reste normalement proposable ici.
  */
 export default function AffectationEleves() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -142,11 +144,22 @@ export default function AffectationEleves() {
   }, [courseId]);
 
   // ── Dérivés ──
+  // Scopées à la course choisie : un enfant peut avoir une affectation par
+  // course (matin, retour midi, remontée 14h, descente 16h...), donc une
+  // affectation sur une AUTRE course ne doit pas le faire apparaître comme
+  // déjà placé ici. Les affectations héritées de TrajetEditor.tsx (sans
+  // courseId) ne sont, elles, rattachées à aucune course : invisibles ici,
+  // elles restent gérées par leur écran d'origine.
+  const affectationsDeLaCourse = useMemo(
+    () => (courseId ? affectations.filter((a) => a.courseId === courseId) : []),
+    [affectations, courseId],
+  );
+
   const affectationParEleve = useMemo(() => {
     const m = new Map<string, Affectation>();
-    for (const a of affectations) m.set(a.childId, a);
+    for (const a of affectationsDeLaCourse) m.set(a.childId, a);
     return m;
-  }, [affectations]);
+  }, [affectationsDeLaCourse]);
 
   const nomDuPoint = useCallback(
     (pointId: string) => points.find((p) => p.id === pointId)?.nom ?? 'un autre arrêt',
@@ -154,8 +167,8 @@ export default function AffectationEleves() {
   );
 
   const affectesAuPoint = useMemo(
-    () => (pointActif ? affectations.filter((a) => a.pointId === pointActif.id) : []),
-    [affectations, pointActif],
+    () => (pointActif ? affectationsDeLaCourse.filter((a) => a.pointId === pointActif.id) : []),
+    [affectationsDeLaCourse, pointActif],
   );
 
   const elevesDisponibles = useMemo(() => {
@@ -182,11 +195,11 @@ export default function AffectationEleves() {
   const [prevStats, setPrevStats] = useState({ total: 0, affectes: 0, nonAffectes: 0, pourcentage: 0 });
   const stats = useMemo(() => {
     const total = eleves.length;
-    const affectes = affectations.length;
+    const affectes = affectationsDeLaCourse.length;
     const nonAffectes = total - affectes;
     const pourcentage = total > 0 ? Math.round((affectes / total) * 100) : 0;
     return { total, affectes, nonAffectes, pourcentage };
-  }, [eleves, affectations]);
+  }, [eleves, affectationsDeLaCourse]);
 
   // Déclencher confetti à 100% et animation des stats
   useEffect(() => {
@@ -212,8 +225,8 @@ export default function AffectationEleves() {
       // ramassage — l'ordre de passage restait donc silencieusement inerte
       // pour tout trajet géré depuis cet écran plutôt que TrajetEditor.tsx
       // (qui, lui, le calcule déjà correctement).
-      const ordreMontee = affectations.filter((a) => a.pointId === pointActif.id).length + 1;
-      await affecterEnfant(pointActif.id, { childId: eleve.id, ordreMontee });
+      const ordreMontee = affectationsDeLaCourse.filter((a) => a.pointId === pointActif.id).length + 1;
+      await affecterEnfant(pointActif.id, { childId: eleve.id, ordreMontee, courseId });
       const a = await getAffectations();
       setAffectations(Array.isArray(a) ? a : []);
       triggerSuccessAnimation(eleve.id);
@@ -264,10 +277,10 @@ export default function AffectationEleves() {
     setEnCours('bulk');
     setErreur('');
     try {
-      const ordreDeBase = affectations.filter((a) => a.pointId === pointActif.id).length;
+      const ordreDeBase = affectationsDeLaCourse.filter((a) => a.pointId === pointActif.id).length;
       await Promise.all(
         eleveIds.map((childId, index) =>
-          affecterEnfant(pointActif.id, { childId, ordreMontee: ordreDeBase + index + 1 })
+          affecterEnfant(pointActif.id, { childId, ordreMontee: ordreDeBase + index + 1, courseId })
         )
       );
       const a = await getAffectations();

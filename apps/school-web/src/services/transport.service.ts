@@ -142,7 +142,10 @@ export const getAffectationsByChild = async (childId: string) => {
   return response.data;
 };
 
-export const affecterEnfant = async (pointId: string, data: { childId: string; ordreMontee?: number }) => {
+export const affecterEnfant = async (
+  pointId: string,
+  data: { childId: string; ordreMontee?: number; courseId?: string },
+) => {
   const response = await api.post('/affectations', { ...data, pointId });
   return response.data;
 };

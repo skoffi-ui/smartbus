@@ -3,7 +3,6 @@ import {
   MapContainer,
   TileLayer,
   Marker,
-  Popup,
   Tooltip,
   useMap,
   Polyline,
@@ -14,14 +13,12 @@ import {
   Bus,
   MapPin,
   Bell,
-  User,
   Clock,
   Wifi,
   WifiOff,
   AlertTriangle,
   Users,
   RefreshCw,
-  Navigation,
   Activity,
   ChevronRight,
 } from 'lucide-react';
@@ -465,115 +462,13 @@ export default function LiveTracking() {
                 return (
                   // Indexé sur le véhicule : `courseId` est vide quand le bus n'a
                   // pas de course active, et plusieurs bus le partageaient alors.
-                  <React.Fragment key={bus.deviceId || bus.courseId}>
-                    <AnimatedBusMarker bus={bus} enLigne={busEnLigne} />
-
-                    {/* Infobulle permanente pour le bus sélectionné */}
-                    <Marker
-                      position={[bus.latitude, bus.longitude]}
-                      icon={new L.DivIcon({ className: '', html: '', iconSize: [1, 1] })}
-                      eventHandlers={{
-                        click: () => setSelectedBus(bus.courseId === selectedBus ? null : bus.courseId),
-                      }}
-                    >
-                      <Popup
-                        autoClose={false}
-                        closeOnClick={false}
-                      >
-                        <div style={{
-                          fontFamily: 'Inter, sans-serif',
-                          minWidth: 200,
-                          padding: '0.25rem',
-                        }}>
-                          {/* En-tête popup */}
-                          <div style={{
-                            display: 'flex', alignItems: 'center', gap: '0.5rem',
-                            marginBottom: '0.75rem',
-                            paddingBottom: '0.6rem',
-                            borderBottom: '1px solid #e2e8f0',
-                          }}>
-                            <span style={{ fontSize: '1.5rem' }}>🚌</span>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontWeight: 700, fontSize: '1rem', color: '#0f172a' }}>
-                                {bus.plateNumber || detail?.plateNumber || 'Bus inconnu'}
-                              </div>
-                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                                {bus.courseName || detail?.name || `Course ${bus.courseId?.slice(0, 8)}…`}
-                              </div>
-                            </div>
-                            <span style={{
-                              display: 'flex', alignItems: 'center', gap: '0.25rem',
-                              padding: '0.15rem 0.5rem', borderRadius: '1rem',
-                              fontSize: '0.68rem', fontWeight: 700,
-                              color: busEnLigne ? '#10b981' : '#64748b',
-                              background: busEnLigne ? 'rgba(16,185,129,0.12)' : 'rgba(100,116,139,0.12)',
-                            }}>
-                              {busEnLigne ? <Wifi size={11} /> : <WifiOff size={11} />}
-                              {busEnLigne ? 'En ligne' : 'Hors ligne'}
-                            </span>
-                          </div>
-
-                          {/* Infos chauffeur */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                              <User size={13} style={{ color: '#4f46e5', flexShrink: 0 }} />
-                              <span style={{ color: '#64748b' }}>Chauffeur :</span>
-                              <span style={{ fontWeight: 600, color: '#0f172a' }}>
-                                {bus.driverName || detail?.driverName || '—'}
-                              </span>
-                            </div>
-
-                            {/* Nombre d'élèves */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                              <Users size={13} style={{ color: '#10b981', flexShrink: 0 }} />
-                              <span style={{ color: '#64748b' }}>Élèves à bord :</span>
-                              <span style={{
-                                fontWeight: 700,
-                                color: 'white',
-                                background: bus.studentsOnBoard ? '#10b981' : '#94a3b8',
-                                padding: '0.1rem 0.5rem',
-                                borderRadius: '1rem',
-                                fontSize: '0.78rem',
-                              }}>
-                                {bus.studentsOnBoard ?? 0}
-                              </span>
-                            </div>
-
-                            {/* Vitesse */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-                              <Navigation size={13} style={{ color: '#f59e0b', flexShrink: 0 }} />
-                              <span style={{ color: '#64748b' }}>Vitesse :</span>
-                              <span style={{ fontWeight: 600, color: '#0f172a' }}>{bus.speed || 0} km/h</span>
-                            </div>
-
-                            {/* Dernière mise à jour */}
-                            <div style={{
-                              marginTop: '0.5rem',
-                              padding: '0.4rem 0.6rem',
-                              background: busEnLigne ? '#f8fafc' : 'rgba(100,116,139,0.1)',
-                              borderRadius: '0.4rem',
-                              fontSize: '0.72rem',
-                              color: busEnLigne ? '#64748b' : '#475569',
-                              display: 'flex', alignItems: 'center', gap: '0.3rem',
-                              fontWeight: busEnLigne ? 400 : 600,
-                            }}>
-                              <Clock size={11} />
-                              {busEnLigne
-                                ? `Mis à jour : ${new Date(bus.timestamp).toLocaleTimeString('fr-FR')}`
-                                : `Hors ligne depuis ${new Date(bus.timestamp).toLocaleTimeString('fr-FR')} — aucune nouvelle position`}
-                            </div>
-                          </div>
-                        </div>
-                      </Popup>
-
-                      {/* Tooltip léger au survol */}
-                      <Tooltip direction="top" offset={[0, -24]}>
-                        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '0.8rem', fontWeight: 600 }}>
-                          {bus.plateNumber || 'Bus'} — {bus.studentsOnBoard ?? 0} élèves
-                        </div>
-                      </Tooltip>
-                    </Marker>
-                  </React.Fragment>
+                  <AnimatedBusMarker
+                    key={bus.deviceId || bus.courseId}
+                    bus={bus}
+                    enLigne={busEnLigne}
+                    detail={detail}
+                    onSelect={() => setSelectedBus(bus.courseId === selectedBus ? null : bus.courseId)}
+                  />
                 );
               })}
             </MapContainer>

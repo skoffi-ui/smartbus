@@ -1043,14 +1043,34 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       return { statut: MonteeStatut.REFUSE, message: errorMsg, sansCourse: true };
     }
 
-    // 3. Vérifier l'affectation de l'élève à ce véhicule (via le trajet de la course active)
-    const affectationResult = await tenantDataSource.query(`
+    // 3. Vérifier l'affectation de l'élève à CETTE course précise.
+    //
+    // Un enfant peut avoir plusieurs affectations, une par course (matin,
+    // retour midi, remontée 14h, descente 16h...) — voir `Affectation.courseId`
+    // et la migration `AddCourseIdToAffectations`. On matche donc d'abord sur
+    // la course active exactement.
+    //
+    // Repli sur l'ancienne vérification par trajet (`course_id IS NULL`)
+    // pour les affectations créées depuis TrajetEditor.tsx, qui ne renseigne
+    // pas courseId : sans ce repli, tout enfant affecté uniquement par cet
+    // écran serait signalé à tort comme non affecté sur sa propre course.
+    let affectationResult = await tenantDataSource.query(`
       SELECT aff.point_id as "pointId", pr.nom as "stopName", pr.latitude as "stopLatitude", pr.longitude as "stopLongitude", pr.trajet_id as "trajetId"
       FROM affectations aff
       INNER JOIN points_recuperation pr ON pr.id = aff.point_id
-      WHERE aff.child_id = $1 AND pr.trajet_id = $2
+      WHERE aff.child_id = $1 AND aff.course_id = $2
       LIMIT 1
-    `, [child.id, activeCourse.trajetId]);
+    `, [child.id, activeCourse.id]);
+
+    if (!affectationResult || affectationResult.length === 0) {
+      affectationResult = await tenantDataSource.query(`
+        SELECT aff.point_id as "pointId", pr.nom as "stopName", pr.latitude as "stopLatitude", pr.longitude as "stopLongitude", pr.trajet_id as "trajetId"
+        FROM affectations aff
+        INNER JOIN points_recuperation pr ON pr.id = aff.point_id
+        WHERE aff.child_id = $1 AND aff.course_id IS NULL AND pr.trajet_id = $2
+        LIMIT 1
+      `, [child.id, activeCourse.trajetId]);
+    }
 
     if (!affectationResult || affectationResult.length === 0) {
       // Élève non affecté à ce trajet/véhicule. Cherchons s'il a au moins une affectation

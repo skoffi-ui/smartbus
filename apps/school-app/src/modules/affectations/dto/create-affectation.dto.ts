@@ -11,6 +11,16 @@ export class CreateAffectationDto {
   @IsUUID()
   pointId: string;
 
+  @ApiPropertyOptional({
+    description:
+      "UUID de la course pour laquelle cette affectation s'applique (un enfant peut avoir une " +
+      "affectation par course — matin, retour midi, remontée 14h, descente 16h...). Omis pour les " +
+      "affectations créées depuis TrajetEditor.tsx, indépendantes de toute course.",
+  })
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
   @ApiPropertyOptional({ description: 'Ordre de montée de l\'enfant à l\'arrêt (pour priorisation)' })
   @IsOptional()
   @IsNumber()
