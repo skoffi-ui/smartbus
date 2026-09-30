@@ -49,10 +49,13 @@ export default tseslint.config(
       '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
       '@typescript-eslint/require-await': 'warn',
       '@typescript-eslint/no-floating-promises': 'warn',
-      '@typescript-eslint/no-misused-promises': 'warn',
+      // TD-005 : redeviennent bloquantes. L'unique no-misused-promises
+      // (join des courses parent) et l'unique use-isnan (comparaison à NaN)
+      // sont corrigés.
+      '@typescript-eslint/no-misused-promises': 'error',
       '@typescript-eslint/no-require-imports': 'warn',
       'prefer-const': 'warn',
-      'use-isnan': 'warn',
+      'use-isnan': 'error',
       'no-empty': 'warn',
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
