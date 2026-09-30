@@ -27,13 +27,15 @@ import {
  */
 export const OrganisationDbPasswordTransformer: ValueTransformer = {
   to(valeurEnClair: string | null | undefined): string | null | undefined {
-    if (valeurEnClair === null || valeurEnClair === undefined) return valeurEnClair;
+    if (valeurEnClair === null || valeurEnClair === undefined)
+      return valeurEnClair;
     const cle = obtenirCleChiffrementDepuisEnv();
     return emballerSecret(chiffrerAvecCle(valeurEnClair, cle));
   },
 
   from(valeurStockee: string | null | undefined): string | null | undefined {
-    if (valeurStockee === null || valeurStockee === undefined) return valeurStockee;
+    if (valeurStockee === null || valeurStockee === undefined)
+      return valeurStockee;
     const secret = deballerSecret(valeurStockee);
     if (!secret) return valeurStockee; // legacy non chiffré, ou données inattendues
     const cle = obtenirCleChiffrementDepuisEnv();

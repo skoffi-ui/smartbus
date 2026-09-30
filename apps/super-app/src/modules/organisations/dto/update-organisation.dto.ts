@@ -13,7 +13,8 @@ export class UpdateOrganisationDto extends PartialType(CreateOrganisationDto) {
     type: [String],
     enum: SCHOOL_FEATURES,
     nullable: true,
-    description: "Fonctionnalités school-web autorisées pour le directeur de cette école. null = tout autorisé.",
+    description:
+      'Fonctionnalités school-web autorisées pour le directeur de cette école. null = tout autorisé.',
   })
   @IsOptional()
   @IsArray()
@@ -26,7 +27,8 @@ export class UpdateOrganisationDto extends PartialType(CreateOrganisationDto) {
    * `UsersService.toggleStatus`). Accordé par le Super Admin, école par école.
    */
   @ApiPropertyOptional({
-    description: "Autorise cette école à créer des comptes directeur supplémentaires.",
+    description:
+      'Autorise cette école à créer des comptes directeur supplémentaires.',
   })
   @IsOptional()
   @IsBoolean()

@@ -90,10 +90,16 @@ const BLOCKED_ROUTES = new Set([
   'POST montees/validation',
 ]);
 
-export function resolveRoute(method: string, path: string): ResolvedRoute | null {
+export function resolveRoute(
+  method: string,
+  path: string,
+): ResolvedRoute | null {
   if (!API_PREFIX.test(path)) return null;
 
-  const relative = path.replace(API_PREFIX, '').split('?')[0].replace(/\/+$/, '');
+  const relative = path
+    .replace(API_PREFIX, '')
+    .split('?')[0]
+    .replace(/\/+$/, '');
   const resource = relative.split('/')[0];
   const key = `${method.toUpperCase()} ${relative}`;
 

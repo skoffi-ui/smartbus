@@ -8,7 +8,12 @@ interface Blocage {
 }
 
 /** Explication affichée selon la raison renvoyée par l'API Gateway. */
-const EXPLICATIONS: Partial<Record<GatewayErrorCode, { titre: string; detail: string; action: 'paiement' | 'recharger' }>> = {
+const EXPLICATIONS: Partial<
+  Record<
+    GatewayErrorCode,
+    { titre: string; detail: string; action: 'paiement' | 'recharger' }
+  >
+> = {
   TENANT_SUSPENDED: {
     titre: 'Établissement suspendu',
     detail:
@@ -17,7 +22,7 @@ const EXPLICATIONS: Partial<Record<GatewayErrorCode, { titre: string; detail: st
     action: 'paiement',
   },
   TENANT_INACTIVE: {
-    titre: "Établissement pas encore activé",
+    titre: 'Établissement pas encore activé',
     detail:
       "Votre établissement n'est pas encore activé. Finalisez la création de votre organisation " +
       'et la souscription à un forfait pour accéder à la plateforme.',
@@ -61,7 +66,9 @@ export default function AccesBloque() {
     localStorage.removeItem('accessToken');
     try {
       sessionStorage.removeItem(BLOCK_REASON_KEY);
-    } catch { /* stockage indisponible */ }
+    } catch {
+      /* stockage indisponible */
+    }
     window.location.href = '/login';
   };
 
@@ -103,8 +110,24 @@ export default function AccesBloque() {
           <AlertTriangle size={24} />
         </div>
 
-        <h1 style={{ fontSize: '1.35rem', fontWeight: 700, margin: '0 0 0.75rem' }}>{titre}</h1>
-        <p style={{ lineHeight: 1.6, color: 'var(--text-secondary)', margin: '0 0 1.5rem' }}>{detail}</p>
+        <h1
+          style={{
+            fontSize: '1.35rem',
+            fontWeight: 700,
+            margin: '0 0 0.75rem',
+          }}
+        >
+          {titre}
+        </h1>
+        <p
+          style={{
+            lineHeight: 1.6,
+            color: 'var(--text-secondary)',
+            margin: '0 0 1.5rem',
+          }}
+        >
+          {detail}
+        </p>
 
         {blocage.message && info && (
           <p
@@ -143,7 +166,12 @@ export default function AccesBloque() {
           <button
             onClick={seDeconnecter}
             className="btn"
-            style={{ background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--glass-border)', fontSize: '0.9rem' }}
+            style={{
+              background: 'transparent',
+              color: 'var(--text-secondary)',
+              border: '1px solid var(--glass-border)',
+              fontSize: '0.9rem',
+            }}
           >
             <LogOut size={16} /> Se déconnecter
           </button>

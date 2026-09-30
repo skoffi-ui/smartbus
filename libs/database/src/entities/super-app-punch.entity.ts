@@ -21,7 +21,10 @@ export class SuperAppPunch extends BaseEntityModel {
   @Column({ name: 'organisation_id', type: 'uuid', nullable: true })
   organisationId: string;
 
-  @ManyToOne(() => SuperAppChild, (child) => child.punches, { onDelete: 'CASCADE', nullable: true })
+  @ManyToOne(() => SuperAppChild, (child) => child.punches, {
+    onDelete: 'CASCADE',
+    nullable: true,
+  })
   @JoinColumn({ name: 'child_id' })
   child?: SuperAppChild;
 

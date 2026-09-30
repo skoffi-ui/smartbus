@@ -24,7 +24,11 @@ export class TenantService {
       return this.request.user.organisationId;
     }
     if (this.request?.headers) {
-      return this.request.headers['x-tenant-id'] || this.request.headers['x-tenant-schema'] || null;
+      return (
+        this.request.headers['x-tenant-id'] ||
+        this.request.headers['x-tenant-schema'] ||
+        null
+      );
     }
     return null;
   }
@@ -42,7 +46,7 @@ export class TenantService {
   async getFirstOrganisationId(): Promise<string | null> {
     const org = await this.organisationRepository.findOne({
       where: {}, // Requis par TypeORM 0.3+ pour findOne
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
     return org ? org.id : null;
   }

@@ -28,7 +28,9 @@ export default function DefinirMotDePasse() {
     setErreur('');
 
     if (!token) {
-      setErreur("Ce lien est incomplet. Demandez un nouveau lien à votre administrateur.");
+      setErreur(
+        'Ce lien est incomplet. Demandez un nouveau lien à votre administrateur.',
+      );
       return;
     }
     if (motDePasse.length < 8) {
@@ -42,45 +44,87 @@ export default function DefinirMotDePasse() {
 
     setLoading(true);
     try {
-      await api.post('/auth/reset-password', { token, newPassword: motDePasse });
+      await api.post('/auth/reset-password', {
+        token,
+        newPassword: motDePasse,
+      });
       setSucces(true);
     } catch (err) {
-      setErreur(messageFromError(
-        err,
-        "Ce lien a expiré ou est invalide. Demandez un nouveau lien à votre administrateur.",
-      ));
+      setErreur(
+        messageFromError(
+          err,
+          'Ce lien a expiré ou est invalide. Demandez un nouveau lien à votre administrateur.',
+        ),
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center flex-col" style={{ minHeight: '100vh', padding: '20px' }}>
+    <div
+      className="flex items-center justify-center flex-col"
+      style={{ minHeight: '100vh', padding: '20px' }}
+    >
       <div className="text-center mb-8">
-        <h1 className="text-2xl text-accent" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>SMARTBUS</h1>
-        <p className="text-secondary" style={{ letterSpacing: '2px', textTransform: 'uppercase' }}>Portail Établissement</p>
+        <h1
+          className="text-2xl text-accent"
+          style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}
+        >
+          SMARTBUS
+        </h1>
+        <p
+          className="text-secondary"
+          style={{ letterSpacing: '2px', textTransform: 'uppercase' }}
+        >
+          Portail Établissement
+        </p>
       </div>
 
-      <div className="glass-panel animate-fade-in w-full" style={{ maxWidth: '400px', padding: '2.5rem' }}>
+      <div
+        className="glass-panel animate-fade-in w-full"
+        style={{ maxWidth: '400px', padding: '2.5rem' }}
+      >
         {succes ? (
           <>
             <h2 className="text-xl mb-4 text-center">Mot de passe défini</h2>
-            <p className="text-secondary text-center mb-6" style={{ fontSize: '0.9rem' }}>
+            <p
+              className="text-secondary text-center mb-6"
+              style={{ fontSize: '0.9rem' }}
+            >
               Votre compte est prêt. Vous pouvez maintenant vous connecter.
             </p>
-            <button className="btn btn-primary w-full" onClick={() => navigate('/login')}>
+            <button
+              className="btn btn-primary w-full"
+              onClick={() => navigate('/login')}
+            >
               Aller à la connexion
             </button>
           </>
         ) : (
           <>
-            <h2 className="text-xl mb-2 text-center">Définir votre mot de passe</h2>
-            <p className="text-secondary text-center mb-6" style={{ fontSize: '0.85rem' }}>
-              Choisissez le mot de passe de votre compte SMARTBUS. Vous seul le connaîtrez.
+            <h2 className="text-xl mb-2 text-center">
+              Définir votre mot de passe
+            </h2>
+            <p
+              className="text-secondary text-center mb-6"
+              style={{ fontSize: '0.85rem' }}
+            >
+              Choisissez le mot de passe de votre compte SMARTBUS. Vous seul le
+              connaîtrez.
             </p>
 
             {erreur && (
-              <div className="mb-4 text-center" style={{ color: 'var(--danger)', fontSize: '0.9rem', background: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '4px' }}>
+              <div
+                className="mb-4 text-center"
+                style={{
+                  color: 'var(--danger)',
+                  fontSize: '0.9rem',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  padding: '0.5rem',
+                  borderRadius: '4px',
+                }}
+              >
                 {erreur}
               </div>
             )}
@@ -108,7 +152,11 @@ export default function DefinirMotDePasse() {
                 />
               </div>
 
-              <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+              <button
+                type="submit"
+                className="btn btn-primary w-full"
+                disabled={loading}
+              >
                 {loading ? 'Enregistrement…' : 'Activer mon compte'}
               </button>
             </form>

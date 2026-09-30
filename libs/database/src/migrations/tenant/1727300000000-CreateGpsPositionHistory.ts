@@ -61,8 +61,12 @@ export class CreateGpsPositionHistory1727300000000 implements MigrationInterface
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.startTransaction();
     try {
-      await queryRunner.query(`DROP INDEX IF EXISTS "IDX_gps_position_history_created_at"`);
-      await queryRunner.query(`DROP INDEX IF EXISTS "IDX_gps_position_history_car_created"`);
+      await queryRunner.query(
+        `DROP INDEX IF EXISTS "IDX_gps_position_history_created_at"`,
+      );
+      await queryRunner.query(
+        `DROP INDEX IF EXISTS "IDX_gps_position_history_car_created"`,
+      );
       await queryRunner.query(`DROP TABLE IF EXISTS "gps_position_history"`);
       await queryRunner.commitTransaction();
     } catch (err) {

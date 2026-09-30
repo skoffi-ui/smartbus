@@ -1,5 +1,12 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsDateString, IsEmail } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  IsDateString,
+  IsEmail,
+} from 'class-validator';
 
 export class CreateDriverDto {
   @ApiProperty({ example: 'Jean' })
@@ -37,7 +44,11 @@ export class CreateDriverDto {
   @IsOptional()
   isActive?: boolean;
 
-  @ApiProperty({ example: 'uuid-du-vehicule', description: 'ID du bus assigné par défaut', required: false })
+  @ApiProperty({
+    example: 'uuid-du-vehicule',
+    description: 'ID du bus assigné par défaut',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   assignedCarId?: string;

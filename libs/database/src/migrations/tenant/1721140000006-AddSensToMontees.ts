@@ -31,7 +31,9 @@ export class AddSensToMontees1721140000006 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_montees_date_sens"`);
-    await queryRunner.query(`ALTER TABLE "montees" DROP COLUMN IF EXISTS "sens"`);
+    await queryRunner.query(
+      `ALTER TABLE "montees" DROP COLUMN IF EXISTS "sens"`,
+    );
     await queryRunner.query(`DROP TYPE IF EXISTS "public"."montees_sens_enum"`);
   }
 }

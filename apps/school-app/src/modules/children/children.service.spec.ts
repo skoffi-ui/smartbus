@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ConflictException, HttpException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  HttpException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { of, throwError } from 'rxjs';
@@ -317,9 +321,9 @@ describe('ChildrenService', () => {
 
     it('should return empty array on HTTP error', async () => {
       mockChildRepo.findOne.mockResolvedValue(mockChild as Child);
-      jest.spyOn(httpService, 'get').mockReturnValue(
-        throwError(() => new Error('Network error')),
-      );
+      jest
+        .spyOn(httpService, 'get')
+        .mockReturnValue(throwError(() => new Error('Network error')));
 
       const result = await service.getPunches(mockChild.id!);
 

@@ -29,8 +29,6 @@ export class AddBiotimeIdToChildren1727000000000 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "children" DROP COLUMN IF EXISTS "biotime_id"`,
     );
-    await queryRunner.query(
-      `DROP TYPE IF EXISTS "biotime_sync_status_enum"`,
-    );
+    await queryRunner.query(`DROP TYPE IF EXISTS "biotime_sync_status_enum"`);
   }
 }

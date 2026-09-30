@@ -10,7 +10,10 @@ import { jwtSecretRequis } from '@app/common';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env', '.env.local'] }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', '.env.local'],
+    }),
 
     // Connexion en lecture seule à la base centrale (statut des écoles) – pas de synchronize
     TypeOrmModule.forRootAsync({
@@ -28,7 +31,10 @@ import { jwtSecretRequis } from '@app/common';
         // même correctif dans libs/database/src/database.module.ts).
         entities: [Organisation, Subscription, BiotimeTerminal],
         synchronize: false,
-        ssl: config.get<string>('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
+        ssl:
+          config.get<string>('NODE_ENV') === 'production'
+            ? { rejectUnauthorized: false }
+            : false,
       }),
     }),
     TypeOrmModule.forFeature([Organisation]),
@@ -36,7 +42,9 @@ import { jwtSecretRequis } from '@app/common';
     // Même secret que la SUPER APP : la gateway vérifie les JWT qu'elle émet
     JwtModule.registerAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({ secret: jwtSecretRequis(config) }),
+      useFactory: (config: ConfigService) => ({
+        secret: jwtSecretRequis(config),
+      }),
     }),
   ],
   controllers: [HealthController],

@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, Edit, Trash2, User, Key, Download, Search, CheckSquare, Square, ChevronRight, CheckCircle2, AlertCircle, UserCheck } from 'lucide-react';
+import {
+  Users,
+  Plus,
+  Edit,
+  Trash2,
+  User,
+  Key,
+  Download,
+  Search,
+  CheckSquare,
+  Square,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  UserCheck,
+} from 'lucide-react';
 import './Children.css';
 import api, { messageFromError } from '../services/api';
 import { useI18n } from '../i18n';
@@ -21,7 +36,11 @@ export default function Children() {
   const [showModal, setShowModal] = useState(false);
   const [editingChild, setEditingChild] = useState<any>(null);
   const [formData, setFormData] = useState({
-    firstName: '', lastName: '', className: '', empCode: '', parentId: ''
+    firstName: '',
+    lastName: '',
+    className: '',
+    empCode: '',
+    parentId: '',
   });
 
   // Import Modal states
@@ -33,14 +52,18 @@ export default function Children() {
 
   // Search and filter
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'complete' | 'incomplete'>('all');
+  const [filterStatus, setFilterStatus] = useState<
+    'all' | 'complete' | 'incomplete'
+  >('all');
 
   const fetchData = async () => {
     try {
       const childRes = await api.get('/children');
       setChildren(childRes.data);
     } catch (err) {
-      toast.error(messageFromError(err, 'Impossible de charger la liste des élèves.'));
+      toast.error(
+        messageFromError(err, 'Impossible de charger la liste des élèves.'),
+      );
     }
     try {
       // Séparé de l'appel élèves : l'absence de parents ne doit pas empêcher
@@ -48,7 +71,10 @@ export default function Children() {
       const parentRes = await api.get('/parents');
       setParents(parentRes.data);
     } catch (err) {
-      console.warn('Parents non chargés (formulaire élève limité) :', messageFromError(err));
+      console.warn(
+        'Parents non chargés (formulaire élève limité) :',
+        messageFromError(err),
+      );
     } finally {
       setLoading(false);
     }
@@ -63,7 +89,9 @@ export default function Children() {
       const res = await api.get('/children/biotime-directory');
       setBiotimeDirectory(res.data);
     } catch (err) {
-      toast.error(messageFromError(err, 'Impossible de charger le répertoire BioTime.'));
+      toast.error(
+        messageFromError(err, 'Impossible de charger le répertoire BioTime.'),
+      );
     }
   };
 
@@ -102,10 +130,18 @@ export default function Children() {
       }
       setShowModal(false);
       setEditingChild(null);
-      setFormData({ firstName: '', lastName: '', className: '', empCode: '', parentId: '' });
+      setFormData({
+        firstName: '',
+        lastName: '',
+        className: '',
+        empCode: '',
+        parentId: '',
+      });
       fetchData();
     } catch (err) {
-      toast.error(messageFromError(err, "Erreur lors de l'enregistrement de l'élève."));
+      toast.error(
+        messageFromError(err, "Erreur lors de l'enregistrement de l'élève."),
+      );
     }
   };
 
@@ -116,24 +152,32 @@ export default function Children() {
       lastName: child.lastName,
       className: child.className || '',
       empCode: child.empCode || '',
-      parentId: child.parentId || ''
+      parentId: child.parentId || '',
     });
     setShowModal(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!(await confirmer('Voulez-vous vraiment supprimer cet élève ?', { danger: true }))) return;
+    if (
+      !(await confirmer('Voulez-vous vraiment supprimer cet élève ?', {
+        danger: true,
+      }))
+    )
+      return;
     try {
       await api.delete(`/children/${id}`);
       fetchData();
     } catch (err) {
-      toast.error(messageFromError(err, "Erreur lors de la suppression de l'élève."));
+      toast.error(
+        messageFromError(err, "Erreur lors de la suppression de l'élève."),
+      );
     }
   };
 
   // Filtrage des élèves
-  const filteredChildren = children.filter(child => {
-    const matchesSearch = searchQuery === '' ||
+  const filteredChildren = children.filter((child) => {
+    const matchesSearch =
+      searchQuery === '' ||
       `${child.firstName} ${child.lastName} ${child.className || ''} ${child.empCode || ''}`
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
@@ -151,12 +195,15 @@ export default function Children() {
   });
 
   // Statistiques pour les filtres
-  const completeCount = children.filter(c => c.empCode && c.parent).length;
+  const completeCount = children.filter((c) => c.empCode && c.parent).length;
   const incompleteCount = children.length - completeCount;
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-start mb-6" style={{ gap: '16px', flexWrap: 'wrap' }}>
+      <div
+        className="flex justify-between items-start mb-6"
+        style={{ gap: '16px', flexWrap: 'wrap' }}
+      >
         <div style={{ flex: 1 }}>
           <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <Users className="text-blue-600" size={32} />
@@ -166,16 +213,25 @@ export default function Children() {
             <span>{t('children.sous_titre')}</span>
             {!loading && children.length > 0 && (
               <span className="text-sm font-medium px-3 py-1 rounded-full bg-blue-100 text-blue-700">
-                {children.length} {children.length > 1 ? t('children.inscrits') : t('children.inscrit')}
+                {children.length}{' '}
+                {children.length > 1
+                  ? t('children.inscrits')
+                  : t('children.inscrit')}
               </span>
             )}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleOpenImportModal} className="btn btn-secondary flex items-center gap-2">
+          <button
+            onClick={handleOpenImportModal}
+            className="btn btn-secondary flex items-center gap-2"
+          >
             <Download size={18} /> {t('children.importer')}
           </button>
-          <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center gap-2">
+          <button
+            onClick={() => setShowModal(true)}
+            className="btn btn-primary flex items-center gap-2"
+          >
             <Plus size={18} /> {t('children.ajouter')}
           </button>
         </div>
@@ -185,7 +241,10 @@ export default function Children() {
       {!loading && children.length > 0 && (
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[280px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
             <input
               type="text"
               placeholder={t('children.rechercher')}
@@ -195,7 +254,10 @@ export default function Children() {
             />
             {(searchQuery || filterStatus !== 'all') && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700">
-                {filteredChildren.length} {filteredChildren.length > 1 ? t('children.resultats') : t('children.resultat')}
+                {filteredChildren.length}{' '}
+                {filteredChildren.length > 1
+                  ? t('children.resultats')
+                  : t('children.resultat')}
               </span>
             )}
           </div>
@@ -245,13 +307,21 @@ export default function Children() {
           <div className="empty-icon">
             <Users size={40} />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">{t('children.aucun')}</h3>
+          <h3 className="text-xl font-bold text-slate-800 mb-2">
+            {t('children.aucun')}
+          </h3>
           <p className="empty-text">{t('children.aucun_desc')}</p>
           <div className="flex mt-4 justify-center" style={{ gap: '5px' }}>
-            <button onClick={handleOpenImportModal} className="btn btn-secondary flex items-center gap-2">
+            <button
+              onClick={handleOpenImportModal}
+              className="btn btn-secondary flex items-center gap-2"
+            >
               <Download size={18} /> {t('children.importer')}
             </button>
-            <button onClick={() => setShowModal(true)} className="btn btn-primary flex items-center gap-2">
+            <button
+              onClick={() => setShowModal(true)}
+              className="btn btn-primary flex items-center gap-2"
+            >
               <Plus size={18} /> {t('children.inscrire')}
             </button>
           </div>
@@ -259,7 +329,9 @@ export default function Children() {
       ) : filteredChildren.length === 0 ? (
         <div className="glass-panel p-12 text-center">
           <Search size={48} className="mx-auto mb-4 text-gray-300" />
-          <h3 className="text-xl font-bold text-gray-700 mb-2">{t('children.aucun_trouve')}</h3>
+          <h3 className="text-xl font-bold text-gray-700 mb-2">
+            {t('children.aucun_trouve')}
+          </h3>
           <p className="text-gray-500">
             {searchQuery
               ? t('children.aucun_recherche')
@@ -268,7 +340,7 @@ export default function Children() {
         </div>
       ) : (
         <div className="children-grid">
-          {filteredChildren.map(child => {
+          {filteredChildren.map((child) => {
             const hasBadge = !!child.empCode;
             const hasParent = !!child.parent;
             const isComplete = hasBadge && hasParent;
@@ -299,8 +371,12 @@ export default function Children() {
                     )}
                   </div>
                   <div className="child-info">
-                    <h3 className="child-name">{child.firstName} {child.lastName}</h3>
-                    <span className="child-class-badge">{child.className || t('children.sans_classe')}</span>
+                    <h3 className="child-name">
+                      {child.firstName} {child.lastName}
+                    </h3>
+                    <span className="child-class-badge">
+                      {child.className || t('children.sans_classe')}
+                    </span>
                   </div>
                 </div>
 
@@ -308,8 +384,15 @@ export default function Children() {
                   {/* Badge Status */}
                   <div className="info-item">
                     <div className="info-item-header">
-                      <Key size={16} className={hasBadge ? 'text-emerald-600' : 'text-gray-400'} />
-                      <span className="info-item-label">{t('children.badge')}</span>
+                      <Key
+                        size={16}
+                        className={
+                          hasBadge ? 'text-emerald-600' : 'text-gray-400'
+                        }
+                      />
+                      <span className="info-item-label">
+                        {t('children.badge')}
+                      </span>
                     </div>
                     {hasBadge ? (
                       <div className="info-badge info-badge-success">
@@ -327,13 +410,22 @@ export default function Children() {
                   {/* Parent Status */}
                   <div className="info-item">
                     <div className="info-item-header">
-                      <UserCheck size={16} className={hasParent ? 'text-blue-600' : 'text-gray-400'} />
-                      <span className="info-item-label">{t('children.parent')}</span>
+                      <UserCheck
+                        size={16}
+                        className={
+                          hasParent ? 'text-blue-600' : 'text-gray-400'
+                        }
+                      />
+                      <span className="info-item-label">
+                        {t('children.parent')}
+                      </span>
                     </div>
                     {hasParent ? (
                       <div className="info-badge info-badge-primary">
                         <CheckCircle2 size={14} />
-                        <span>{child.parent.firstName} {child.parent.lastName}</span>
+                        <span>
+                          {child.parent.firstName} {child.parent.lastName}
+                        </span>
                       </div>
                     ) : (
                       <div className="info-badge info-badge-empty">
@@ -345,15 +437,26 @@ export default function Children() {
                 </div>
 
                 <div className="child-card-footer">
-                  <button onClick={() => navigate(`/children/${child.id}`)} className="btn-profile">
+                  <button
+                    onClick={() => navigate(`/children/${child.id}`)}
+                    className="btn-profile"
+                  >
                     {t('children.profil')}
                     <ChevronRight size={16} />
                   </button>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => handleEdit(child)} className="btn-icon-primary" title={t('children.modifier_eleve')}>
+                    <button
+                      onClick={() => handleEdit(child)}
+                      className="btn-icon-primary"
+                      title={t('children.modifier_eleve')}
+                    >
                       <Edit size={18} />
                     </button>
-                    <button onClick={() => handleDelete(child.id)} className="btn-icon-danger" title={t('children.supprimer_eleve')}>
+                    <button
+                      onClick={() => handleDelete(child.id)}
+                      className="btn-icon-danger"
+                      title={t('children.supprimer_eleve')}
+                    >
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -368,207 +471,364 @@ export default function Children() {
       {/* Rendu dans un portail vers `document.body` : hors de l'arbre de la page,
           aucun ancêtre transformé ne peut servir de référentiel à `position: fixed`.
           La surcouche couvre donc réellement la fenêtre. */}
-      {showModal && createPortal(
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="premium-modal w-full max-w-md animate-fade-in">
-            <div className="premium-modal-header">
-              <div className="premium-modal-icon">
-                <Users size={20} />
+      {showModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="premium-modal w-full max-w-md animate-fade-in">
+              <div className="premium-modal-header">
+                <div className="premium-modal-icon">
+                  <Users size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">
+                    {editingChild ? "Modifier l'Élève" : 'Inscrire un Élève'}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {editingChild
+                      ? "Modifiez les informations de l'élève."
+                      : "Saisissez les informations de l'élève."}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-800">{editingChild ? 'Modifier l\'Élève' : 'Inscrire un Élève'}</h2>
-                <p className="text-xs text-slate-500 mt-1">{editingChild ? 'Modifiez les informations de l\'élève.' : 'Saisissez les informations de l\'élève.'}</p>
-              </div>
+
+              <form onSubmit={handleSubmit}>
+                <div className="premium-modal-body">
+                  <div className="premium-input-group">
+                    <label className="premium-input-label">Prénom</label>
+                    <div className="premium-input-wrapper">
+                      <User size={16} className="premium-input-icon" />
+                      <input
+                        required
+                        type="text"
+                        className="premium-input"
+                        placeholder="Ex: Lucas"
+                        value={formData.firstName}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            firstName: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="premium-input-group">
+                    <label className="premium-input-label">Nom</label>
+                    <div className="premium-input-wrapper">
+                      <User size={16} className="premium-input-icon" />
+                      <input
+                        required
+                        type="text"
+                        className="premium-input"
+                        placeholder="Ex: Martin"
+                        value={formData.lastName}
+                        onChange={(e) =>
+                          setFormData({ ...formData, lastName: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="premium-input-group">
+                    <label className="premium-input-label">
+                      Classe (Optionnel)
+                    </label>
+                    <div className="premium-input-wrapper">
+                      <ChevronRight size={16} className="premium-input-icon" />
+                      <input
+                        type="text"
+                        className="premium-input"
+                        placeholder="Ex: CP2"
+                        value={formData.className}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            className: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="premium-input-group">
+                    <label className="premium-input-label">
+                      Matricule BioTime (empCode)
+                    </label>
+                    <div className="premium-input-wrapper">
+                      <Key size={16} className="premium-input-icon" />
+                      <input
+                        type="text"
+                        className="premium-input"
+                        placeholder="Ex: 10025"
+                        value={formData.empCode}
+                        onChange={(e) =>
+                          setFormData({ ...formData, empCode: e.target.value })
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Laissez vide si l'enfant n'a pas encore de badge.
+                    </p>
+                  </div>
+
+                  <div className="premium-input-group mb-0">
+                    <label className="premium-input-label">
+                      Parent Associé
+                    </label>
+                    <div className="premium-input-wrapper">
+                      <Users size={16} className="premium-input-icon" />
+                      <select
+                        className="premium-input appearance-none"
+                        value={formData.parentId}
+                        onChange={(e) =>
+                          setFormData({ ...formData, parentId: e.target.value })
+                        }
+                      >
+                        <option value="">
+                          Sélectionnez un parent (Optionnel)
+                        </option>
+                        {parents.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.firstName} {p.lastName} - {p.phone}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="premium-modal-footer">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowModal(false);
+                      setEditingChild(null);
+                    }}
+                    className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary flex-1 font-semibold py-1.5 text-sm"
+                  >
+                    {editingChild ? 'Modifier' : 'Enregistrer'}
+                  </button>
+                </div>
+              </form>
             </div>
-            
-            <form onSubmit={handleSubmit}>
-              <div className="premium-modal-body">
-                <div className="premium-input-group">
-                  <label className="premium-input-label">Prénom</label>
-                  <div className="premium-input-wrapper">
-                    <User size={16} className="premium-input-icon" />
-                    <input required type="text" className="premium-input" placeholder="Ex: Lucas" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
-                  </div>
-                </div>
-                
-                <div className="premium-input-group">
-                  <label className="premium-input-label">Nom</label>
-                  <div className="premium-input-wrapper">
-                    <User size={16} className="premium-input-icon" />
-                    <input required type="text" className="premium-input" placeholder="Ex: Martin" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
-                  </div>
-                </div>
-                
-                <div className="premium-input-group">
-                  <label className="premium-input-label">Classe (Optionnel)</label>
-                  <div className="premium-input-wrapper">
-                    <ChevronRight size={16} className="premium-input-icon" />
-                    <input type="text" className="premium-input" placeholder="Ex: CP2" value={formData.className} onChange={e => setFormData({...formData, className: e.target.value})} />
-                  </div>
-                </div>
-                
-                <div className="premium-input-group">
-                  <label className="premium-input-label">Matricule BioTime (empCode)</label>
-                  <div className="premium-input-wrapper">
-                    <Key size={16} className="premium-input-icon" />
-                    <input type="text" className="premium-input" placeholder="Ex: 10025" value={formData.empCode} onChange={e => setFormData({...formData, empCode: e.target.value})} />
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">Laissez vide si l'enfant n'a pas encore de badge.</p>
-                </div>
-
-                <div className="premium-input-group mb-0">
-                  <label className="premium-input-label">Parent Associé</label>
-                  <div className="premium-input-wrapper">
-                    <Users size={16} className="premium-input-icon" />
-                    <select className="premium-input appearance-none" value={formData.parentId} onChange={e => setFormData({...formData, parentId: e.target.value})}>
-                      <option value="">Sélectionnez un parent (Optionnel)</option>
-                      {parents.map(p => (
-                        <option key={p.id} value={p.id}>{p.firstName} {p.lastName} - {p.phone}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="premium-modal-footer">
-                <button type="button" onClick={() => { setShowModal(false); setEditingChild(null); }} className="btn btn-secondary flex-1 font-semibold py-1.5 text-sm">Annuler</button>
-                <button type="submit" className="btn btn-primary flex-1 font-semibold py-1.5 text-sm">{editingChild ? 'Modifier' : 'Enregistrer'}</button>
-              </div>
-            </form>
-          </div>
-        </div>,
-        document.body,
-      )}
+          </div>,
+          document.body,
+        )}
 
       {/* Modal d'importation BioTime */}
       {/* Rendu dans un portail vers `document.body` : hors de l'arbre de la page,
           aucun ancêtre transformé ne peut servir de référentiel à `position: fixed`.
           La surcouche couvre donc réellement la fenêtre. */}
-      {showImportModal && createPortal(
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="import-modal-container mt-8 p-6 pt-10 w-full max-w-4xl animate-fade-in max-h-[90vh] flex flex-col">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                <Download size={24} className="text-indigo-600" /> Importer des Élèves depuis BioTime
-              </h2>
-              <button type="button" onClick={() => setShowImportModal(false)} className="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors">
-                Fermer
-              </button>
-            </div>
-
-            <div className="mb-4 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Rechercher par nom, prénom ou classe..." 
-                className="form-input pl-10 bg-slate-50 border-slate-200"
-                value={importSearch}
-                onChange={e => setImportSearch(e.target.value)}
-              />
-            </div>
-
-            <div className="flex-1 overflow-auto import-table-wrapper mb-6">
-              <table className="import-table">
-                <thead className="sticky top-0 z-10">
-                  <tr>
-                    <th className="w-12 text-center rounded-tl-lg">
-                      <div 
-                        onClick={() => {
-                          const available = biotimeDirectory.filter(b => !children.some(c => c.empCode === b.empCode));
-                          if (selectedEmpCodes.length === available.length && available.length > 0) {
-                            setSelectedEmpCodes([]);
-                          } else {
-                            setSelectedEmpCodes(available.map(b => b.empCode));
-                          }
-                        }}
-                        className={`custom-checkbox mx-auto ${selectedEmpCodes.length > 0 && selectedEmpCodes.length === biotimeDirectory.filter(b => !children.some(c => c.empCode === b.empCode)).length ? 'checked' : ''}`}
-                      >
-                        {selectedEmpCodes.length > 0 && selectedEmpCodes.length === biotimeDirectory.filter(b => !children.some(c => c.empCode === b.empCode)).length && <CheckSquare size={14} strokeWidth={3} />}
-                      </div>
-                    </th>
-                    <th>Photo</th>
-                    <th>Élève</th>
-                    <th>Département / Classe</th>
-                    <th className="rounded-tr-lg">Matricule</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {biotimeDirectory
-                    .filter(b => !children.some(c => c.empCode === b.empCode))
-                    .filter(b => `${b.firstName} ${b.lastName} ${b.departmentName}`.toLowerCase().includes(importSearch.toLowerCase()))
-                    .map(b => (
-                    <tr key={b.empCode} className={`import-row ${selectedEmpCodes.includes(b.empCode) ? 'selected' : ''}`}>
-                      <td className="text-center">
-                        <div 
-                          onClick={() => {
-                            if (selectedEmpCodes.includes(b.empCode)) {
-                              setSelectedEmpCodes(selectedEmpCodes.filter(id => id !== b.empCode));
-                            } else {
-                              setSelectedEmpCodes([...selectedEmpCodes, b.empCode]);
-                            }
-                          }}
-                          className={`custom-checkbox mx-auto ${selectedEmpCodes.includes(b.empCode) ? 'checked' : ''}`}
-                        >
-                          {selectedEmpCodes.includes(b.empCode) && <CheckSquare size={14} strokeWidth={3} />}
-                        </div>
-                      </td>
-                      <td>
-                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
-                          {b.photo ? (
-                            <img src={b.photo.startsWith('/') ? `http://160.120.143.20${b.photo}` : b.photo.startsWith('http') ? b.photo : `data:image/jpeg;base64,${b.photo}`} alt="avatar" className="import-avatar" />
-                          ) : (
-                            <User size={20} className="text-slate-400" />
-                          )}
-                        </div>
-                      </td>
-                      <td className="font-bold text-slate-800">{b.firstName} {b.lastName}</td>
-                      <td>
-                        {b.departmentName ? (
-                           <span className="child-class-badge bg-indigo-50">{b.departmentName}</span>
-                        ) : (
-                          <span className="text-slate-400 italic">Non défini</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="text-slate-500 font-mono text-sm bg-slate-100 px-2 py-1 rounded border border-slate-200">{b.empCode}</span>
-                      </td>
-                    </tr>
-                  ))}
-                  {biotimeDirectory.filter(b => !children.some(c => c.empCode === b.empCode)).length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="p-12 text-center">
-                        <div className="flex flex-col items-center justify-center text-slate-400">
-                           <CheckSquare size={48} className="mb-4 text-emerald-400 opacity-50" />
-                           <p className="text-lg font-medium text-slate-600">Tout est à jour !</p>
-                           <p className="text-sm">Tous les élèves de BioTime sont déjà dans votre école.</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="flex justify-between items-center mt-auto pt-4 border-t border-slate-100">
-              <span className="text-sm text-slate-500">
-                {selectedEmpCodes.length} élève(s) sélectionné(s)
-              </span>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setShowImportModal(false)} className="btn btn-secondary">Annuler</button>
-                <button 
+      {showImportModal &&
+        createPortal(
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="import-modal-container mt-8 p-6 pt-10 w-full max-w-4xl animate-fade-in max-h-[90vh] flex flex-col">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                  <Download size={24} className="text-indigo-600" /> Importer
+                  des Élèves depuis BioTime
+                </h2>
+                <button
                   type="button"
-                  onClick={handleBulkImport} 
-                  disabled={selectedEmpCodes.length === 0 || importing}
-                  className="btn btn-primary flex items-center gap-2 disabled:opacity-50"
+                  onClick={() => setShowImportModal(false)}
+                  className="text-slate-400 hover:text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors"
                 >
-                  {importing ? 'Importation...' : 'Importer la sélection'}
+                  Fermer
                 </button>
               </div>
+
+              <div className="mb-4 relative">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, prénom ou classe..."
+                  className="form-input pl-10 bg-slate-50 border-slate-200"
+                  value={importSearch}
+                  onChange={(e) => setImportSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="flex-1 overflow-auto import-table-wrapper mb-6">
+                <table className="import-table">
+                  <thead className="sticky top-0 z-10">
+                    <tr>
+                      <th className="w-12 text-center rounded-tl-lg">
+                        <div
+                          onClick={() => {
+                            const available = biotimeDirectory.filter(
+                              (b) =>
+                                !children.some((c) => c.empCode === b.empCode),
+                            );
+                            if (
+                              selectedEmpCodes.length === available.length &&
+                              available.length > 0
+                            ) {
+                              setSelectedEmpCodes([]);
+                            } else {
+                              setSelectedEmpCodes(
+                                available.map((b) => b.empCode),
+                              );
+                            }
+                          }}
+                          className={`custom-checkbox mx-auto ${selectedEmpCodes.length > 0 && selectedEmpCodes.length === biotimeDirectory.filter((b) => !children.some((c) => c.empCode === b.empCode)).length ? 'checked' : ''}`}
+                        >
+                          {selectedEmpCodes.length > 0 &&
+                            selectedEmpCodes.length ===
+                              biotimeDirectory.filter(
+                                (b) =>
+                                  !children.some(
+                                    (c) => c.empCode === b.empCode,
+                                  ),
+                              ).length && (
+                              <CheckSquare size={14} strokeWidth={3} />
+                            )}
+                        </div>
+                      </th>
+                      <th>Photo</th>
+                      <th>Élève</th>
+                      <th>Département / Classe</th>
+                      <th className="rounded-tr-lg">Matricule</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {biotimeDirectory
+                      .filter(
+                        (b) => !children.some((c) => c.empCode === b.empCode),
+                      )
+                      .filter((b) =>
+                        `${b.firstName} ${b.lastName} ${b.departmentName}`
+                          .toLowerCase()
+                          .includes(importSearch.toLowerCase()),
+                      )
+                      .map((b) => (
+                        <tr
+                          key={b.empCode}
+                          className={`import-row ${selectedEmpCodes.includes(b.empCode) ? 'selected' : ''}`}
+                        >
+                          <td className="text-center">
+                            <div
+                              onClick={() => {
+                                if (selectedEmpCodes.includes(b.empCode)) {
+                                  setSelectedEmpCodes(
+                                    selectedEmpCodes.filter(
+                                      (id) => id !== b.empCode,
+                                    ),
+                                  );
+                                } else {
+                                  setSelectedEmpCodes([
+                                    ...selectedEmpCodes,
+                                    b.empCode,
+                                  ]);
+                                }
+                              }}
+                              className={`custom-checkbox mx-auto ${selectedEmpCodes.includes(b.empCode) ? 'checked' : ''}`}
+                            >
+                              {selectedEmpCodes.includes(b.empCode) && (
+                                <CheckSquare size={14} strokeWidth={3} />
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border border-slate-200">
+                              {b.photo ? (
+                                <img
+                                  src={
+                                    b.photo.startsWith('/')
+                                      ? `http://160.120.143.20${b.photo}`
+                                      : b.photo.startsWith('http')
+                                        ? b.photo
+                                        : `data:image/jpeg;base64,${b.photo}`
+                                  }
+                                  alt="avatar"
+                                  className="import-avatar"
+                                />
+                              ) : (
+                                <User size={20} className="text-slate-400" />
+                              )}
+                            </div>
+                          </td>
+                          <td className="font-bold text-slate-800">
+                            {b.firstName} {b.lastName}
+                          </td>
+                          <td>
+                            {b.departmentName ? (
+                              <span className="child-class-badge bg-indigo-50">
+                                {b.departmentName}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">
+                                Non défini
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <span className="text-slate-500 font-mono text-sm bg-slate-100 px-2 py-1 rounded border border-slate-200">
+                              {b.empCode}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    {biotimeDirectory.filter(
+                      (b) => !children.some((c) => c.empCode === b.empCode),
+                    ).length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="p-12 text-center">
+                          <div className="flex flex-col items-center justify-center text-slate-400">
+                            <CheckSquare
+                              size={48}
+                              className="mb-4 text-emerald-400 opacity-50"
+                            />
+                            <p className="text-lg font-medium text-slate-600">
+                              Tout est à jour !
+                            </p>
+                            <p className="text-sm">
+                              Tous les élèves de BioTime sont déjà dans votre
+                              école.
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-between items-center mt-auto pt-4 border-t border-slate-100">
+                <span className="text-sm text-slate-500">
+                  {selectedEmpCodes.length} élève(s) sélectionné(s)
+                </span>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowImportModal(false)}
+                    className="btn btn-secondary"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBulkImport}
+                    disabled={selectedEmpCodes.length === 0 || importing}
+                    className="btn btn-primary flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {importing ? 'Importation...' : 'Importer la sélection'}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

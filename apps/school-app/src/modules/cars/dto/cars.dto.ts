@@ -1,10 +1,17 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsBoolean, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  IsDateString,
+} from 'class-validator';
 
 export class CreateCarDto {
   @ApiProperty({ example: 'AA-123-BB' })
   @IsString()
-  @IsNotEmpty({ message: 'La plaque d\'immatriculation est obligatoire' })
+  @IsNotEmpty({ message: "La plaque d'immatriculation est obligatoire" })
   plateNumber: string;
 
   @ApiProperty({ example: 'Mercedes-Benz' })
@@ -22,7 +29,11 @@ export class CreateCarDto {
   @IsOptional()
   year?: number;
 
-  @ApiProperty({ example: 30, description: 'Capacité en nombre de places', default: 30 })
+  @ApiProperty({
+    example: 30,
+    description: 'Capacité en nombre de places',
+    default: 30,
+  })
   @IsNumber()
   @IsOptional()
   capacity?: number;
@@ -52,12 +63,21 @@ export class CreateCarDto {
   @IsOptional()
   gpsDeviceId?: string;
 
-  @ApiProperty({ example: 'CKPM223460449', required: false, deprecated: true, description: 'Deprecated: use biotimeTerminalId instead' })
+  @ApiProperty({
+    example: 'CKPM223460449',
+    required: false,
+    deprecated: true,
+    description: 'Deprecated: use biotimeTerminalId instead',
+  })
   @IsString()
   @IsOptional()
   biotimeTerminalSn?: string;
 
-  @ApiProperty({ example: 'uuid-terminal-1', required: false, description: 'ID of the BioTime terminal assigned to this vehicle' })
+  @ApiProperty({
+    example: 'uuid-terminal-1',
+    required: false,
+    description: 'ID of the BioTime terminal assigned to this vehicle',
+  })
   @IsString()
   @IsOptional()
   biotimeTerminalId?: string;

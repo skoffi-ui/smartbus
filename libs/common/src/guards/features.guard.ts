@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { REQUIRE_FEATURE_KEY } from '../decorators/require-feature.decorator';
-import { SCHOOL_FEATURE_LABELS, type SchoolFeature } from '../constants/school-features';
+import {
+  SCHOOL_FEATURE_LABELS,
+  type SchoolFeature,
+} from '../constants/school-features';
 
 /**
  * Guard Features – vérifie que l'école du directeur connecté a accès à la
@@ -27,10 +30,9 @@ export class FeaturesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredFeatures = this.reflector.getAllAndOverride<SchoolFeature[] | undefined>(
-      REQUIRE_FEATURE_KEY,
-      [context.getHandler(), context.getClass()],
-    );
+    const requiredFeatures = this.reflector.getAllAndOverride<
+      SchoolFeature[] | undefined
+    >(REQUIRE_FEATURE_KEY, [context.getHandler(), context.getClass()]);
 
     if (!requiredFeatures || requiredFeatures.length === 0) {
       return true;
@@ -44,7 +46,9 @@ export class FeaturesGuard implements CanActivate {
     }
 
     if (!requiredFeatures.some((f) => allowedFeatures.includes(f))) {
-      const labels = requiredFeatures.map((f) => SCHOOL_FEATURE_LABELS[f]).join(' / ');
+      const labels = requiredFeatures
+        .map((f) => SCHOOL_FEATURE_LABELS[f])
+        .join(' / ');
       throw new ForbiddenException(
         `Cette fonctionnalité (${labels}) n'est pas activée pour votre école.`,
       );

@@ -20,6 +20,8 @@ export class UniqueChildIdOnAffectations1727400000001 implements MigrationInterf
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "affectations" DROP CONSTRAINT "UQ_affectations_child_id"`);
+    await queryRunner.query(
+      `ALTER TABLE "affectations" DROP CONSTRAINT "UQ_affectations_child_id"`,
+    );
   }
 }

@@ -7,17 +7,26 @@ import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
  * de directeur ici : c'est celle de l'appelant, déjà authentifié.
  */
 export class CreateMySchoolDto {
-  @ApiProperty({ description: "Nom complet de l'école", example: 'Lycée Saint-Exupéry' })
+  @ApiProperty({
+    description: "Nom complet de l'école",
+    example: 'Lycée Saint-Exupéry',
+  })
   @IsString()
   @IsNotEmpty()
   schoolName: string;
 
-  @ApiPropertyOptional({ description: "Adresse physique", example: 'Dakar, Sénégal' })
+  @ApiPropertyOptional({
+    description: 'Adresse physique',
+    example: 'Dakar, Sénégal',
+  })
   @IsString()
   @IsOptional()
   address?: string;
 
-  @ApiPropertyOptional({ description: "Numéro de téléphone", example: '+221770000000' })
+  @ApiPropertyOptional({
+    description: 'Numéro de téléphone',
+    example: '+221770000000',
+  })
   @IsString()
   @IsOptional()
   phone?: string;

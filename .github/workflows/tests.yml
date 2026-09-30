@@ -1,11 +1,28 @@
 name: 🧪 Tests SMARTBUS
 
+# Déclenché sur les push et les PR vers main, develop, feat/refonte-v2 et feat/*.
+# Les jobs ne dépendent pas les uns des autres : un échec de lint ne masque
+# plus les tests ni les builds.
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
+      - feat/refonte-v2
+      - feat/**
   pull_request:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
+      - feat/refonte-v2
+      - feat/**
 
+# TD-048 : apps/parent-app (Expo) n'est ni typecheckée ni buildée par aucun job
+# de ce workflow. `nest build` sans nom d'app lit tsconfig.build.json, qui
+# exclut parent-app. Les seuls fronts buildés sont school-web et super-admin-web.
+# Les actions checkout v4, setup-node v4, upload-artifact v4 et codecov v4
+# tournent sur Node 20, retiré des runners GitHub le 2026-09-23. On reste sur
+# des majeures Node 24. L'application elle-même reste sur Node 20.
 jobs:
   lint:
     name: 🔍 Linting
@@ -13,10 +30,10 @@ jobs:
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -24,20 +41,35 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🔍 Run ESLint
+      - name: 🔍 ESLint backend (sans --fix)
+        run: npm run lint
+
+      - name: 📦 Install school-web
+        working-directory: apps/school-web
+        run: npm ci
+
+      - name: 🔍 oxlint school-web
+        working-directory: apps/school-web
+        run: npm run lint
+
+      - name: 📦 Install super-admin-web
+        working-directory: apps/super-admin-web
+        run: npm ci
+
+      - name: 🔍 oxlint super-admin-web
+        working-directory: apps/super-admin-web
         run: npm run lint
 
   unit-tests:
     name: 🧪 Unit Tests
     runs-on: ubuntu-latest
-    needs: lint
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -45,14 +77,11 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🧪 Run unit tests
-        run: npm run test:unit
-
-      - name: 📊 Generate coverage report
-        run: npm run test:cov
+      - name: 🧪 Run unit tests with coverage
+        run: npm run test:ci
 
       - name: 📤 Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage/lcov.info
           flags: unit
@@ -62,7 +91,6 @@ jobs:
   e2e-tests:
     name: 🚀 E2E Tests
     runs-on: ubuntu-latest
-    needs: lint
 
     services:
       postgres:
@@ -74,7 +102,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -89,12 +117,28 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    env:
+      NODE_ENV: test
+      SUPER_DB_HOST: localhost
+      SUPER_DB_PORT: 5432
+      SUPER_DB_NAME: smartbus_test
+      SUPER_DB_USER: postgres
+      SUPER_DB_PASSWORD: postgres
+      SCHOOL_TENANT_DB_NAME: smartbus_school_test
+      JWT_SECRET: 0123456789abcdef0123456789abcdef
+      JWT_REFRESH_SECRET: fedcba9876543210fedcba9876543210
+      JWT_EXPIRES_IN: 1h
+      JWT_REFRESH_EXPIRES_IN: 7d
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -102,45 +146,38 @@ jobs:
       - name: 📦 Install dependencies
         run: npm ci
 
-      - name: 🏗️ Build applications
-        run: npm run build
-
       - name: 🚀 Run E2E tests
-        run: npm run test:e2e
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
-          DB_DATABASE: smartbus_test
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
-          NODE_ENV: test
+        run: mkdir -p test-results && npm run test:e2e -- --json --outputFile=test-results/e2e-results.json
 
       - name: 📤 Upload E2E test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-test-results
           path: test-results/
+          if-no-files-found: ignore
 
   build:
-    name: 🏗️ Build Check
+    name: 🏗️ Build backend
     runs-on: ubuntu-latest
-    needs: [unit-tests, e2e-tests]
 
     steps:
       - name: 📥 Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
 
       - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
 
       - name: 📦 Install dependencies
         run: npm ci
+
+      # TD-048 : ce build ne couvre pas apps/parent-app. L'app Expo est exclue
+      # de tsconfig.build.json ; aucun job ne la typechecke ni ne la build.
+      - name: 🏗️ Build par défaut (hors parent-app)
+        run: npm run build
 
       - name: 🏗️ Build super-app
         run: npm run build super-app
@@ -148,20 +185,26 @@ jobs:
       - name: 🏗️ Build school-app
         run: npm run build school-app
 
-  quality-gate:
-    name: ✅ Quality Gate
+      - name: 🏗️ Build api-gateway
+        run: npm run build api-gateway
+
+  front-builds:
+    name: 🏗️ Build fronts web
     runs-on: ubuntu-latest
-    needs: [unit-tests, e2e-tests, build]
-    if: always()
 
     steps:
-      - name: ✅ Check test results
-        run: |
-          if [ "${{ needs.unit-tests.result }}" != "success" ] || [ "${{ needs.e2e-tests.result }}" != "success" ]; then
-            echo "❌ Tests failed"
-            exit 1
-          fi
-          echo "✅ All tests passed"
+      - name: 📥 Checkout code
+        uses: actions/checkout@v5
 
-      - name: 🎉 Success
-        run: echo "🎉 Quality gate passed!"
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '20'
+
+      - name: 🏗️ school-web
+        working-directory: apps/school-web
+        run: npm ci && npm run lint && npm run build
+
+      - name: 🏗️ super-admin-web
+        working-directory: apps/super-admin-web
+        run: npm ci && npm run lint && npm run build

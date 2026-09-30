@@ -11,9 +11,7 @@
       "ecole": null,
       "heure_depart": null,
       "heure_arrivee": null,
-      "joursExecution": [
-        "L"
-      ],
+      "joursExecution": ["L"],
       "statut": "active",
       "couleur_carte": null,
       "route": null,
@@ -38,9 +36,7 @@
       "ecole": null,
       "heure_depart": null,
       "heure_arrivee": null,
-      "joursExecution": [
-        "L"
-      ],
+      "joursExecution": ["L"],
       "statut": "active",
       "couleur_carte": null,
       "route": null,
@@ -65,9 +61,7 @@
       "ecole": null,
       "heure_depart": null,
       "heure_arrivee": null,
-      "joursExecution": [
-        "L"
-      ],
+      "joursExecution": ["L"],
       "statut": "active",
       "couleur_carte": null,
       "route": null,

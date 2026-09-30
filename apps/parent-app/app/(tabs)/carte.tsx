@@ -20,7 +20,12 @@ interface PositionBus {
  * position ne peut plus être considérée comme réellement « en direct ». */
 const SEUIL_HORS_LIGNE_MS = 90_000;
 
-const ABIDJAN: Region = { latitude: 5.3364, longitude: -4.0267, latitudeDelta: 0.15, longitudeDelta: 0.15 };
+const ABIDJAN: Region = {
+  latitude: 5.3364,
+  longitude: -4.0267,
+  latitudeDelta: 0.15,
+  longitudeDelta: 0.15,
+};
 
 export default function CarteScreen() {
   const [enfants, setEnfants] = useState<Child[]>([]);
@@ -40,7 +45,9 @@ export default function CarteScreen() {
       const { data } = await api.get<Child[]>('/parent/enfants');
       setEnfants(Array.isArray(data) ? data : []);
     } catch (err) {
-      setErreur(messageFromError(err, 'Impossible de charger les courses à suivre.'));
+      setErreur(
+        messageFromError(err, 'Impossible de charger les courses à suivre.'),
+      );
     } finally {
       setChargement(false);
     }
@@ -58,7 +65,12 @@ export default function CarteScreen() {
       socket.on('gps', (payload: any) => {
         const lat = Number(payload?.lat);
         const lng = Number(payload?.lng);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng) || !payload?.courseId) return;
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng) ||
+          !payload?.courseId
+        )
+          return;
         setPositions((prev) => ({
           ...prev,
           [payload.courseId]: {
@@ -81,7 +93,8 @@ export default function CarteScreen() {
   }, []);
 
   const busActifs = Object.values(positions);
-  const estEnLigne = (p: PositionBus) => maintenant - new Date(p.time).getTime() < SEUIL_HORS_LIGNE_MS;
+  const estEnLigne = (p: PositionBus) =>
+    maintenant - new Date(p.time).getTime() < SEUIL_HORS_LIGNE_MS;
 
   // Nom d'affichage : la ligne de bus (busLines) qui correspond à ce courseId.
   const nomCourse = (courseId: string): string => {
@@ -110,10 +123,16 @@ export default function CarteScreen() {
             key={bus.courseId}
             coordinate={{ latitude: bus.lat, longitude: bus.lng }}
             title={`${nomCourse(bus.courseId)}${bus.plateNumber ? ` — ${bus.plateNumber}` : ''}`}
-            description={estEnLigne(bus) ? `${bus.speed} km/h` : 'Hors ligne — dernière position connue'}
+            description={
+              estEnLigne(bus)
+                ? `${bus.speed} km/h`
+                : 'Hors ligne — dernière position connue'
+            }
             opacity={estEnLigne(bus) ? 1 : 0.4}
           >
-            <View style={[styles.icone, !estEnLigne(bus) && styles.iconeHorsLigne]}>
+            <View
+              style={[styles.icone, !estEnLigne(bus) && styles.iconeHorsLigne]}
+            >
               <Ionicons name="bus" size={18} color="#fff" />
             </View>
           </Marker>
@@ -124,8 +143,8 @@ export default function CarteScreen() {
         <View style={styles.superposition} pointerEvents="none">
           <Ionicons name="bus-outline" size={40} color="#94a3b8" />
           <Text style={styles.texteVide}>
-            Aucun bus en direct pour l'instant. La position apparaît dès qu'une course de votre
-            enfant est active.
+            Aucun bus en direct pour l'instant. La position apparaît dès qu'une
+            course de votre enfant est active.
           </Text>
         </View>
       )}

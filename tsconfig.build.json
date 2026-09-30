@@ -1,4 +1,14 @@
 {
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "apps/super-admin-web", "apps/school-web", "scripts"]
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*spec.ts",
+    "apps/super-admin-web",
+    "apps/school-web",
+    "apps/parent-app",
+    "eslint.config.mjs",
+    "scripts"
+  ]
 }

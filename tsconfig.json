@@ -40,6 +40,8 @@
     "node_modules",
     "apps/super-admin-web",
     "apps/school-web",
+    "apps/parent-app",
+    "eslint.config.mjs",
     "scripts"
   ]
 }

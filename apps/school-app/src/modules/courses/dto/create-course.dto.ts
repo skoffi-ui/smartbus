@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsEnum, IsUUID, IsArray, IsHexColor } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsUUID,
+  IsArray,
+  IsHexColor,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { CourseStatus, CourseType } from '@app/database';
 
@@ -9,7 +16,7 @@ export class CreateCourseDto {
 
   @ApiPropertyOptional({
     enum: CourseType,
-    description: "Moment de la tournée : matin, midi, soir ou spécial",
+    description: 'Moment de la tournée : matin, midi, soir ou spécial',
   })
   @IsOptional()
   @IsEnum(CourseType)
@@ -20,7 +27,7 @@ export class CreateCourseDto {
   @IsString()
   heureDepart?: string;
 
-  @ApiPropertyOptional({ description: 'Heure d\'arrivée prévue (ex: 08:00)' })
+  @ApiPropertyOptional({ description: "Heure d'arrivée prévue (ex: 08:00)" })
   @IsOptional()
   @IsString()
   heureArrivee?: string;
@@ -40,7 +47,10 @@ export class CreateCourseDto {
   @IsUUID()
   driverId?: string;
 
-  @ApiPropertyOptional({ enum: CourseStatus, description: 'Statut de la course' })
+  @ApiPropertyOptional({
+    enum: CourseStatus,
+    description: 'Statut de la course',
+  })
   @IsOptional()
   @IsEnum(CourseStatus)
   statut?: CourseStatus;

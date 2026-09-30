@@ -21,14 +21,21 @@ export class BillingService {
     return this.billingRepository.save(record);
   }
 
-  async findAll(pagination: PaginationDto): Promise<PaginationResponseDto<BillingRecord>> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginationResponseDto<BillingRecord>> {
     const [data, total] = await this.billingRepository.findAndCount({
       skip: pagination.skip,
       take: pagination.limit,
       order: { createdAt: 'DESC' },
       relations: { organisation: true },
     });
-    return new PaginationResponseDto(data, total, pagination.page ?? 1, pagination.limit ?? 10);
+    return new PaginationResponseDto(
+      data,
+      total,
+      pagination.page ?? 1,
+      pagination.limit ?? 10,
+    );
   }
 
   async findByOrganisation(organisationId: string): Promise<BillingRecord[]> {
@@ -47,7 +54,10 @@ export class BillingService {
     return record;
   }
 
-  async markAsCompleted(id: string, transactionId: string): Promise<BillingRecord> {
+  async markAsCompleted(
+    id: string,
+    transactionId: string,
+  ): Promise<BillingRecord> {
     const record = await this.findOne(id);
     record.status = PaymentStatus.COMPLETED;
     record.transactionId = transactionId;

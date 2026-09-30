@@ -1,4 +1,12 @@
-import { Entity, Column, OneToMany, ManyToOne, JoinColumn, Unique, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  OneToMany,
+  ManyToOne,
+  JoinColumn,
+  Unique,
+  Index,
+} from 'typeorm';
 import { BaseEntityModel } from './base.entity';
 import { Organisation } from './organisation.entity';
 import { SuperAppPunch } from './super-app-punch.entity';

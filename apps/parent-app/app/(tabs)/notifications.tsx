@@ -1,24 +1,48 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, RefreshControl, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  RefreshControl,
+  Pressable,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import api, { messageFromError } from '../../src/services/api';
 import type { ParentNotification } from '../../src/types';
 
-const ICONES: Record<string, { nom: keyof typeof Ionicons.glyphMap; couleur: string }> = {
+const ICONES: Record<
+  string,
+  { nom: keyof typeof Ionicons.glyphMap; couleur: string }
+> = {
   PUNCH: { nom: 'checkmark-circle', couleur: '#10b981' },
   PROXIMITY: { nom: 'navigate-circle', couleur: '#f59e0b' },
 };
 
 function formaterHeure(iso: string): string {
   try {
-    return new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    return new Date(iso).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   } catch {
     return iso;
   }
 }
 
-function CarteNotification({ notif, onLue }: { notif: ParentNotification; onLue: (id: string) => void }) {
-  const icone = ICONES[notif.type] ?? { nom: 'notifications' as const, couleur: '#64748b' };
+function CarteNotification({
+  notif,
+  onLue,
+}: {
+  notif: ParentNotification;
+  onLue: (id: string) => void;
+}) {
+  const icone = ICONES[notif.type] ?? {
+    nom: 'notifications' as const,
+    couleur: '#64748b',
+  };
 
   return (
     <Pressable
@@ -53,11 +77,17 @@ export default function NotificationsScreen() {
   const charger = useCallback(async (filtreActuel: Filtre) => {
     setErreur('');
     try {
-      const params = filtreActuel !== 'TOUTES' ? { type: filtreActuel } : undefined;
-      const { data } = await api.get<ParentNotification[]>('/parent/notifications', { params });
+      const params =
+        filtreActuel !== 'TOUTES' ? { type: filtreActuel } : undefined;
+      const { data } = await api.get<ParentNotification[]>(
+        '/parent/notifications',
+        { params },
+      );
       setNotifications(Array.isArray(data) ? data : []);
     } catch (err) {
-      setErreur(messageFromError(err, 'Impossible de charger les notifications.'));
+      setErreur(
+        messageFromError(err, 'Impossible de charger les notifications.'),
+      );
     } finally {
       setChargement(false);
     }
@@ -69,7 +99,9 @@ export default function NotificationsScreen() {
   }, [charger, filtre]);
 
   const marquerLue = useCallback(async (id: string) => {
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+    );
     try {
       await api.patch(`/parent/notifications/${id}/read`);
     } catch {
@@ -85,9 +117,17 @@ export default function NotificationsScreen() {
           <Pressable
             key={cle}
             onPress={() => setFiltre(cle)}
-            style={[styles.puceFiltre, filtre === cle && styles.puceFiltreActive]}
+            style={[
+              styles.puceFiltre,
+              filtre === cle && styles.puceFiltreActive,
+            ]}
           >
-            <Text style={[styles.texteFiltre, filtre === cle && styles.texteFiltreActif]}>
+            <Text
+              style={[
+                styles.texteFiltre,
+                filtre === cle && styles.texteFiltreActif,
+              ]}
+            >
               {LIBELLES_FILTRE[cle]}
             </Text>
           </Pressable>
@@ -99,15 +139,26 @@ export default function NotificationsScreen() {
         data={notifications}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.liste}
-        refreshControl={<RefreshControl refreshing={chargement} onRefresh={() => charger(filtre)} />}
-        renderItem={({ item }) => <CarteNotification notif={item} onLue={marquerLue} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={chargement}
+            onRefresh={() => charger(filtre)}
+          />
+        }
+        renderItem={({ item }) => (
+          <CarteNotification notif={item} onLue={marquerLue} />
+        )}
         ListEmptyComponent={
           !chargement ? (
             <View style={styles.vide}>
-              <Ionicons name="notifications-off-outline" size={40} color="#cbd5e1" />
+              <Ionicons
+                name="notifications-off-outline"
+                size={40}
+                color="#cbd5e1"
+              />
               <Text style={styles.texteVide}>
-                Aucune notification pour l'instant. Vous serez prévenu à chaque pointage et
-                approche du bus.
+                Aucune notification pour l'instant. Vous serez prévenu à chaque
+                pointage et approche du bus.
               </Text>
             </View>
           ) : null
@@ -119,7 +170,12 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   conteneur: { flex: 1, backgroundColor: '#f8fafc' },
-  rangeeFiltres: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 16 },
+  rangeeFiltres: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
   puceFiltre: {
     paddingHorizontal: 14,
     paddingVertical: 7,
@@ -153,7 +209,18 @@ const styles = StyleSheet.create({
   titreNotif: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
   messageNotif: { fontSize: 13, color: '#334155', marginTop: 2 },
   heureNotif: { fontSize: 11, color: '#94a3b8', marginTop: 6 },
-  pointNonLu: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4f46e5', marginTop: 6 },
+  pointNonLu: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4f46e5',
+    marginTop: 6,
+  },
   vide: { alignItems: 'center', marginTop: 60, gap: 10 },
-  texteVide: { color: '#94a3b8', fontSize: 14, textAlign: 'center', paddingHorizontal: 40 },
+  texteVide: {
+    color: '#94a3b8',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
 });

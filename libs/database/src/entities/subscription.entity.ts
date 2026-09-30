@@ -6,10 +6,10 @@ import { Organisation } from './organisation.entity';
  * Enumération des types d'abonnements
  */
 export enum SubscriptionPlan {
-  STARTER = 'starter',   // Jusqu'à 2 cars
-  BASIC = 'basic',       // Jusqu'à 5 cars
+  STARTER = 'starter', // Jusqu'à 2 cars
+  BASIC = 'basic', // Jusqu'à 5 cars
   STANDARD = 'standard', // Jusqu'à 15 cars
-  PREMIUM = 'premium',   // Jusqu'à 30 cars
+  PREMIUM = 'premium', // Jusqu'à 30 cars
   ENTERPRISE = 'enterprise', // Illimité
 }
 
@@ -67,7 +67,10 @@ export class Subscription extends BaseEntityModel {
     type: 'decimal',
     precision: 10,
     scale: 2,
-    transformer: { to: (v: number) => v, from: (v: string | null) => (v === null ? null : parseFloat(v)) },
+    transformer: {
+      to: (v: number) => v,
+      from: (v: string | null) => (v === null ? null : parseFloat(v)),
+    },
   })
   pricePerMonth: number;
 

@@ -45,7 +45,7 @@ export class InternalApiKeyGuard implements CanActivate {
     const fourni = requete?.headers?.[INTERNAL_API_KEY_HEADER];
 
     if (typeof fourni !== 'string' || !this.egal(fourni, attendu)) {
-      this.logger.warn("Appel interne refusé : secret absent ou invalide.");
+      this.logger.warn('Appel interne refusé : secret absent ou invalide.');
       throw new UnauthorizedException('Appel interne non autorisé.');
     }
 

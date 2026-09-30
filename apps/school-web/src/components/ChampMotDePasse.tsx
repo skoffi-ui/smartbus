@@ -18,7 +18,13 @@ interface ChampMotDePasseProps {
  * activation, connexion...).
  */
 export default function ChampMotDePasse({
-  value, onChange, placeholder, required, minLength, className = 'form-input', id,
+  value,
+  onChange,
+  placeholder,
+  required,
+  minLength,
+  className = 'form-input',
+  id,
 }: ChampMotDePasseProps) {
   const [visible, setVisible] = useState(false);
 
@@ -40,11 +46,20 @@ export default function ChampMotDePasse({
         onClick={() => setVisible((v) => !v)}
         tabIndex={-1}
         title={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-        aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+        aria-label={
+          visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+        }
         style={{
-          position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
-          background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)',
-          display: 'flex', padding: 0,
+          position: 'absolute',
+          right: '0.75rem',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: 'var(--text-secondary)',
+          display: 'flex',
+          padding: 0,
         }}
       >
         {visible ? <EyeOff size={18} /> : <Eye size={18} />}

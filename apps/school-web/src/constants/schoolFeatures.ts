@@ -31,7 +31,9 @@ export function mesFeaturesAutorisees(): string[] | null {
     const jeton = localStorage.getItem('accessToken');
     if (!jeton) return null;
     const contenu = JSON.parse(atob(jeton.split('.')[1]));
-    return Array.isArray(contenu.allowedFeatures) ? contenu.allowedFeatures : null;
+    return Array.isArray(contenu.allowedFeatures)
+      ? contenu.allowedFeatures
+      : null;
   } catch {
     return null;
   }

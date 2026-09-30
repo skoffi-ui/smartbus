@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { Repository, IsNull } from 'typeorm';
 import { TenantService } from '../tenant/tenant.service';
 import { Affectation } from '@app/database';
@@ -36,7 +41,10 @@ export class AffectationsService {
     });
   }
 
-  async findByChildAndCourse(childId: string, courseId: string): Promise<Affectation | null> {
+  async findByChildAndCourse(
+    childId: string,
+    courseId: string,
+  ): Promise<Affectation | null> {
     const repo = await this.getRepo();
     return repo.findOne({
       where: { childId, courseId },
@@ -68,7 +76,9 @@ export class AffectationsService {
     // L'unicité porte sur (child_id, course_id), pas sur child_id seul : un
     // enfant peut avoir une affectation par course (matin, retour midi,
     // remontée 14h, descente 16h...).
-    const existing = await repo.findOne({ where: { childId: dto.childId, courseId: courseFilter } });
+    const existing = await repo.findOne({
+      where: { childId: dto.childId, courseId: courseFilter },
+    });
     if (existing) {
       throw new ConflictException(
         `L'enfant ${dto.childId} est déjà affecté au point ${existing.pointId}` +
@@ -88,7 +98,9 @@ export class AffectationsService {
       if (err.code === '23505') {
         // Violation de la contrainte unique : la vérification ci-dessus a
         // été franchie par une requête concurrente entre-temps.
-        const concurrent = await repo.findOne({ where: { childId: dto.childId, courseId: courseFilter } });
+        const concurrent = await repo.findOne({
+          where: { childId: dto.childId, courseId: courseFilter },
+        });
         throw new ConflictException(
           `L'enfant ${dto.childId} est déjà affecté au point ${concurrent?.pointId ?? '?'}. Veuillez d'abord supprimer l'affectation existante.`,
         );
@@ -100,7 +112,8 @@ export class AffectationsService {
   async delete(id: string): Promise<void> {
     const repo = await this.getRepo();
     const result = await repo.delete(id);
-    if (result.affected === 0) throw new NotFoundException(`Affectation ${id} introuvable`);
+    if (result.affected === 0)
+      throw new NotFoundException(`Affectation ${id} introuvable`);
     this.logger.log(`Affectation supprimée : ${id}`);
   }
 

@@ -11,7 +11,8 @@ describe('compareVersions', () => {
   });
 
   it('retourne NaN pour une version invalide (jamais < 0)', () => {
-    expect(compareVersions('abc', '1.0.0')).toBeNaN();
-    expect(Number.NaN < 0).toBe(false);
+    const resultat = compareVersions('abc', '1.0.0');
+    expect(Number.isNaN(resultat)).toBe(true);
+    expect(resultat < 0).toBe(false);
   });
 });

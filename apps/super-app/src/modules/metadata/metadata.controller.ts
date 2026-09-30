@@ -13,7 +13,9 @@ export class MetaDataController {
 
   @Get('version')
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Obtenir la version actuelle de la base de données' })
+  @ApiOperation({
+    summary: 'Obtenir la version actuelle de la base de données',
+  })
   getCurrentVersion() {
     return this.service.getCurrentVersion();
   }

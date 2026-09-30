@@ -6,7 +6,7 @@ import { io } from 'socket.io-client';
 import axios from 'axios';
 
 async function runE2ETest() {
-  console.log('=== DÉBUT DU TEST D\'INTÉGRATION WEBSOCKET E2E ===');
+  console.log("=== DÉBUT DU TEST D'INTÉGRATION WEBSOCKET E2E ===");
 
   // 1. Initialiser le contexte NestJS pour accéder aux injectables et à la BDD
   const appContext = await NestFactory.createApplicationContext(SuperAppModule);
@@ -56,7 +56,9 @@ async function runE2ETest() {
   });
   await childRepo.save(testChild);
 
-  console.log(`✅ Données de test insérées : Élève id=[${testChild.id}] empCode=[${testChild.empCode}]`);
+  console.log(
+    `✅ Données de test insérées : Élève id=[${testChild.id}] empCode=[${testChild.empCode}]`,
+  );
 
   // 4. Se connecter au Namespace WebSocket
   const socketUrl = 'http://localhost:3001/notifications';
@@ -89,9 +91,10 @@ async function runE2ETest() {
   });
 
   // 7. Déclencher le pointage via l'API Webhook
-  const webhookUrl = 'http://localhost:3001/api/v1/notifications/internal-webhook';
+  const webhookUrl =
+    'http://localhost:3001/api/v1/notifications/internal-webhook';
   console.log(`🚀 Envoi du pointage HTTP vers ${webhookUrl}`);
-  
+
   try {
     const webhookRes = await axios.post(
       webhookUrl,
@@ -105,18 +108,31 @@ async function runE2ETest() {
         headers: {
           'x-tenant-id': testSchool.id,
         },
-      }
+      },
     );
     console.log('✅ Statut Webhook HTTP :', webhookRes.status, webhookRes.data);
   } catch (apiErr: any) {
-    console.error('❌ Erreur API Webhook :', apiErr.response?.data || apiErr.message);
+    console.error(
+      '❌ Erreur API Webhook :',
+      apiErr.response?.data || apiErr.message,
+    );
   }
 
   // 8. Attendre la réception de la notification WebSocket
   try {
     const wsData = await Promise.race([
       eventReceivedPromise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout : Aucun événement reçu par le WebSocket après 5 secondes')), 5000)),
+      new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                'Timeout : Aucun événement reçu par le WebSocket après 5 secondes',
+              ),
+            ),
+          5000,
+        ),
+      ),
     ]);
 
     console.log('🏆 TEST RÉUSSI AVEC SUCCÈS !');

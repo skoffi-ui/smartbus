@@ -10,7 +10,13 @@ import { TenantGateService } from './tenant-gate.service';
 import { compareVersions } from './version.util';
 
 /** En-têtes d'identité posés par la gateway : jamais acceptés depuis l'extérieur. */
-const TRUSTED_HEADERS = ['x-tenant-id', 'x-tenant-schema', 'x-user-id', 'x-user-role', 'x-allowed-features'];
+const TRUSTED_HEADERS = [
+  'x-tenant-id',
+  'x-tenant-schema',
+  'x-user-id',
+  'x-user-role',
+  'x-allowed-features',
+];
 
 interface TokenPayload {
   sub: string;
@@ -24,7 +30,10 @@ export class GatewayService {
 
   private readonly targets: Record<GatewayTarget, string>;
   private readonly minAppVersion: string;
-  private readonly proxies: Record<GatewayTarget, ReturnType<typeof createProxyMiddleware>>;
+  private readonly proxies: Record<
+    GatewayTarget,
+    ReturnType<typeof createProxyMiddleware>
+  >;
 
   constructor(
     private readonly config: ConfigService,
@@ -33,7 +42,10 @@ export class GatewayService {
   ) {
     this.targets = {
       super: this.config.get<string>('SUPER_APP_URL', 'http://localhost:3000'),
-      school: this.config.get<string>('SCHOOL_APP_URL', 'http://localhost:3001'),
+      school: this.config.get<string>(
+        'SCHOOL_APP_URL',
+        'http://localhost:3001',
+      ),
     };
     this.minAppVersion = this.config.get<string>('APP_MIN_VERSION', '0.0.0');
 
@@ -49,7 +61,9 @@ export class GatewayService {
       changeOrigin: true,
       on: {
         error: (err, _req, res) => {
-          this.logger.error(`Service "${target}" injoignable : ${(err as Error).message}`);
+          this.logger.error(
+            `Service "${target}" injoignable : ${(err as Error).message}`,
+          );
           const response = res as Response;
           if (typeof response.status === 'function' && !response.headersSent) {
             response.status(502).json({
@@ -111,19 +125,29 @@ export class GatewayService {
         // du jeton d'accès ni un rafraîchissement déclenché côté client. Toujours
         // posé (y compris `"null"` = aucune restriction) pour que school-app ne
         // retombe jamais sur la valeur potentiellement périmée du JWT.
-        req.headers['x-allowed-features'] = JSON.stringify(tenantResult.allowedFeatures);
+        req.headers['x-allowed-features'] = JSON.stringify(
+          tenantResult.allowedFeatures,
+        );
       }
 
       req.headers['x-user-id'] = payload.sub;
       if (payload.role) req.headers['x-user-role'] = payload.role;
-      if (payload.organisationId) req.headers['x-tenant-id'] = payload.organisationId;
+      if (payload.organisationId)
+        req.headers['x-tenant-id'] = payload.organisationId;
     }
 
     // 4. Routage vers le bon service
-    (this.proxies[route.target] as unknown as RequestHandler)(req, res, () => undefined);
+    (this.proxies[route.target] as unknown as RequestHandler)(
+      req,
+      res,
+      () => undefined,
+    );
   }
 
-  private async authenticate(req: Request, res: Response): Promise<TokenPayload | null> {
+  private async authenticate(
+    req: Request,
+    res: Response,
+  ): Promise<TokenPayload | null> {
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
       this.reject(res, 401, 'TOKEN_MISSING', 'Token manquant ou invalide.');
@@ -163,19 +187,36 @@ export class GatewayService {
     res: Response,
   ): Promise<{ ok: true; allowedFeatures: string[] | null } | { ok: false }> {
     if (!payload.organisationId) {
-      this.reject(res, 403, 'NO_ORGANISATION', "Aucune école n'est associée à ce compte.");
+      this.reject(
+        res,
+        403,
+        'NO_ORGANISATION',
+        "Aucune école n'est associée à ce compte.",
+      );
       return { ok: false };
     }
 
-    const { verdict, allowedFeatures } = await this.tenantGate.check(payload.organisationId);
+    const { verdict, allowedFeatures } = await this.tenantGate.check(
+      payload.organisationId,
+    );
     switch (verdict) {
       case 'ok':
         return { ok: true, allowedFeatures };
       case 'suspended':
-        this.reject(res, 403, 'TENANT_SUSPENDED', 'Votre établissement est suspendu. Contactez SMARTBUS pour régulariser votre abonnement.');
+        this.reject(
+          res,
+          403,
+          'TENANT_SUSPENDED',
+          'Votre établissement est suspendu. Contactez SMARTBUS pour régulariser votre abonnement.',
+        );
         return { ok: false };
       case 'inactive':
-        this.reject(res, 403, 'TENANT_INACTIVE', "Votre établissement n'est pas encore activé.");
+        this.reject(
+          res,
+          403,
+          'TENANT_INACTIVE',
+          "Votre établissement n'est pas encore activé.",
+        );
         return { ok: false };
       default:
         this.reject(res, 403, 'TENANT_NOT_FOUND', 'Établissement introuvable.');
@@ -183,7 +224,12 @@ export class GatewayService {
     }
   }
 
-  private reject(res: Response, statusCode: number, code: string, message: string): void {
+  private reject(
+    res: Response,
+    statusCode: number,
+    code: string,
+    message: string,
+  ): void {
     res.status(statusCode).json({ statusCode, code, message });
   }
 }

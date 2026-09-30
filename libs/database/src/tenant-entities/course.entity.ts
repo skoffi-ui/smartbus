@@ -8,8 +8,8 @@ export enum CourseStatus {
 }
 
 export enum CourseType {
-  MATIN = 'matin',       // Trajet Aller
-  SOIR = 'soir',         // Trajet Retour
+  MATIN = 'matin', // Trajet Aller
+  SOIR = 'soir', // Trajet Retour
   MIDI = 'midi',
   SPECIAL = 'special',
 }
@@ -28,7 +28,10 @@ export class Course extends SoftDeleteEntityModel {
   description: string;
 
   // Lien vers le gabarit géographique
-  @ManyToOne(() => Trajet, (trajet) => trajet.courses, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Trajet, (trajet) => trajet.courses, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   @JoinColumn({ name: 'trajet_id' })
   trajet: Trajet;
 
@@ -54,15 +57,31 @@ export class Course extends SoftDeleteEntityModel {
   couleurCarte: string;
 
   // --- Champs legacy (compatibilité rétroactive, à supprimer en Phase B) ---
-  @Column({ name: 'car_id', nullable: true, comment: 'Legacy - utiliser CourseExecution.carId' })
+  @Column({
+    name: 'car_id',
+    nullable: true,
+    comment: 'Legacy - utiliser CourseExecution.carId',
+  })
   carId: string;
 
-  @Column({ name: 'driver_id', nullable: true, comment: 'Legacy - utiliser CourseExecution.driverId' })
+  @Column({
+    name: 'driver_id',
+    nullable: true,
+    comment: 'Legacy - utiliser CourseExecution.driverId',
+  })
   driverId: string;
 
-  @Column({ length: 255, nullable: true, comment: 'Legacy - champ texte libre remplacé par driver_id' })
+  @Column({
+    length: 255,
+    nullable: true,
+    comment: 'Legacy - champ texte libre remplacé par driver_id',
+  })
   chauffeur: string;
 
-  @Column({ length: 255, nullable: true, comment: 'Legacy - ignoré en SaaS multi-tenant' })
+  @Column({
+    length: 255,
+    nullable: true,
+    comment: 'Legacy - ignoré en SaaS multi-tenant',
+  })
   ecole: string;
 }

@@ -2,7 +2,11 @@ import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 dotenv.config();
 import { DataSource } from 'typeorm';
-import { ouvrirConnexionCentrale, listerOrganisationsProvisionnees, optionsMigrationTenant } from './tenant-migration-data-source';
+import {
+  ouvrirConnexionCentrale,
+  listerOrganisationsProvisionnees,
+  optionsMigrationTenant,
+} from './tenant-migration-data-source';
 
 /**
  * Exécute les migrations tenant en attente sur TOUTES les écoles
@@ -51,7 +55,9 @@ async function main() {
   }
 
   if (echecs > 0) {
-    console.error(`\n${echecs} école(s) en échec sur ${orgs.length} — voir le détail ci-dessus.`);
+    console.error(
+      `\n${echecs} école(s) en échec sur ${orgs.length} — voir le détail ci-dessus.`,
+    );
     process.exit(1);
   }
 }

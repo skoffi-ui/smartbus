@@ -21,10 +21,10 @@ export enum PointageStatut {
 }
 
 export enum PointageValidationType {
-  BIOMETRIQUE = 'biometrique',   // Via badgeuse BioTime
-  MANUEL = 'manuel',             // Saisie manuelle par chauffeur
-  QR_CODE = 'qr_code',          // Scan de QR Code
-  CARTE_NFC = 'carte_nfc',      // Carte NFC
+  BIOMETRIQUE = 'biometrique', // Via badgeuse BioTime
+  MANUEL = 'manuel', // Saisie manuelle par chauffeur
+  QR_CODE = 'qr_code', // Scan de QR Code
+  CARTE_NFC = 'carte_nfc', // Carte NFC
 }
 
 /**
@@ -70,13 +70,28 @@ export class Pointage extends BaseEntityModel {
   @Column({ name: 'biotime_punch_id', nullable: true, unique: true })
   biotimePunchId: string;
 
-  @Column({ name: 'distance_gps', type: 'decimal', precision: 8, scale: 2, nullable: true })
+  @Column({
+    name: 'distance_gps',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+  })
   distanceGps: number;
 
-  @Column({ type: 'enum', enum: PointageStatut, default: PointageStatut.VALIDE })
+  @Column({
+    type: 'enum',
+    enum: PointageStatut,
+    default: PointageStatut.VALIDE,
+  })
   statut: PointageStatut;
 
-  @Column({ name: 'validation_type', type: 'enum', enum: PointageValidationType, default: PointageValidationType.BIOMETRIQUE })
+  @Column({
+    name: 'validation_type',
+    type: 'enum',
+    enum: PointageValidationType,
+    default: PointageValidationType.BIOMETRIQUE,
+  })
   validationType: PointageValidationType;
 
   @Column({ name: 'validation_message', type: 'text', nullable: true })

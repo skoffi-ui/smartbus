@@ -44,9 +44,13 @@ export class CreateTenantSchemaVersion1721140000000 implements MigrationInterfac
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.startTransaction();
     try {
-      await queryRunner.query(`ALTER TABLE "tenant_schema_versions" DROP CONSTRAINT "FK_tenant_schema_versions_organisation"`);
+      await queryRunner.query(
+        `ALTER TABLE "tenant_schema_versions" DROP CONSTRAINT "FK_tenant_schema_versions_organisation"`,
+      );
       await queryRunner.query(`DROP TABLE "tenant_schema_versions"`);
-      await queryRunner.query(`DROP TYPE "public"."tenant_schema_versions_status_enum"`);
+      await queryRunner.query(
+        `DROP TYPE "public"."tenant_schema_versions_status_enum"`,
+      );
       await queryRunner.commitTransaction();
     } catch (err) {
       await queryRunner.rollbackTransaction();

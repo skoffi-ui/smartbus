@@ -1,4 +1,8 @@
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { TenantService } from '../tenant/tenant.service';
@@ -71,20 +75,24 @@ export class GpsService {
   // @Cron(CronExpression.EVERY_MINUTE)  ← volontairement non planifié
   async checkApproachingBuses(): Promise<void> {
     this.logger.warn(
-      "checkApproachingBuses est désactivé : maquette de démonstration, à réécrire côté super-app.",
+      'checkApproachingBuses est désactivé : maquette de démonstration, à réécrire côté super-app.',
     );
   }
 
   /**
    * Calcule l'itinéraire réel et l'estimation de temps (ETA) entre des points géographiques via OSRM
    */
-  async calculateRoute(waypoints: { lat: number; lng: number }[]): Promise<any> {
+  async calculateRoute(
+    waypoints: { lat: number; lng: number }[],
+  ): Promise<any> {
     if (waypoints.length < 2) {
-      throw new Error('Il faut au moins 2 points de passage pour calculer un itinéraire.');
+      throw new Error(
+        'Il faut au moins 2 points de passage pour calculer un itinéraire.',
+      );
     }
 
     // Convertir au format requis par OSRM : lng,lat;lng,lat...
-    const coordsStr = waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
+    const coordsStr = waypoints.map((wp) => `${wp.lng},${wp.lat}`).join(';');
     const url = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
 
     try {
@@ -100,9 +108,11 @@ export class GpsService {
           distance: route.distance, // en mètres
         };
       }
-      return { success: false, message: "Aucun itinéraire trouvé par OSRM." };
+      return { success: false, message: 'Aucun itinéraire trouvé par OSRM.' };
     } catch (err: any) {
-      this.logger.error(`Erreur lors du calcul d'itinéraire OSRM : ${err.message}`);
+      this.logger.error(
+        `Erreur lors du calcul d'itinéraire OSRM : ${err.message}`,
+      );
       return { success: false, error: err.message };
     }
   }
@@ -111,23 +121,27 @@ export class GpsService {
    * Snappe une série de points GPS bruts sur le réseau routier via OSRM (Map Matching)
    */
   async mapMatch(waypoints: { lat: number; lng: number }[]): Promise<any> {
-    if (waypoints.length < 2) return { success: false, message: 'Minimum 2 points requis pour le matching.' };
-    
-    const coordsStr = waypoints.map(wp => `${wp.lng},${wp.lat}`).join(';');
+    if (waypoints.length < 2)
+      return {
+        success: false,
+        message: 'Minimum 2 points requis pour le matching.',
+      };
+
+    const coordsStr = waypoints.map((wp) => `${wp.lng},${wp.lat}`).join(';');
     const radiuses = waypoints.map(() => '50').join(';'); // Tolérance de 50m par point
-    
+
     const url = `https://router.project-osrm.org/match/v1/driving/${coordsStr}?radiuses=${radiuses}&overview=simplified`;
-    
+
     try {
       const res = await firstValueFrom(this.httpService.get(url));
       if (res.data && res.data.matchings && res.data.matchings.length > 0) {
         return {
           success: true,
           matchedPoints: res.data.matchings[0].geometry,
-          confidence: res.data.matchings[0].confidence
+          confidence: res.data.matchings[0].confidence,
         };
       }
-      return { success: false, message: "Aucun matching trouvé." };
+      return { success: false, message: 'Aucun matching trouvé.' };
     } catch (err: any) {
       this.logger.error(`Erreur OSRM Map Match : ${err.message}`);
       return { success: false, error: err.message };
@@ -144,21 +158,24 @@ export class GpsService {
         this.httpService.get(url, {
           headers: {
             'User-Agent': 'SMARTBUS_App/1.0 (contact@smartbus.ci)', // Obligatoire pour Nominatim
-            'Accept-Language': 'fr-FR'
-          }
-        })
+            'Accept-Language': 'fr-FR',
+          },
+        }),
       );
       if (res.data && res.data.display_name) {
         return {
           success: true,
           address: res.data.display_name,
-          details: res.data.address
+          details: res.data.address,
         };
       }
       return { success: false, message: 'Adresse non trouvée' };
     } catch (err: any) {
       this.logger.error(`Erreur Nominatim: ${err.message}`);
-      return { success: false, error: 'Erreur lors de la récupération de l\'adresse' };
+      return {
+        success: false,
+        error: "Erreur lors de la récupération de l'adresse",
+      };
     }
   }
 }

@@ -13,7 +13,7 @@ export class ProvisioningController {
 
   @Post(':organisationId')
   @Roles(UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Provisionner la base de données d\'une école' })
+  @ApiOperation({ summary: "Provisionner la base de données d'une école" })
   provision(@Param('organisationId') organisationId: string) {
     return this.service.provisionOrganisation(organisationId);
   }

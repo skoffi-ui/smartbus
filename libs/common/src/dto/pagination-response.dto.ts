@@ -7,13 +7,13 @@ export class PaginationResponseDto<T> {
   @ApiProperty({ description: 'Liste des éléments' })
   data: T[];
 
-  @ApiProperty({ example: 100, description: 'Nombre total d\'éléments' })
+  @ApiProperty({ example: 100, description: "Nombre total d'éléments" })
   total: number;
 
   @ApiProperty({ example: 1, description: 'Page actuelle' })
   page: number;
 
-  @ApiProperty({ example: 10, description: 'Nombre d\'éléments par page' })
+  @ApiProperty({ example: 10, description: "Nombre d'éléments par page" })
   limit: number;
 
   @ApiProperty({ example: 10, description: 'Nombre total de pages' })
@@ -22,7 +22,10 @@ export class PaginationResponseDto<T> {
   @ApiProperty({ example: true, description: 'Y a-t-il une page suivante ?' })
   hasNextPage: boolean;
 
-  @ApiProperty({ example: false, description: 'Y a-t-il une page précédente ?' })
+  @ApiProperty({
+    example: false,
+    description: 'Y a-t-il une page précédente ?',
+  })
   hasPreviousPage: boolean;
 
   constructor(data: T[], total: number, page: number, limit: number) {

@@ -36,9 +36,15 @@ export class AddBiotimeTerminals1727100000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_biotime_terminals_status"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_biotime_terminals_organisation"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_biotime_terminals_serial_number"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_biotime_terminals_status"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_biotime_terminals_organisation"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_biotime_terminals_serial_number"`,
+    );
     await queryRunner.query(`DROP TABLE "biotime_terminals"`);
   }
 }

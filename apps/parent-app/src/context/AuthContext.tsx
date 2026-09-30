@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+} from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import * as authService from '../services/auth';
 import { definirGestionnaireDeconnexion } from '../services/api';
@@ -10,7 +16,9 @@ interface AuthContextValue {
   connecter: (payload: ParentLoginPayload) => Promise<void>;
   deconnecter: () => Promise<void>;
   /** Met à jour une partie de la session (ex. préférences de notification) et la persiste. */
-  mettreAJourParent: (partiel: Partial<ParentSession['parent']>) => Promise<void>;
+  mettreAJourParent: (
+    partiel: Partial<ParentSession['parent']>,
+  ) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -57,17 +65,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   }, []);
 
-  const mettreAJourParent = useCallback(async (partiel: Partial<ParentSession['parent']>) => {
-    setSession((prev) => {
-      if (!prev) return prev;
-      const suivant = { ...prev, parent: { ...prev.parent, ...partiel } };
-      authService.mettreAJourSession(suivant);
-      return suivant;
-    });
-  }, []);
+  const mettreAJourParent = useCallback(
+    async (partiel: Partial<ParentSession['parent']>) => {
+      setSession((prev) => {
+        if (!prev) return prev;
+        const suivant = { ...prev, parent: { ...prev.parent, ...partiel } };
+        authService.mettreAJourSession(suivant);
+        return suivant;
+      });
+    },
+    [],
+  );
 
   return (
-    <AuthContext.Provider value={{ session, chargement, connecter, deconnecter, mettreAJourParent }}>
+    <AuthContext.Provider
+      value={{ session, chargement, connecter, deconnecter, mettreAJourParent }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -75,6 +88,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth doit être utilisé à l\'intérieur de <AuthProvider>.');
+  if (!ctx)
+    throw new Error(
+      "useAuth doit être utilisé à l'intérieur de <AuthProvider>.",
+    );
   return ctx;
 }

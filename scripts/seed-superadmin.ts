@@ -6,7 +6,9 @@ import * as bcrypt from 'bcrypt';
 
 async function bootstrap() {
   console.log('--- Initialisation du contexte NestJS ---');
-  const app = await NestFactory.createApplicationContext(SuperAppModule, { logger: ['error', 'warn', 'log'] });
+  const app = await NestFactory.createApplicationContext(SuperAppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
   console.log('✅ Contexte NestJS initialisé.');
 
   const dataSource = app.get(DataSource);
@@ -44,7 +46,9 @@ async function bootstrap() {
       await userRepo.save(user);
       console.log(`✅ Utilisateur ${email} créé.`);
     } else {
-      console.log(`ℹ️ L'utilisateur ${email} existe déjà. Réinitialisation du mot de passe...`);
+      console.log(
+        `ℹ️ L'utilisateur ${email} existe déjà. Réinitialisation du mot de passe...`,
+      );
       existing.password = passwordHash;
       existing.status = UserStatus.ACTIVE;
       await userRepo.save(existing);

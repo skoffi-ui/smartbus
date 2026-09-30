@@ -1,4 +1,12 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Organisation } from './organisation.entity';
 
 export enum TerminalStatus {
@@ -54,7 +62,7 @@ export class BiotimeTerminal {
   @Column({
     type: 'varchar',
     enum: TerminalStatus,
-    default: TerminalStatus.INACTIVE
+    default: TerminalStatus.INACTIVE,
   })
   status: TerminalStatus;
 
@@ -68,9 +76,9 @@ export class BiotimeTerminal {
    * Organisation (école) à laquelle ce terminal est assigné
    * NULL = terminal disponible pour affectation
    */
-  @ManyToOne(() => Organisation, org => org.biotimeTerminals, {
+  @ManyToOne(() => Organisation, (org) => org.biotimeTerminals, {
     nullable: true,
-    onDelete: 'SET NULL'
+    onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'organisation_id' })
   organisation: Organisation;

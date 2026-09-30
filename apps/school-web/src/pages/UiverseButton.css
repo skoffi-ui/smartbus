@@ -6,7 +6,7 @@
   font-size: 1rem;
   cursor: pointer;
   position: relative;
-  font-family: "Rubik", sans-serif;
+  font-family: 'Rubik', sans-serif;
   font-weight: bold;
   line-height: 1;
   padding: 1px;
@@ -61,15 +61,13 @@
 }
 
 .uiverse-button > div::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   border-radius: 9999px;
   opacity: 0.5;
-  background-image: radial-gradient(
-      rgb(255 255 255 / 80%) 20%,
-      transparent 20%
-    ),
+  background-image:
+    radial-gradient(rgb(255 255 255 / 80%) 20%, transparent 20%),
     radial-gradient(rgb(255 255 255 / 100%) 20%, transparent 20%);
   background-position:
     0 0,
@@ -122,14 +120,20 @@
   padding: 0.7rem 1.25rem;
   border: none;
   border-radius: 10px;
-  background: var(--accent-gradient, linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%));
+  background: var(
+    --accent-gradient,
+    linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)
+  );
   color: #fff;
   font-family: inherit;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 1px 2px rgba(79, 70, 229, 0.25);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .uiverse-btn-submit:hover:not(:disabled) {

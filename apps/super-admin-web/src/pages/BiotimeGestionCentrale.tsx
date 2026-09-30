@@ -46,14 +46,18 @@ export default function BiotimeGestionCentrale() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [activeTab, setActiveTab] = useState<'departments' | 'terminals'>('departments');
+  const [activeTab, setActiveTab] = useState<'departments' | 'terminals'>(
+    'departments',
+  );
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modals
   const [showCreateDeptModal, setShowCreateDeptModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedOrgForDept, setSelectedOrgForDept] = useState('');
-  const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(null);
+  const [selectedTerminal, setSelectedTerminal] = useState<Terminal | null>(
+    null,
+  );
   const [selectedOrgForAssign, setSelectedOrgForAssign] = useState('');
   const [terminalName, setTerminalName] = useState('');
 
@@ -76,7 +80,9 @@ export default function BiotimeGestionCentrale() {
         api.get('/organisations', { params: { limit: 100 } }),
         api.get('/admin/biotime/terminals'),
       ]);
-      setOrganisations(Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : []);
+      setOrganisations(
+        Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : [],
+      );
       setTerminaux(Array.isArray(termsRes.data) ? termsRes.data : []);
     } catch (err) {
       setError(messageFromError(err, 'Impossible de charger les données.'));
@@ -111,10 +117,14 @@ export default function BiotimeGestionCentrale() {
     setSuccess('');
     try {
       const res = await api.post('/admin/biotime/terminals/sync');
-      setSuccess(`Synchronisation réussie : ${res.data.synced} terminaux synchronisés.`);
+      setSuccess(
+        `Synchronisation réussie : ${res.data.synced} terminaux synchronisés.`,
+      );
       chargerDonnees();
     } catch (err) {
-      setError(messageFromError(err, 'Échec de la synchronisation des terminaux.'));
+      setError(
+        messageFromError(err, 'Échec de la synchronisation des terminaux.'),
+      );
     }
   };
 
@@ -128,19 +138,26 @@ export default function BiotimeGestionCentrale() {
         organisationId: selectedOrgForAssign,
         terminalName: terminalName || undefined,
       });
-      setSuccess(`Terminal ${selectedTerminal.serialNumber} assigné avec succès !`);
+      setSuccess(
+        `Terminal ${selectedTerminal.serialNumber} assigné avec succès !`,
+      );
       setShowAssignModal(false);
       setSelectedTerminal(null);
       setSelectedOrgForAssign('');
       setTerminalName('');
       chargerDonnees();
     } catch (err) {
-      setError(messageFromError(err, 'Échec de l\'assignation du terminal.'));
+      setError(messageFromError(err, "Échec de l'assignation du terminal."));
     }
   };
 
   const desassignerTerminal = async (terminalId: string) => {
-    if (!(await confirmer('Êtes-vous sûr de vouloir désassigner ce terminal ?', { danger: true }))) return;
+    if (
+      !(await confirmer('Êtes-vous sûr de vouloir désassigner ce terminal ?', {
+        danger: true,
+      }))
+    )
+      return;
     setError('');
     setSuccess('');
     try {
@@ -152,13 +169,16 @@ export default function BiotimeGestionCentrale() {
     }
   };
 
-  const organisationsSansDepartement = organisations.filter((org) => !org.biotimeDepartmentId);
+  const organisationsSansDepartement = organisations.filter(
+    (org) => !org.biotimeDepartmentId,
+  );
   const terminauxDisponibles = terminaux.filter((t) => !t.organisationId);
   const terminauxAssignes = terminaux.filter((t) => t.organisationId);
 
-  const filteredOrgs = organisations.filter((org) =>
-    org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    org.code.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOrgs = organisations.filter(
+    (org) =>
+      org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      org.code.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   if (loading) {
@@ -171,9 +191,12 @@ export default function BiotimeGestionCentrale() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-white">Gestion BioTime Centralisée</h1>
+            <h1 className="text-2xl font-bold text-white">
+              Gestion BioTime Centralisée
+            </h1>
             <p className="text-navy-300 mt-1">
-              Un serveur BioTime pour toutes les écoles • Départements et terminaux
+              Un serveur BioTime pour toutes les écoles • Départements et
+              terminaux
             </p>
           </div>
           <button
@@ -235,27 +258,38 @@ export default function BiotimeGestionCentrale() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                <div className="text-3xl font-bold text-white">{organisations.length}</div>
-                <div className="text-sm text-navy-300 mt-1">Total organisations</div>
+                <div className="text-3xl font-bold text-white">
+                  {organisations.length}
+                </div>
+                <div className="text-sm text-navy-300 mt-1">
+                  Total organisations
+                </div>
               </div>
               <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
                 <div className="text-3xl font-bold text-emerald-400">
                   {organisations.filter((o) => o.biotimeDepartmentId).length}
                 </div>
-                <div className="text-sm text-emerald-300/70 mt-1">Avec département</div>
+                <div className="text-sm text-emerald-300/70 mt-1">
+                  Avec département
+                </div>
               </div>
               <div className="bg-amber-500/10 rounded-xl p-4 border border-amber-500/20">
                 <div className="text-3xl font-bold text-amber-400">
                   {organisationsSansDepartement.length}
                 </div>
-                <div className="text-sm text-amber-300/70 mt-1">Sans département</div>
+                <div className="text-sm text-amber-300/70 mt-1">
+                  Sans département
+                </div>
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex items-center justify-between mb-6">
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" size={18} />
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400"
+                  size={18}
+                />
                 <input
                   type="text"
                   placeholder="Rechercher une organisation…"
@@ -294,7 +328,10 @@ export default function BiotimeGestionCentrale() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredOrgs.map((org) => (
-                    <tr key={org.id} className="text-white hover:bg-white/5 transition-colors">
+                    <tr
+                      key={org.id}
+                      className="text-white hover:bg-white/5 transition-colors"
+                    >
                       <td className="p-4">
                         {org.biotimeDepartmentId ? (
                           <span className="flex items-center gap-2 text-emerald-400 font-medium text-sm">
@@ -314,12 +351,18 @@ export default function BiotimeGestionCentrale() {
                           <span className="font-semibold">{org.name}</span>
                         </div>
                       </td>
-                      <td className="p-4 font-mono text-sm text-navy-300">{org.code}</td>
+                      <td className="p-4 font-mono text-sm text-navy-300">
+                        {org.code}
+                      </td>
                       <td className="p-4 text-sm">
-                        {org.biotimeDepartmentName || <span className="text-navy-400">—</span>}
+                        {org.biotimeDepartmentName || (
+                          <span className="text-navy-400">—</span>
+                        )}
                       </td>
                       <td className="p-4 font-mono text-sm text-navy-300">
-                        {org.biotimeDepartmentId || <span className="text-navy-400">—</span>}
+                        {org.biotimeDepartmentId || (
+                          <span className="text-navy-400">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -335,14 +378,20 @@ export default function BiotimeGestionCentrale() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                <div className="text-3xl font-bold text-white">{terminaux.length}</div>
-                <div className="text-sm text-navy-300 mt-1">Total terminaux</div>
+                <div className="text-3xl font-bold text-white">
+                  {terminaux.length}
+                </div>
+                <div className="text-sm text-navy-300 mt-1">
+                  Total terminaux
+                </div>
               </div>
               <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
                 <div className="text-3xl font-bold text-emerald-400">
                   {terminauxDisponibles.length}
                 </div>
-                <div className="text-sm text-emerald-300/70 mt-1">Disponibles</div>
+                <div className="text-sm text-emerald-300/70 mt-1">
+                  Disponibles
+                </div>
               </div>
               <div className="bg-indigo-500/10 rounded-xl p-4 border border-indigo-500/20">
                 <div className="text-3xl font-bold text-indigo-400">
@@ -371,7 +420,8 @@ export default function BiotimeGestionCentrale() {
               </h3>
               {terminauxDisponibles.length === 0 ? (
                 <div className="text-center text-navy-400 py-8">
-                  Aucun terminal disponible. Synchronisez depuis BioTime pour en voir.
+                  Aucun terminal disponible. Synchronisez depuis BioTime pour en
+                  voir.
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -389,7 +439,9 @@ export default function BiotimeGestionCentrale() {
                             <div className="font-mono text-sm font-semibold text-white">
                               {t.serialNumber}
                             </div>
-                            <div className="text-xs text-navy-300">{t.terminalName}</div>
+                            <div className="text-xs text-navy-300">
+                              {t.terminalName}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -438,8 +490,13 @@ export default function BiotimeGestionCentrale() {
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {terminauxAssignes.map((t) => (
-                        <tr key={t.id} className="text-white hover:bg-white/5 transition-colors">
-                          <td className="p-4 font-mono text-sm">{t.serialNumber}</td>
+                        <tr
+                          key={t.id}
+                          className="text-white hover:bg-white/5 transition-colors"
+                        >
+                          <td className="p-4 font-mono text-sm">
+                            {t.serialNumber}
+                          </td>
                           <td className="p-4 text-sm">{t.terminalName}</td>
                           <td className="p-4 font-mono text-sm text-navy-300">
                             {t.ipAddress || '—'}
@@ -478,9 +535,12 @@ export default function BiotimeGestionCentrale() {
       {showCreateDeptModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="glass-panel p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-white mb-4">Créer un département BioTime</h3>
+            <h3 className="text-xl font-bold text-white mb-4">
+              Créer un département BioTime
+            </h3>
             <p className="text-navy-300 text-sm mb-6">
-              Sélectionnez l'organisation pour laquelle créer un département sur le serveur BioTime central.
+              Sélectionnez l'organisation pour laquelle créer un département sur
+              le serveur BioTime central.
             </p>
             <div className="mb-6">
               <label className="form-label">Organisation</label>
@@ -498,7 +558,11 @@ export default function BiotimeGestionCentrale() {
                   Sélectionner une organisation…
                 </option>
                 {organisationsSansDepartement.map((org) => (
-                  <option key={org.id} value={org.id} style={{ background: '#1e293b' }}>
+                  <option
+                    key={org.id}
+                    value={org.id}
+                    style={{ background: '#1e293b' }}
+                  >
                     {org.name} ({org.code})
                   </option>
                 ))}
@@ -530,9 +594,14 @@ export default function BiotimeGestionCentrale() {
       {showAssignModal && selectedTerminal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="glass-panel p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-white mb-4">Assigner un terminal</h3>
+            <h3 className="text-xl font-bold text-white mb-4">
+              Assigner un terminal
+            </h3>
             <p className="text-navy-300 text-sm mb-6">
-              Terminal : <span className="font-mono font-semibold">{selectedTerminal.serialNumber}</span>
+              Terminal :{' '}
+              <span className="font-mono font-semibold">
+                {selectedTerminal.serialNumber}
+              </span>
             </p>
             <div className="space-y-4 mb-6">
               <div>
@@ -551,14 +620,20 @@ export default function BiotimeGestionCentrale() {
                     Sélectionner une organisation…
                   </option>
                   {organisations.map((org) => (
-                    <option key={org.id} value={org.id} style={{ background: '#1e293b' }}>
+                    <option
+                      key={org.id}
+                      value={org.id}
+                      style={{ background: '#1e293b' }}
+                    >
                       {org.name} ({org.code})
                     </option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="form-label">Nom personnalisé (optionnel)</label>
+                <label className="form-label">
+                  Nom personnalisé (optionnel)
+                </label>
                 <input
                   type="text"
                   value={terminalName}

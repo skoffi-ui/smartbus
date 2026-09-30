@@ -1,8 +1,23 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DriversService } from './drivers.service';
 import { CreateDriverDto, UpdateDriverDto } from './dto/drivers.dto';
-import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
+import {
+  JwtAuthGuard,
+  RolesGuard,
+  Roles,
+  FeaturesGuard,
+  RequireFeature,
+} from '@app/common';
 import { UserRole } from '@app/database';
 
 @ApiTags('drivers')
@@ -21,7 +36,7 @@ export class DriversController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lister tous les chauffeurs de l\'école' })
+  @ApiOperation({ summary: "Lister tous les chauffeurs de l'école" })
   // Aussi utilisé par Courses.tsx (affectation d'un chauffeur à une course)
   // et CentreAlertes.tsx (afficher le nom du chauffeur sur chaque alerte).
   @RequireFeature('drivers', 'courses', 'centre-alertes')
@@ -30,13 +45,13 @@ export class DriversController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtenir les détails d\'un chauffeur' })
+  @ApiOperation({ summary: "Obtenir les détails d'un chauffeur" })
   findOne(@Param('id') id: string) {
     return this.driversService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Mettre à jour les informations d\'un chauffeur' })
+  @ApiOperation({ summary: "Mettre à jour les informations d'un chauffeur" })
   update(@Param('id') id: string, @Body() updateDriverDto: UpdateDriverDto) {
     return this.driversService.update(id, updateDriverDto);
   }

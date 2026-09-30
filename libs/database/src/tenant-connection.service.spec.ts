@@ -5,7 +5,11 @@ import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
 import { TenantConnectionService } from './tenant-connection.service';
 import { Organisation } from './entities/organisation.entity';
-import { InternalServerErrorException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  InternalServerErrorException,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 
 describe('TenantConnectionService', () => {
   let service: TenantConnectionService;
@@ -24,7 +28,9 @@ describe('TenantConnectionService', () => {
     } as any;
 
     mockConfigService = {
-      get: jest.fn().mockImplementation((key: string, defaultValue?: any) => defaultValue),
+      get: jest
+        .fn()
+        .mockImplementation((key: string, defaultValue?: any) => defaultValue),
     } as any;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -45,7 +51,9 @@ describe('TenantConnectionService', () => {
       ],
     }).compile();
 
-    service = await module.resolve<TenantConnectionService>(TenantConnectionService);
+    service = await module.resolve<TenantConnectionService>(
+      TenantConnectionService,
+    );
   });
 
   it('should be defined', () => {
@@ -54,7 +62,7 @@ describe('TenantConnectionService', () => {
 
   it('should throw InternalServerErrorException if no tenant header or user exists', async () => {
     await expect(service.getTenantConnection()).rejects.toThrow(
-      InternalServerErrorException
+      InternalServerErrorException,
     );
   });
 
@@ -63,7 +71,7 @@ describe('TenantConnectionService', () => {
     mockOrganisationRepository.findOne.mockResolvedValue(null);
 
     await expect(service.getTenantConnection()).rejects.toThrow(
-      NotFoundException
+      NotFoundException,
     );
   });
 
@@ -77,7 +85,7 @@ describe('TenantConnectionService', () => {
     } as any);
 
     await expect(service.getTenantConnection()).rejects.toThrow(
-      InternalServerErrorException
+      InternalServerErrorException,
     );
   });
 
@@ -91,7 +99,7 @@ describe('TenantConnectionService', () => {
     } as any);
 
     await expect(service.getTenantConnection()).rejects.toThrow(
-      ForbiddenException
+      ForbiddenException,
     );
   });
 
@@ -105,10 +113,12 @@ describe('TenantConnectionService', () => {
     } as any);
 
     // Si trial était refusé, on aurait un ForbiddenException avant le contrôle de provisionnement
-    await expect(service.getTenantConnection()).rejects.toThrow(InternalServerErrorException);
+    await expect(service.getTenantConnection()).rejects.toThrow(
+      InternalServerErrorException,
+    );
   });
 
-  it("refuse une organisation en attente (pending)", async () => {
+  it('refuse une organisation en attente (pending)', async () => {
     mockRequest.headers['x-tenant-id'] = 'pending-tenant-id';
     mockOrganisationRepository.findOne.mockResolvedValue({
       id: 'pending-tenant-id',
@@ -117,7 +127,9 @@ describe('TenantConnectionService', () => {
       status: 'pending',
     } as any);
 
-    await expect(service.getTenantConnection()).rejects.toThrow(ForbiddenException);
+    await expect(service.getTenantConnection()).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 
   it("l'organisation du JWT prime sur un header x-tenant-id usurpé", async () => {
@@ -125,7 +137,9 @@ describe('TenantConnectionService', () => {
     mockRequest.headers['x-tenant-id'] = 'org-usurpee';
     mockOrganisationRepository.findOne.mockResolvedValue(null);
 
-    await expect(service.getTenantConnection()).rejects.toThrow(NotFoundException);
+    await expect(service.getTenantConnection()).rejects.toThrow(
+      NotFoundException,
+    );
     expect(mockOrganisationRepository.findOne).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'org-jwt' } }),
     );

@@ -36,7 +36,7 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @ApiOperation({ summary: 'Inscription d\'un nouvel utilisateur' })
+  @ApiOperation({ summary: "Inscription d'un nouvel utilisateur" })
   @ApiResponse({ status: 201, description: 'Utilisateur créé avec succès' })
   @ApiResponse({ status: 409, description: 'Email déjà utilisé' })
   async register(@Body() registerDto: RegisterDto) {
@@ -50,12 +50,20 @@ export class AuthController {
   @Public()
   @Post('candidature-directeur')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: "Auto-inscription ouverte d'un directeur, en attente d'activation" })
-  @ApiResponse({ status: 201, description: "Inscription enregistrée, en attente d'activation" })
+  @ApiOperation({
+    summary: "Auto-inscription ouverte d'un directeur, en attente d'activation",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Inscription enregistrée, en attente d'activation",
+  })
   @ApiResponse({ status: 409, description: 'Email déjà utilisé' })
   async candidatureDirecteur(@Body() dto: CandidatureDirecteurDto) {
     await this.authService.candidatureDirecteur(dto);
-    return { message: "Inscription envoyée. Un administrateur doit activer votre compte avant que vous puissiez vous connecter." };
+    return {
+      message:
+        'Inscription envoyée. Un administrateur doit activer votre compte avant que vous puissiez vous connecter.',
+    };
   }
 
   // Réservé à un directeur déjà activé (voir UsersService.activate) mais sans
@@ -65,10 +73,19 @@ export class AuthController {
   @Roles(UserRole.SCHOOL_ADMIN)
   @Post('creer-mon-ecole')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Un directeur activé crée lui-même son école (organisation + provisionnement)' })
-  @ApiResponse({ status: 201, description: 'École créée et provisionnée avec succès' })
+  @ApiOperation({
+    summary:
+      'Un directeur activé crée lui-même son école (organisation + provisionnement)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'École créée et provisionnée avec succès',
+  })
   @ApiResponse({ status: 409, description: 'Ce directeur a déjà une école' })
-  async creerMonEcole(@CurrentUser('id') userId: string, @Body() dto: CreateMySchoolDto) {
+  async creerMonEcole(
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateMySchoolDto,
+  ) {
     return this.authService.creerMonEcole(userId, dto);
   }
 
@@ -79,9 +96,18 @@ export class AuthController {
   // impossible de s'inscrire sans en avoir reçu un.
   @Public()
   @Post('rejoindre-ecole')
-  @ApiOperation({ summary: "Un collaborateur termine son inscription à partir d'un lien d'invitation" })
-  @ApiResponse({ status: 201, description: 'Compte créé, connexion automatique' })
-  @ApiResponse({ status: 400, description: "Lien d'invitation invalide ou expiré" })
+  @ApiOperation({
+    summary:
+      "Un collaborateur termine son inscription à partir d'un lien d'invitation",
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Compte créé, connexion automatique',
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Lien d'invitation invalide ou expiré",
+  })
   @ApiResponse({ status: 409, description: 'Email déjà utilisé' })
   async rejoindreEcole(@Body() dto: InscriptionDirecteurDto) {
     return this.authService.rejoindreEcole(dto);
@@ -119,7 +145,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Profil de l\'utilisateur connecté' })
+  @ApiOperation({ summary: "Profil de l'utilisateur connecté" })
   async getMe(@CurrentUser() user: User) {
     return user;
   }
@@ -128,7 +154,10 @@ export class AuthController {
   @Patch('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mettre à jour les informations personnelles' })
-  @ApiResponse({ status: 409, description: 'Email déjà utilisé par un autre compte' })
+  @ApiResponse({
+    status: 409,
+    description: 'Email déjà utilisé par un autre compte',
+  })
   async updateMe(@CurrentUser('id') userId: string, @Body() dto: UpdateMeDto) {
     return this.authService.updateMe(userId, dto);
   }
@@ -139,7 +168,10 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Changer son mot de passe' })
   @ApiResponse({ status: 401, description: 'Mot de passe actuel incorrect' })
-  async changeMyPassword(@CurrentUser('id') userId: string, @Body() dto: ChangePasswordDto) {
+  async changeMyPassword(
+    @CurrentUser('id') userId: string,
+    @Body() dto: ChangePasswordDto,
+  ) {
     await this.authService.changePassword(userId, dto);
     return { message: 'Mot de passe modifié avec succès.' };
   }
@@ -150,7 +182,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Demande de réinitialisation de mot de passe' })
   async forgotPassword(@Body('email') email: string) {
     await this.authService.forgotPassword(email);
-    return { message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' };
+    return {
+      message: 'Si cet email existe, un lien de réinitialisation a été envoyé.',
+    };
   }
 
   @Public()

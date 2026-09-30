@@ -1,5 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Plus, X, Calendar, DollarSign, Building2, Check, XCircle, Clock, Ban, AlertTriangle, Tag, Save } from 'lucide-react';
+import {
+  Plus,
+  X,
+  Calendar,
+  DollarSign,
+  Building2,
+  Check,
+  XCircle,
+  Clock,
+  Ban,
+  AlertTriangle,
+  Tag,
+  Save,
+} from 'lucide-react';
 import api, { messageFromError } from '../services/api';
 import { useToast } from '../components/ToastProvider';
 import { useConfirm } from '../components/ConfirmProvider';
@@ -37,11 +50,36 @@ interface Organisation {
 }
 
 const PLANS = [
-  { value: 'starter', label: 'DÉMARRAGE', maxCars: 2, description: 'Jusqu\'à 2 cars' },
-  { value: 'basic', label: 'BASIQUE', maxCars: 5, description: 'Jusqu\'à 5 cars' },
-  { value: 'standard', label: 'STANDARD', maxCars: 15, description: 'Jusqu\'à 15 cars' },
-  { value: 'premium', label: 'PREMIUM', maxCars: 30, description: 'Jusqu\'à 30 cars' },
-  { value: 'enterprise', label: 'ENTREPRISE', maxCars: 999, description: 'Illimité' },
+  {
+    value: 'starter',
+    label: 'DÉMARRAGE',
+    maxCars: 2,
+    description: "Jusqu'à 2 cars",
+  },
+  {
+    value: 'basic',
+    label: 'BASIQUE',
+    maxCars: 5,
+    description: "Jusqu'à 5 cars",
+  },
+  {
+    value: 'standard',
+    label: 'STANDARD',
+    maxCars: 15,
+    description: "Jusqu'à 15 cars",
+  },
+  {
+    value: 'premium',
+    label: 'PREMIUM',
+    maxCars: 30,
+    description: "Jusqu'à 30 cars",
+  },
+  {
+    value: 'enterprise',
+    label: 'ENTREPRISE',
+    maxCars: 999,
+    description: 'Illimité',
+  },
 ];
 
 const PLAN_LABELS: Record<string, string> = {
@@ -54,11 +92,31 @@ const PLAN_LABELS: Record<string, string> = {
 
 const STATUS_CONFIG = {
   trial: { label: 'ESSAI', color: 'bg-blue-500/20 text-blue-400', icon: Clock },
-  pending: { label: 'EN ATTENTE', color: 'bg-yellow-500/20 text-yellow-400', icon: Clock },
-  active: { label: 'ACTIF', color: 'bg-green-500/20 text-green-400', icon: Check },
-  expired: { label: 'EXPIRÉ', color: 'bg-red-500/20 text-red-400', icon: XCircle },
-  cancelled: { label: 'ANNULÉ', color: 'bg-gray-500/20 text-gray-400', icon: Ban },
-  suspended: { label: 'SUSPENDU', color: 'bg-orange-500/20 text-orange-400', icon: AlertTriangle },
+  pending: {
+    label: 'EN ATTENTE',
+    color: 'bg-yellow-500/20 text-yellow-400',
+    icon: Clock,
+  },
+  active: {
+    label: 'ACTIF',
+    color: 'bg-green-500/20 text-green-400',
+    icon: Check,
+  },
+  expired: {
+    label: 'EXPIRÉ',
+    color: 'bg-red-500/20 text-red-400',
+    icon: XCircle,
+  },
+  cancelled: {
+    label: 'ANNULÉ',
+    color: 'bg-gray-500/20 text-gray-400',
+    icon: Ban,
+  },
+  suspended: {
+    label: 'SUSPENDU',
+    color: 'bg-orange-500/20 text-orange-400',
+    icon: AlertTriangle,
+  },
 };
 
 export default function Subscriptions() {
@@ -69,20 +127,27 @@ export default function Subscriptions() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+  const [editingSubscription, setEditingSubscription] =
+    useState<Subscription | null>(null);
 
   // Grille tarifaire — voir PlanTarif (backend). Avant, aucun tarif central
   // n'existait : prix saisi à la main à chaque abonnement, et incohérent
   // ailleurs (PaymentsService.sandboxCheckout, Abonnement.tsx école).
   const [tarifs, setTarifs] = useState<PlanTarif[]>([]);
-  const [tarifsEdites, setTarifsEdites] = useState<Record<string, { pricePerMonth: number; maxCars: number }>>({});
-  const [enregistrementTarif, setEnregistrementTarif] = useState<string | null>(null);
+  const [tarifsEdites, setTarifsEdites] = useState<
+    Record<string, { pricePerMonth: number; maxCars: number }>
+  >({});
+  const [enregistrementTarif, setEnregistrementTarif] = useState<string | null>(
+    null,
+  );
 
   const [formData, setFormData] = useState({
     organisationId: '',
     plan: 'standard',
     startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0],
     pricePerMonth: 50000,
     maxCars: 15,
   });
@@ -95,7 +160,9 @@ export default function Subscriptions() {
       if (err.response?.status === 401) {
         handleLogout();
       } else {
-        setError(messageFromError(err, 'Erreur lors du chargement des abonnements.'));
+        setError(
+          messageFromError(err, 'Erreur lors du chargement des abonnements.'),
+        );
       }
     } finally {
       setLoading(false);
@@ -117,7 +184,12 @@ export default function Subscriptions() {
       const liste: PlanTarif[] = response.data.data || response.data;
       setTarifs(liste);
       setTarifsEdites(
-        Object.fromEntries(liste.map((t) => [t.plan, { pricePerMonth: t.pricePerMonth, maxCars: t.maxCars }])),
+        Object.fromEntries(
+          liste.map((t) => [
+            t.plan,
+            { pricePerMonth: t.pricePerMonth, maxCars: t.maxCars },
+          ]),
+        ),
       );
     } catch (err) {
       console.error('Erreur de chargement de la grille tarifaire', err);
@@ -133,7 +205,9 @@ export default function Subscriptions() {
       toast.success('Tarif mis à jour.');
       await fetchTarifs();
     } catch (err) {
-      toast.error(messageFromError(err, 'Erreur lors de la mise à jour du tarif.'));
+      toast.error(
+        messageFromError(err, 'Erreur lors de la mise à jour du tarif.'),
+      );
     } finally {
       setEnregistrementTarif(null);
     }
@@ -169,7 +243,9 @@ export default function Subscriptions() {
         organisationId: '',
         plan: 'standard',
         startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split('T')[0],
         pricePerMonth: tarifStandard?.pricePerMonth ?? 0,
         maxCars: tarifStandard?.maxCars ?? 15,
       });
@@ -187,7 +263,7 @@ export default function Subscriptions() {
   // n'est qu'une valeur par défaut, pas une contrainte sur un abonnement déjà créé.
   const handlePlanChange = (plan: string) => {
     const tarif = tarifs.find((t) => t.plan === plan);
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       plan,
       maxCars: tarif?.maxCars ?? prev.maxCars,
@@ -210,7 +286,7 @@ export default function Subscriptions() {
       } else {
         await api.post('/subscriptions', {
           ...formData,
-          status: 'active' // Définir explicitement le statut à 'active'
+          status: 'active', // Définir explicitement le statut à 'active'
         });
       }
 
@@ -222,21 +298,26 @@ export default function Subscriptions() {
   };
 
   const handleCancel = async (id: string) => {
-    if (!(await confirmer('Êtes-vous sûr de vouloir annuler cet abonnement ?', { danger: true }))) return;
+    if (
+      !(await confirmer('Êtes-vous sûr de vouloir annuler cet abonnement ?', {
+        danger: true,
+      }))
+    )
+      return;
 
     try {
       await api.patch(`/subscriptions/${id}/cancel`, {});
       fetchSubscriptions();
     } catch (err) {
-      toast.error(messageFromError(err, 'Erreur lors de l\'annulation.'));
+      toast.error(messageFromError(err, "Erreur lors de l'annulation."));
     }
   };
 
   const handleDelete = async (id: string) => {
-    const ok = await confirmer(
-      'Cette action est irréversible.',
-      { titre: '⚠️ DANGER : Supprimer définitivement cet abonnement ?', danger: true },
-    );
+    const ok = await confirmer('Cette action est irréversible.', {
+      titre: '⚠️ DANGER : Supprimer définitivement cet abonnement ?',
+      danger: true,
+    });
     if (!ok) return;
 
     try {
@@ -255,38 +336,64 @@ export default function Subscriptions() {
           <h2 className="text-xl font-bold text-white">Grille tarifaire</h2>
         </div>
         <p className="text-navy-300 text-sm mb-5">
-          Prix et plafond de véhicules par forfait — référence appliquée automatiquement au paiement
-          en libre-service du directeur (voir Abonnement.tsx, app école) et pré-remplie ici à la création
-          d'un abonnement.
+          Prix et plafond de véhicules par forfait — référence appliquée
+          automatiquement au paiement en libre-service du directeur (voir
+          Abonnement.tsx, app école) et pré-remplie ici à la création d'un
+          abonnement.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {tarifs.map((t) => {
-            const edite = tarifsEdites[t.plan] ?? { pricePerMonth: t.pricePerMonth, maxCars: t.maxCars };
-            const modifie = edite.pricePerMonth !== t.pricePerMonth || edite.maxCars !== t.maxCars;
+            const edite = tarifsEdites[t.plan] ?? {
+              pricePerMonth: t.pricePerMonth,
+              maxCars: t.maxCars,
+            };
+            const modifie =
+              edite.pricePerMonth !== t.pricePerMonth ||
+              edite.maxCars !== t.maxCars;
             return (
-              <div key={t.plan} className="p-4 rounded-lg border border-white/10 bg-navy-800/30">
-                <div className="font-bold text-white text-sm mb-1">{t.label}</div>
-                <div className="text-xs text-navy-300 mb-3">{t.description}</div>
+              <div
+                key={t.plan}
+                className="p-4 rounded-lg border border-white/10 bg-navy-800/30"
+              >
+                <div className="font-bold text-white text-sm mb-1">
+                  {t.label}
+                </div>
+                <div className="text-xs text-navy-300 mb-3">
+                  {t.description}
+                </div>
 
-                <label className="block text-xs text-navy-300 mb-1">Prix / mois (FCFA)</label>
+                <label className="block text-xs text-navy-300 mb-1">
+                  Prix / mois (FCFA)
+                </label>
                 <input
                   type="number"
                   min={0}
                   value={edite.pricePerMonth}
                   onChange={(e) =>
-                    setTarifsEdites((prev) => ({ ...prev, [t.plan]: { ...edite, pricePerMonth: Number(e.target.value) } }))
+                    setTarifsEdites((prev) => ({
+                      ...prev,
+                      [t.plan]: {
+                        ...edite,
+                        pricePerMonth: Number(e.target.value),
+                      },
+                    }))
                   }
                   className="w-full px-3 py-1.5 bg-navy-800/50 border border-white/10 rounded-md text-white text-sm mb-2 focus:border-brand-400 focus:outline-none"
                 />
 
-                <label className="block text-xs text-navy-300 mb-1">Max véhicules</label>
+                <label className="block text-xs text-navy-300 mb-1">
+                  Max véhicules
+                </label>
                 <input
                   type="number"
                   min={1}
                   value={edite.maxCars}
                   onChange={(e) =>
-                    setTarifsEdites((prev) => ({ ...prev, [t.plan]: { ...edite, maxCars: Number(e.target.value) } }))
+                    setTarifsEdites((prev) => ({
+                      ...prev,
+                      [t.plan]: { ...edite, maxCars: Number(e.target.value) },
+                    }))
                   }
                   className="w-full px-3 py-1.5 bg-navy-800/50 border border-white/10 rounded-md text-white text-sm mb-3 focus:border-brand-400 focus:outline-none"
                 />
@@ -297,7 +404,9 @@ export default function Subscriptions() {
                   className="btn-secondary text-xs w-full flex items-center justify-center gap-1.5 disabled:opacity-40"
                 >
                   <Save size={13} />
-                  {enregistrementTarif === t.plan ? 'Enregistrement...' : 'Enregistrer'}
+                  {enregistrementTarif === t.plan
+                    ? 'Enregistrement...'
+                    : 'Enregistrer'}
                 </button>
               </div>
             );
@@ -308,8 +417,12 @@ export default function Subscriptions() {
       <div className="glass-panel p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-white">Gestion des Abonnements</h2>
-            <p className="text-navy-300 text-sm mt-1">Créer et gérer les abonnements des écoles clientes</p>
+            <h2 className="text-2xl font-bold text-white">
+              Gestion des Abonnements
+            </h2>
+            <p className="text-navy-300 text-sm mt-1">
+              Créer et gérer les abonnements des écoles clientes
+            </p>
           </div>
           <button
             onClick={() => handleOpenModal()}
@@ -320,7 +433,11 @@ export default function Subscriptions() {
           </button>
         </div>
 
-        {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-4">{error}</div>}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-4">
+            {error}
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center text-navy-300 py-10">
@@ -342,17 +459,26 @@ export default function Subscriptions() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {subscriptions.map((sub) => {
-                  const statusConfig = STATUS_CONFIG[sub.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending;
+                  const statusConfig =
+                    STATUS_CONFIG[sub.status as keyof typeof STATUS_CONFIG] ||
+                    STATUS_CONFIG.pending;
                   const StatusIcon = statusConfig.icon;
 
                   return (
-                    <tr key={sub.id} className="hover:bg-white/5 transition-colors">
+                    <tr
+                      key={sub.id}
+                      className="hover:bg-white/5 transition-colors"
+                    >
                       <td className="p-4">
                         <div className="flex items-center gap-2">
                           <Building2 size={16} className="text-brand-400" />
                           <div>
-                            <div className="font-bold text-white">{sub.organisation.name}</div>
-                            <div className="text-xs text-navy-300 font-mono">{sub.organisation.code}</div>
+                            <div className="font-bold text-white">
+                              {sub.organisation.name}
+                            </div>
+                            <div className="text-xs text-navy-300 font-mono">
+                              {sub.organisation.code}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -362,7 +488,9 @@ export default function Subscriptions() {
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit ${statusConfig.color}`}>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit ${statusConfig.color}`}
+                        >
                           <StatusIcon size={12} />
                           {statusConfig.label}
                         </span>
@@ -371,7 +499,11 @@ export default function Subscriptions() {
                         <div className="flex items-center gap-1">
                           <Calendar size={14} />
                           <span>
-                            {new Date(sub.startDate).toLocaleDateString('fr-FR')} → {new Date(sub.endDate).toLocaleDateString('fr-FR')}
+                            {new Date(sub.startDate).toLocaleDateString(
+                              'fr-FR',
+                            )}{' '}
+                            →{' '}
+                            {new Date(sub.endDate).toLocaleDateString('fr-FR')}
                           </span>
                         </div>
                       </td>
@@ -392,7 +524,9 @@ export default function Subscriptions() {
                           >
                             Modifier
                           </button>
-                          {['trial', 'pending', 'active'].includes(sub.status) && (
+                          {['trial', 'pending', 'active'].includes(
+                            sub.status,
+                          ) && (
                             <button
                               onClick={() => handleCancel(sub.id)}
                               className="btn-secondary text-xs text-orange-400 border-orange-400/20 hover:bg-orange-500/10"
@@ -415,7 +549,8 @@ export default function Subscriptions() {
                 {subscriptions.length === 0 && (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-navy-300">
-                      Aucun abonnement créé. Commencez par créer le premier abonnement pour une école.
+                      Aucun abonnement créé. Commencez par créer le premier
+                      abonnement pour une école.
                     </td>
                   </tr>
                 )}
@@ -431,9 +566,14 @@ export default function Subscriptions() {
           <div className="glass-panel p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-white">
-                {editingSubscription ? 'Modifier l\'abonnement' : 'Créer un nouvel abonnement'}
+                {editingSubscription
+                  ? "Modifier l'abonnement"
+                  : 'Créer un nouvel abonnement'}
               </h3>
-              <button onClick={handleCloseModal} className="text-navy-300 hover:text-white">
+              <button
+                onClick={handleCloseModal}
+                className="text-navy-300 hover:text-white"
+              >
                 <X size={24} />
               </button>
             </div>
@@ -446,22 +586,26 @@ export default function Subscriptions() {
                 </label>
                 <select
                   value={formData.organisationId}
-                  onChange={(e) => setFormData({ ...formData, organisationId: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, organisationId: e.target.value })
+                  }
                   className="w-full px-4 py-2 bg-navy-800/50 border border-white/10 rounded-lg text-white focus:border-brand-400 focus:outline-none"
                   required
                   disabled={!!editingSubscription}
                 >
                   <option value="">Sélectionner une école</option>
                   {organisations
-                    .filter(org => org.status === 'active')
-                    .map(org => (
+                    .filter((org) => org.status === 'active')
+                    .map((org) => (
                       <option key={org.id} value={org.id}>
                         {org.name} ({org.code})
                       </option>
                     ))}
                 </select>
                 {editingSubscription && (
-                  <p className="text-xs text-navy-300 mt-1">L'école ne peut pas être modifiée après création</p>
+                  <p className="text-xs text-navy-300 mt-1">
+                    L'école ne peut pas être modifiée après création
+                  </p>
                 )}
               </div>
 
@@ -482,8 +626,12 @@ export default function Subscriptions() {
                           : 'border-white/10 bg-navy-800/30 hover:border-white/20'
                       }`}
                     >
-                      <div className="font-bold text-white text-sm">{plan.label}</div>
-                      <div className="text-xs text-navy-300 mt-1">{plan.description}</div>
+                      <div className="font-bold text-white text-sm">
+                        {plan.label}
+                      </div>
+                      <div className="text-xs text-navy-300 mt-1">
+                        {plan.description}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -498,7 +646,9 @@ export default function Subscriptions() {
                   <input
                     type="date"
                     value={formData.startDate}
-                    onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, startDate: e.target.value })
+                    }
                     className="w-full px-4 py-2 bg-navy-800/50 border border-white/10 rounded-lg text-white focus:border-brand-400 focus:outline-none"
                     required
                   />
@@ -511,7 +661,9 @@ export default function Subscriptions() {
                   <input
                     type="date"
                     value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, endDate: e.target.value })
+                    }
                     className="w-full px-4 py-2 bg-navy-800/50 border border-white/10 rounded-lg text-white focus:border-brand-400 focus:outline-none"
                     required
                   />
@@ -527,7 +679,12 @@ export default function Subscriptions() {
                   <input
                     type="number"
                     value={formData.pricePerMonth}
-                    onChange={(e) => setFormData({ ...formData, pricePerMonth: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        pricePerMonth: Number(e.target.value),
+                      })
+                    }
                     className="w-full px-4 py-2 bg-navy-800/50 border border-white/10 rounded-lg text-white focus:border-brand-400 focus:outline-none"
                     min="0"
                     required
@@ -541,7 +698,12 @@ export default function Subscriptions() {
                   <input
                     type="number"
                     value={formData.maxCars}
-                    onChange={(e) => setFormData({ ...formData, maxCars: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        maxCars: Number(e.target.value),
+                      })
+                    }
                     className="w-full px-4 py-2 bg-navy-800/50 border border-white/10 rounded-lg text-white focus:border-brand-400 focus:outline-none"
                     min="1"
                     max="999"
@@ -553,11 +715,10 @@ export default function Subscriptions() {
 
               {/* Actions */}
               <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="btn-primary flex-1"
-                >
-                  {editingSubscription ? 'Enregistrer les modifications' : 'Créer l\'abonnement'}
+                <button type="submit" className="btn-primary flex-1">
+                  {editingSubscription
+                    ? 'Enregistrer les modifications'
+                    : "Créer l'abonnement"}
                 </button>
                 <button
                   type="button"

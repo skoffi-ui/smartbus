@@ -44,14 +44,16 @@ export class DevicesService {
    */
   async create(data: DeviceData) {
     const { serial_number, type_device, status = 'ACTIVE', imei } = data;
-    
+
     const cleanImei = imei && imei.trim() !== '' ? imei.trim() : null;
 
     // Check if it already exists
     const checkQuery = `SELECT id FROM devices WHERE serial_number = $1 AND deleted_at IS NULL`;
     const existing = await this.dataSource.query(checkQuery, [serial_number]);
     if (existing.length > 0) {
-      throw new Error(`Device with serial number ${serial_number} already exists`);
+      throw new Error(
+        `Device with serial number ${serial_number} already exists`,
+      );
     }
 
     const query = `
@@ -59,7 +61,12 @@ export class DevicesService {
       VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const result = await this.dataSource.query(query, [serial_number, type_device, status, cleanImei]);
+    const result = await this.dataSource.query(query, [
+      serial_number,
+      type_device,
+      status,
+      cleanImei,
+    ]);
     return result[0];
   }
 
@@ -79,7 +86,10 @@ export class DevicesService {
    */
   async assign(deviceId: string, organisationId: string) {
     // First check if device exists
-    const deviceCheck = await this.dataSource.query(`SELECT id FROM devices WHERE id = $1 AND deleted_at IS NULL`, [deviceId]);
+    const deviceCheck = await this.dataSource.query(
+      `SELECT id FROM devices WHERE id = $1 AND deleted_at IS NULL`,
+      [deviceId],
+    );
     if (deviceCheck.length === 0) {
       throw new NotFoundException('Device not found');
     }
@@ -93,7 +103,10 @@ export class DevicesService {
       VALUES ($1, $2, NOW())
       RETURNING *
     `;
-    const result = await this.dataSource.query(query, [deviceId, organisationId]);
+    const result = await this.dataSource.query(query, [
+      deviceId,
+      organisationId,
+    ]);
     return result[0];
   }
 

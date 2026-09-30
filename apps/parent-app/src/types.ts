@@ -37,7 +37,12 @@ export interface BusLine {
   heureDepart?: string;
   heureArrivee?: string;
   driver: { firstName?: string; lastName?: string; phone: string } | null;
-  vehicule: { plateNumber: string; brand?: string; model?: string; photoUrl?: string } | null;
+  vehicule: {
+    plateNumber: string;
+    brand?: string;
+    model?: string;
+    photoUrl?: string;
+  } | null;
 }
 
 export interface UsualStop {

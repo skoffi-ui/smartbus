@@ -18,11 +18,15 @@ export class PlanTarifsService {
 
   async findOne(plan: SubscriptionPlan): Promise<PlanTarif> {
     const tarif = await this.repo.findOne({ where: { plan } });
-    if (!tarif) throw new NotFoundException(`Aucun tarif pour le forfait ${plan}.`);
+    if (!tarif)
+      throw new NotFoundException(`Aucun tarif pour le forfait ${plan}.`);
     return tarif;
   }
 
-  async update(plan: SubscriptionPlan, dto: UpdatePlanTarifDto): Promise<PlanTarif> {
+  async update(
+    plan: SubscriptionPlan,
+    dto: UpdatePlanTarifDto,
+  ): Promise<PlanTarif> {
     const tarif = await this.findOne(plan);
     Object.assign(tarif, dto);
     return this.repo.save(tarif);

@@ -84,6 +84,7 @@ npm run start:school
 4. Enregistrer
 
 **Résultat attendu** :
+
 - L'élève est créé localement
 - `biotimeSyncStatus` = PENDING
 - Synchronisation automatique vers BioTime central
@@ -93,11 +94,13 @@ npm run start:school
 ### Étape 5 : Vérifier la Synchronisation
 
 **Option A : Via Interface Super Admin**
+
 1. **BioTime Centrale** → Onglet **Terminaux**
 2. Cliquer sur une organisation
 3. **Récupérer les transactions récentes**
 
 **Option B : Via API**
+
 ```bash
 curl -X GET http://localhost:3000/api/v1/admin/biotime/organisations/{orgId}/transactions/recent \
   -H "Authorization: Bearer YOUR_TOKEN"
@@ -149,11 +152,13 @@ WHERE biotime_department_id IS NOT NULL;
 ### Erreur : "Failed to create department"
 
 **Causes possibles** :
+
 1. Token BioTime invalide ou expiré
 2. Serveur BioTime inaccessible
 3. Organisation a déjà un département
 
 **Debug** :
+
 ```bash
 # Tester la connexion au serveur BioTime
 curl http://160.120.143.20:8080/iclock/api/departments/ \
@@ -163,6 +168,7 @@ curl http://160.120.143.20:8080/iclock/api/departments/ \
 ### Erreur : "Terminal not found"
 
 **Solution** :
+
 1. Synchroniser les terminaux depuis BioTime
 2. Vérifier que le terminal existe sur le serveur BioTime
 3. Vérifier le numéro de série
@@ -170,9 +176,11 @@ curl http://160.120.143.20:8080/iclock/api/departments/ \
 ### Les Élèves ne se Synchronisent Pas
 
 **Vérifications** :
+
 1. L'organisation a un `biotimeDepartmentId` ?
 2. Le token BioTime est valide ?
 3. Logs de l'application :
+
 ```bash
 # Dans le terminal de super-app
 # Rechercher "[BioTime→Central]"
@@ -231,6 +239,7 @@ curl http://160.120.143.20:8080/iclock/api/departments/ \
 ## 📞 Support
 
 En cas de problème :
+
 1. Vérifier les logs de l'application
 2. Tester connexion serveur BioTime directement
 3. Vérifier les migrations database

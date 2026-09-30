@@ -1,7 +1,15 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Payment, SandboxPaymentStatus, SandboxPaymentMethod, Subscription, SubscriptionStatus, Organisation, OrganisationStatus } from '@app/database';
+import {
+  Payment,
+  SandboxPaymentStatus,
+  SandboxPaymentMethod,
+  Subscription,
+  SubscriptionStatus,
+  Organisation,
+  OrganisationStatus,
+} from '@app/database';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -21,14 +29,25 @@ export class CinetpayService {
    * Initialise un paiement mobile money ou carte bancaire.
    * Retourne un lien vers notre guichet de paiement simulé (ou CinetPay réel en prod).
    */
-  async initiatePayment(organisationId: string, plan: string, amount: number, method: string) {
-    const org = await this.organisationRepository.findOne({ where: { id: organisationId } });
+  async initiatePayment(
+    organisationId: string,
+    plan: string,
+    amount: number,
+    method: string,
+  ) {
+    const org = await this.organisationRepository.findOne({
+      where: { id: organisationId },
+    });
     if (!org) {
-      throw new NotFoundException(`Organisation ${organisationId} introuvable.`);
+      throw new NotFoundException(
+        `Organisation ${organisationId} introuvable.`,
+      );
     }
 
     // 1. Déterminer ou créer l'abonnement
-    let subscription = await this.subscriptionRepository.findOne({ where: { organisationId } });
+    let subscription = await this.subscriptionRepository.findOne({
+      where: { organisationId },
+    });
     if (!subscription) {
       subscription = this.subscriptionRepository.create({
         organisationId,
@@ -57,7 +76,7 @@ export class CinetpayService {
     // 3. Retourner l'URL de redirection vers notre simulateur frontend
     // En production, ce serait l'URL de CinetPay
     const checkoutUrl = `http://localhost:5174/checkout-sandbox?paymentId=${savedPayment.id}&amount=${amount}&schoolName=${encodeURIComponent(org.name)}&method=${method}`;
-    
+
     return {
       success: true,
       paymentId: savedPayment.id,
@@ -68,16 +87,22 @@ export class CinetpayService {
   /**
    * Traite le webhook de notification de paiement.
    */
-  async handleWebhook(payload: { paymentId: string; status: string; transactionId: string }) {
+  async handleWebhook(payload: {
+    paymentId: string;
+    status: string;
+    transactionId: string;
+  }) {
     const { paymentId, status, transactionId } = payload;
-    
-    const payment = await this.paymentRepository.findOne({ 
+
+    const payment = await this.paymentRepository.findOne({
       where: { id: paymentId },
-      relations: { subscription: true, organisation: true }
+      relations: { subscription: true, organisation: true },
     });
-    
+
     if (!payment) {
-      this.logger.error(`Webhook reçu pour un paiement introuvable : ${paymentId}`);
+      this.logger.error(
+        `Webhook reçu pour un paiement introuvable : ${paymentId}`,
+      );
       throw new NotFoundException('Paiement introuvable');
     }
 
@@ -92,7 +117,11 @@ export class CinetpayService {
       subscription.status = SubscriptionStatus.ACTIVE;
       subscription.startDate = now;
       // Prolonger d'un mois
-      subscription.endDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      subscription.endDate = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        now.getDate(),
+      );
       await this.subscriptionRepository.save(subscription);
 
       // Réactiver l'organisation
@@ -102,17 +131,21 @@ export class CinetpayService {
         await this.organisationRepository.save(org);
       }
 
-      this.logger.log(`Abonnement activé avec succès via Mobile Money pour l'école : ${org.name}`);
+      this.logger.log(
+        `Abonnement activé avec succès via Mobile Money pour l'école : ${org.name}`,
+      );
     } else {
       payment.status = SandboxPaymentStatus.FAILED;
       await this.paymentRepository.save(payment);
-      
+
       const subscription = payment.subscription;
       if (subscription.status === SubscriptionStatus.PENDING) {
         subscription.status = SubscriptionStatus.EXPIRED;
         await this.subscriptionRepository.save(subscription);
       }
-      this.logger.warn(`Échec de paiement mobile money pour l'école : ${payment.organisation?.name}`);
+      this.logger.warn(
+        `Échec de paiement mobile money pour l'école : ${payment.organisation?.name}`,
+      );
     }
 
     return { success: true };

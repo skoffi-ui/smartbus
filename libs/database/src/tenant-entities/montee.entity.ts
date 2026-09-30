@@ -28,9 +28,16 @@ const PUNCH_STATES_SORTIE = new Set(['1', '2', '5']);
  * Source unique de cette conversion : elle était auparavant dupliquée, avec des
  * règles divergentes, entre le traitement du flux et les notifications parents.
  */
-export function sensFromPunchState(punchState?: string | number | null): SensPointage {
-  const code = punchState === null || punchState === undefined ? '0' : String(punchState).trim();
-  return PUNCH_STATES_SORTIE.has(code) ? SensPointage.DESCENTE : SensPointage.MONTEE;
+export function sensFromPunchState(
+  punchState?: string | number | null,
+): SensPointage {
+  const code =
+    punchState === null || punchState === undefined
+      ? '0'
+      : String(punchState).trim();
+  return PUNCH_STATES_SORTIE.has(code)
+    ? SensPointage.DESCENTE
+    : SensPointage.MONTEE;
 }
 
 @Entity('montees')
@@ -69,7 +76,13 @@ export class Montee extends BaseEntityModel {
   @Column({ type: 'time' })
   heure: string;
 
-  @Column({ name: 'distance_gps', type: 'decimal', precision: 8, scale: 2, nullable: true })
+  @Column({
+    name: 'distance_gps',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+  })
   distanceGps: number;
 
   @Column({ type: 'enum', enum: SensPointage, default: SensPointage.MONTEE })

@@ -8,8 +8,10 @@ async function getDevices() {
     port: 5432,
   });
   try {
-    const res = await pool.query(`SELECT id, gps_device_id, plate_number FROM cars WHERE gps_device_id IS NOT NULL`);
-    console.log("Cars:", res.rows);
+    const res = await pool.query(
+      `SELECT id, gps_device_id, plate_number FROM cars WHERE gps_device_id IS NOT NULL`,
+    );
+    console.log('Cars:', res.rows);
   } finally {
     pool.end();
   }

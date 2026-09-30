@@ -1,6 +1,6 @@
-import { config } from 'dotenv';
+import { assurerVariablesE2e } from './env-e2e';
 
-config({ path: '.env.test' });
+assurerVariablesE2e();
 
 beforeAll(() => {
   console.log('🧪 Starting SMARTBUS test suite...');

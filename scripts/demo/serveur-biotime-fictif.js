@@ -23,7 +23,9 @@
 const path = require('path');
 const fs = require('fs');
 const R = path.resolve(__dirname, '../..');
-require(path.join(R, 'node_modules/dotenv')).config({ path: path.join(R, '.env') });
+require(path.join(R, 'node_modules/dotenv')).config({
+  path: path.join(R, '.env'),
+});
 const express = require(path.join(R, 'node_modules/express'));
 
 const PORT = Number(process.env.BIOTIME_FICTIF_PORT || 4010);
@@ -38,11 +40,38 @@ function chargerEtat() {
   try {
     return JSON.parse(fs.readFileSync(ETAT_PATH, 'utf8'));
   } catch {
-    return { prochainDeptId: 9501, prochainEmpId: 9501, departments: [], employees: [], terminals: [
-      { id: 9601, sn: 'DEMO-FICTIF-TERM-001', alias: 'Badgeuse Bus 1 (Démo)', ip_address: '10.0.0.101', state: 1, terminal_name: 'ZKTeco F18' },
-      { id: 9602, sn: 'DEMO-FICTIF-TERM-002', alias: 'Badgeuse Bus 2 (Démo)', ip_address: '10.0.0.102', state: 1, terminal_name: 'ZKTeco F18' },
-      { id: 9603, sn: 'DEMO-FICTIF-TERM-003', alias: 'Badgeuse Portail École (Démo)', ip_address: '10.0.0.103', state: 1, terminal_name: 'SpeedFace-V5L' },
-    ] };
+    return {
+      prochainDeptId: 9501,
+      prochainEmpId: 9501,
+      departments: [],
+      employees: [],
+      terminals: [
+        {
+          id: 9601,
+          sn: 'DEMO-FICTIF-TERM-001',
+          alias: 'Badgeuse Bus 1 (Démo)',
+          ip_address: '10.0.0.101',
+          state: 1,
+          terminal_name: 'ZKTeco F18',
+        },
+        {
+          id: 9602,
+          sn: 'DEMO-FICTIF-TERM-002',
+          alias: 'Badgeuse Bus 2 (Démo)',
+          ip_address: '10.0.0.102',
+          state: 1,
+          terminal_name: 'ZKTeco F18',
+        },
+        {
+          id: 9603,
+          sn: 'DEMO-FICTIF-TERM-003',
+          alias: 'Badgeuse Portail École (Démo)',
+          ip_address: '10.0.0.103',
+          state: 1,
+          terminal_name: 'SpeedFace-V5L',
+        },
+      ],
+    };
   }
 }
 
@@ -54,7 +83,10 @@ function sauvegarder() {
   try {
     fs.writeFileSync(ETAT_PATH, JSON.stringify(etat, null, 2));
   } catch (err) {
-    console.error('[BioTime FICTIF] Échec d\'écriture de l\'état (ignoré) :', err.message);
+    console.error(
+      "[BioTime FICTIF] Échec d'écriture de l'état (ignoré) :",
+      err.message,
+    );
   }
 }
 
@@ -62,10 +94,16 @@ function sauvegarder() {
 // arrêter silencieusement le processus — on la journalise et on continue.
 // Sans ça, "ne répond plus" ne laisserait aucune trace pour comprendre pourquoi.
 process.on('uncaughtException', (err) => {
-  console.error('[BioTime FICTIF] Erreur non interceptée (le serveur continue) :', err);
+  console.error(
+    '[BioTime FICTIF] Erreur non interceptée (le serveur continue) :',
+    err,
+  );
 });
 process.on('unhandledRejection', (err) => {
-  console.error('[BioTime FICTIF] Rejet de promesse non intercepté (le serveur continue) :', err);
+  console.error(
+    '[BioTime FICTIF] Rejet de promesse non intercepté (le serveur continue) :',
+    err,
+  );
 });
 
 const app = express();
@@ -79,14 +117,23 @@ app.use((req, _res, next) => {
 
 // Pour vérifier vite qu'il tourne (voir DEMO.md, section dépannage).
 app.get('/health', (_req, res) => {
-  res.json({ status: 'ok', departments: etat.departments.length, employees: etat.employees.length });
+  res.json({
+    status: 'ok',
+    departments: etat.departments.length,
+    employees: etat.employees.length,
+  });
 });
 
 // ==================== DÉPARTEMENTS (1 par école) ====================
 
 app.post('/personnel/api/departments/', (req, res) => {
   const { dept_name, dept_code } = req.body || {};
-  const dept = { id: etat.prochainDeptId++, dept_name: dept_name || '[DÉMO] École', dept_code: dept_code || null, parent: null };
+  const dept = {
+    id: etat.prochainDeptId++,
+    dept_name: dept_name || '[DÉMO] École',
+    dept_code: dept_code || null,
+    parent: null,
+  };
   etat.departments.push(dept);
   sauvegarder();
   res.status(201).json(dept);
@@ -110,7 +157,9 @@ app.post('/personnel/api/employees/', (req, res) => {
   if (existant) {
     // Reproduit le comportement réel attendu par BiotimeCentralService.syncEmployeeToBiotime :
     // 400 + `emp_code` dans le corps déclenche sa bascule automatique vers la mise à jour.
-    return res.status(400).json({ emp_code: ['employee with this emp code already exists.'] });
+    return res
+      .status(400)
+      .json({ emp_code: ['employee with this emp code already exists.'] });
   }
   const employe = {
     id: etat.prochainEmpId++,
@@ -128,7 +177,9 @@ app.post('/personnel/api/employees/', (req, res) => {
 
 app.get('/personnel/api/employees/', (req, res) => {
   const { emp_code } = req.query;
-  const resultats = emp_code ? etat.employees.filter((e) => e.emp_code === emp_code) : etat.employees;
+  const resultats = emp_code
+    ? etat.employees.filter((e) => e.emp_code === emp_code)
+    : etat.employees;
   res.json({ count: resultats.length, data: resultats });
 });
 
@@ -150,9 +201,15 @@ app.get('/iclock/api/transactions/', (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🏷️  Serveur BioTime FICTIF démarré sur http://localhost:${PORT}`);
-  console.log(`   Fait tourner l'application comme si le vrai serveur répondait — aucune`);
-  console.log(`   donnée réelle, tout est préfixé [DÉMO] côté départements/terminaux.`);
+  console.log(
+    `\n🏷️  Serveur BioTime FICTIF démarré sur http://localhost:${PORT}`,
+  );
+  console.log(
+    `   Fait tourner l'application comme si le vrai serveur répondait — aucune`,
+  );
+  console.log(
+    `   donnée réelle, tout est préfixé [DÉMO] côté départements/terminaux.`,
+  );
   console.log(`   Vérifie que .env a bien :`);
   console.log(`     BIOTIME_CENTRAL_URL=http://localhost:${PORT}`);
   console.log(`     BIOTIME_CENTRAL_TOKEN=demo-token-fictif\n`);

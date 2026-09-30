@@ -1,8 +1,20 @@
-import { Injectable, Logger, HttpException, HttpStatus, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, DataSource, In } from 'typeorm';
-import { SuperAppChild, SuperAppPunch, sensFromPunchState, SensPointage, Organisation } from '@app/database';
+import {
+  SuperAppChild,
+  SuperAppPunch,
+  sensFromPunchState,
+  SensPointage,
+  Organisation,
+} from '@app/database';
 import { firstValueFrom } from 'rxjs';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { BiotimeConfigService } from './biotime-config.service';
@@ -32,7 +44,10 @@ export class BiotimeService {
   private readonly jetons = new Map<string, JetonEnCache>();
 
   /** Cache des départements BioTime par école. TTL = 10 min. Évite de refetcher à chaque push. */
-  private readonly deptCache = new Map<string, { data: Map<string, number>; expireLe: Date }>();
+  private readonly deptCache = new Map<
+    string,
+    { data: Map<string, number>; expireLe: Date }
+  >();
   private static readonly DEPT_CACHE_TTL_MS = 10 * 60 * 1000;
 
   constructor(
@@ -57,7 +72,8 @@ export class BiotimeService {
       return enCache.token;
     }
 
-    const { url, username, password } = await this.configService.obtenirIdentifiants(organisationId);
+    const { url, username, password } =
+      await this.configService.obtenirIdentifiants(organisationId);
 
     try {
       const response = await firstValueFrom(
@@ -84,7 +100,10 @@ export class BiotimeService {
       const message = error?.response?.status
         ? `HTTP ${error.response.status} depuis ${url}`
         : error.message;
-      await this.configService.enregistrerEchec(organisationId, `Authentification : ${message}`);
+      await this.configService.enregistrerEchec(
+        organisationId,
+        `Authentification : ${message}`,
+      );
       throw new HttpException(
         `Authentification BioTime impossible pour cette école : ${message}`,
         HttpStatus.BAD_GATEWAY,
@@ -94,13 +113,17 @@ export class BiotimeService {
 
   /** GET authentifié sur le serveur BioTime d'une école. */
   private async lire(organisationId: string, chemin: string): Promise<any> {
-    const { url } = await this.configService.obtenirIdentifiants(organisationId);
+    const { url } =
+      await this.configService.obtenirIdentifiants(organisationId);
     const token = await this.getAuthToken(organisationId);
 
     const appel = (jeton: string) =>
       firstValueFrom(
         this.httpService.get(`${url}${chemin}`, {
-          headers: { 'Content-Type': 'application/json', Authorization: `JWT ${jeton}` },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `JWT ${jeton}`,
+          },
           timeout: 30000,
         }),
       );
@@ -126,12 +149,16 @@ export class BiotimeService {
     chemin: string,
     donnees?: any,
   ): Promise<any> {
-    const { url } = await this.configService.obtenirIdentifiants(organisationId);
+    const { url } =
+      await this.configService.obtenirIdentifiants(organisationId);
     const token = await this.getAuthToken(organisationId);
 
     const envoyer = (jeton: string) => {
       const options = {
-        headers: { 'Content-Type': 'application/json', Authorization: `JWT ${jeton}` },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `JWT ${jeton}`,
+        },
         timeout: 30000,
       };
       const cible = `${url}${chemin}`;
@@ -139,7 +166,9 @@ export class BiotimeService {
         case 'post':
           return firstValueFrom(this.httpService.post(cible, donnees, options));
         case 'patch':
-          return firstValueFrom(this.httpService.patch(cible, donnees, options));
+          return firstValueFrom(
+            this.httpService.patch(cible, donnees, options),
+          );
         case 'delete':
           return firstValueFrom(this.httpService.delete(cible, options));
       }
@@ -164,14 +193,19 @@ export class BiotimeService {
 
   async syncChildren(organisationId: string): Promise<any> {
     try {
-      const data = await this.lire(organisationId, '/personnel/api/employees/?page_size=5000');
+      const data = await this.lire(
+        organisationId,
+        '/personnel/api/employees/?page_size=5000',
+      );
       const employes = data?.data;
       if (!Array.isArray(employes) || employes.length === 0) {
         return { message: 'Aucun employé trouvé sur ce serveur', count: 0 };
       }
 
       // Une seule lecture des enfants déjà connus de cette école.
-      const existants = await this.childRepository.find({ where: { organisationId } });
+      const existants = await this.childRepository.find({
+        where: { organisationId },
+      });
       const parMatricule = new Map(existants.map((c) => [c.empCode, c]));
 
       const aEnregistrer: SuperAppChild[] = [];
@@ -181,7 +215,9 @@ export class BiotimeService {
           empCode: emp.emp_code,
           firstName: emp.first_name,
           lastName: emp.last_name,
-          departmentId: emp.department ? emp.department.id?.toString() : undefined,
+          departmentId: emp.department
+            ? emp.department.id?.toString()
+            : undefined,
           departmentName: emp.department ? emp.department.dept_name : undefined,
           position: emp.position_name,
           hireDate: emp.hire_date ? new Date(emp.hire_date) : undefined,
@@ -197,21 +233,37 @@ export class BiotimeService {
         aEnregistrer.push(
           connu
             ? (Object.assign(connu, champs) as SuperAppChild)
-            : (this.childRepository.create(champs as Partial<SuperAppChild>) as SuperAppChild),
+            : (this.childRepository.create(
+                champs as Partial<SuperAppChild>,
+              ) as SuperAppChild),
         );
       }
 
       await this.childRepository.save(aEnregistrer, { chunk: 200 });
-      await this.configService.enregistrerSucces(organisationId, null, aEnregistrer.length);
+      await this.configService.enregistrerSucces(
+        organisationId,
+        null,
+        aEnregistrer.length,
+      );
 
       this.logger.log(
         `[BioTime] ${aEnregistrer.length} enfant(s) synchronisé(s) pour l'école ${organisationId}`,
       );
-      return { message: 'Synchronisation des employés réussie', count: aEnregistrer.length };
+      return {
+        message: 'Synchronisation des employés réussie',
+        count: aEnregistrer.length,
+      };
     } catch (error: any) {
-      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
-      await this.configService.enregistrerEchec(organisationId, `Annuaire : ${message}`);
-      this.logger.error(`[BioTime] Annuaire école ${organisationId} : ${message}`);
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : error.message;
+      await this.configService.enregistrerEchec(
+        organisationId,
+        `Annuaire : ${message}`,
+      );
+      this.logger.error(
+        `[BioTime] Annuaire école ${organisationId} : ${message}`,
+      );
       throw new HttpException(
         `Synchronisation de l'annuaire impossible : ${message}`,
         HttpStatus.BAD_GATEWAY,
@@ -225,11 +277,20 @@ export class BiotimeService {
 
   async createEmployee(
     organisationId: string,
-    donnees: { emp_code: string; first_name: string; last_name: string; department?: number; card_no?: string },
+    donnees: {
+      emp_code: string;
+      first_name: string;
+      last_name: string;
+      department?: number;
+      card_no?: string;
+    },
   ): Promise<any> {
     try {
       const resultat = await this.appelBiotime(
-        organisationId, 'post', '/personnel/api/employees/', donnees,
+        organisationId,
+        'post',
+        '/personnel/api/employees/',
+        donnees,
       );
       this.logger.log(
         `[BioTime] Employé ${donnees.emp_code} créé sur le serveur de l'école ${organisationId}`,
@@ -237,7 +298,9 @@ export class BiotimeService {
       return resultat;
     } catch (error: any) {
       const detail = error?.response?.data ?? error.message;
-      this.logger.error(`[BioTime] Création employé échouée : ${JSON.stringify(detail)}`);
+      this.logger.error(
+        `[BioTime] Création employé échouée : ${JSON.stringify(detail)}`,
+      );
       throw new HttpException(
         { message: 'Création impossible sur BioTime', detail },
         error?.response?.status ?? HttpStatus.BAD_GATEWAY,
@@ -252,7 +315,10 @@ export class BiotimeService {
   ): Promise<any> {
     try {
       const resultat = await this.appelBiotime(
-        organisationId, 'patch', `/personnel/api/employees/${biotimeId}/`, donnees,
+        organisationId,
+        'patch',
+        `/personnel/api/employees/${biotimeId}/`,
+        donnees,
       );
       this.logger.log(
         `[BioTime] Employé #${biotimeId} mis à jour pour l'école ${organisationId}`,
@@ -260,7 +326,9 @@ export class BiotimeService {
       return resultat;
     } catch (error: any) {
       const detail = error?.response?.data ?? error.message;
-      this.logger.error(`[BioTime] Modification employé échouée : ${JSON.stringify(detail)}`);
+      this.logger.error(
+        `[BioTime] Modification employé échouée : ${JSON.stringify(detail)}`,
+      );
       throw new HttpException(
         { message: 'Modification impossible sur BioTime', detail },
         error?.response?.status ?? HttpStatus.BAD_GATEWAY,
@@ -268,17 +336,24 @@ export class BiotimeService {
     }
   }
 
-  async deleteEmployee(organisationId: string, biotimeId: number): Promise<void> {
+  async deleteEmployee(
+    organisationId: string,
+    biotimeId: number,
+  ): Promise<void> {
     try {
       await this.appelBiotime(
-        organisationId, 'delete', `/personnel/api/employees/${biotimeId}/`,
+        organisationId,
+        'delete',
+        `/personnel/api/employees/${biotimeId}/`,
       );
       this.logger.log(
         `[BioTime] Employé #${biotimeId} supprimé du serveur de l'école ${organisationId}`,
       );
     } catch (error: any) {
       const detail = error?.response?.data ?? error.message;
-      this.logger.error(`[BioTime] Suppression employé échouée : ${JSON.stringify(detail)}`);
+      this.logger.error(
+        `[BioTime] Suppression employé échouée : ${JSON.stringify(detail)}`,
+      );
       throw new HttpException(
         { message: 'Suppression impossible sur BioTime', detail },
         error?.response?.status ?? HttpStatus.BAD_GATEWAY,
@@ -307,15 +382,21 @@ export class BiotimeService {
   async syncPunches(organisationId: string, depuisIso?: string): Promise<any> {
     // Vérifier si l'organisation utilise le serveur central
     const orgRepo = this.centralDataSource.getRepository(Organisation);
-    const organisation = await orgRepo.findOne({ where: { id: organisationId } });
+    const organisation = await orgRepo.findOne({
+      where: { id: organisationId },
+    });
 
     if (!organisation) {
-      throw new NotFoundException(`Organisation ${organisationId} non trouvée.`);
+      throw new NotFoundException(
+        `Organisation ${organisationId} non trouvée.`,
+      );
     }
 
     const config = await this.configService.obtenirPublique(organisationId);
     if (!config) {
-      throw new NotFoundException(`Aucun serveur BioTime configuré pour l'école ${organisationId}.`);
+      throw new NotFoundException(
+        `Aucun serveur BioTime configuré pour l'école ${organisationId}.`,
+      );
     }
 
     const debut = depuisIso
@@ -333,11 +414,12 @@ export class BiotimeService {
       // (`.toISOString()`) — contrairement à l'ancien chemin par-école plus bas,
       // qui a besoin du format `formatBiotime` directement dans l'URL.
       if (organisation.biotimeDepartmentId) {
-        const transactions = await this.biotimeCentralService.getOrganisationTransactions(
-          organisationId,
-          debut,
-          fin,
-        );
+        const transactions =
+          await this.biotimeCentralService.getOrganisationTransactions(
+            organisationId,
+            debut,
+            fin,
+          );
         data = { data: transactions };
         this.logger.log(
           `[BioTime→Central] Récupération ${transactions.length} transactions pour département ${organisation.biotimeDepartmentId}`,
@@ -358,12 +440,18 @@ export class BiotimeService {
       }
 
       // Résolution en masse : un appel pour les enfants, un pour les doublons.
-      const matricules = [...new Set(pointages.map((p: any) => p.emp_code).filter(Boolean))];
-      const identifiants = pointages.map((p: any) => String(p.id)).filter(Boolean);
+      const matricules = [
+        ...new Set(pointages.map((p: any) => p.emp_code).filter(Boolean)),
+      ];
+      const identifiants = pointages
+        .map((p: any) => String(p.id))
+        .filter(Boolean);
 
       const [enfants, dejaVus] = await Promise.all([
         matricules.length
-          ? this.childRepository.find({ where: { organisationId, empCode: In(matricules) } })
+          ? this.childRepository.find({
+              where: { organisationId, empCode: In(matricules) },
+            })
           : Promise.resolve([]),
         identifiants.length
           ? this.punchRepository.find({
@@ -392,7 +480,8 @@ export class BiotimeService {
         }
 
         if (p.terminal_sn) terminauxVus.add(p.terminal_sn);
-        if (!dernierId || Number(identifiant) > Number(dernierId)) dernierId = identifiant;
+        if (!dernierId || Number(identifiant) > Number(dernierId))
+          dernierId = identifiant;
 
         nouveaux.push(
           this.punchRepository.create({
@@ -415,7 +504,11 @@ export class BiotimeService {
         await this.autoRegisterDevice(sn);
       }
 
-      await this.configService.enregistrerSucces(organisationId, dernierId, nouveaux.length);
+      await this.configService.enregistrerSucces(
+        organisationId,
+        dernierId,
+        nouveaux.length,
+      );
 
       this.logger.log(
         `[BioTime] École ${organisationId} : ${nouveaux.length} nouveau(x) pointage(s)` +
@@ -429,9 +522,16 @@ export class BiotimeService {
         fenetre: { debut: debut.toISOString(), fin: fin.toISOString() },
       };
     } catch (error: any) {
-      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
-      await this.configService.enregistrerEchec(organisationId, `Pointages : ${message}`);
-      this.logger.error(`[BioTime] Pointages école ${organisationId} : ${message}`);
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : error.message;
+      await this.configService.enregistrerEchec(
+        organisationId,
+        `Pointages : ${message}`,
+      );
+      this.logger.error(
+        `[BioTime] Pointages école ${organisationId} : ${message}`,
+      );
       throw new HttpException(
         `Synchronisation des pointages impossible : ${message}`,
         HttpStatus.BAD_GATEWAY,
@@ -440,7 +540,11 @@ export class BiotimeService {
   }
 
   /** Synchronise toutes les écoles ayant une configuration active. Utilisé par le planificateur. */
-  async syncToutesLesEcoles(): Promise<{ ecoles: number; total: number; erreurs: number }> {
+  async syncToutesLesEcoles(): Promise<{
+    ecoles: number;
+    total: number;
+    erreurs: number;
+  }> {
     const configs = await this.configService.listerActives();
     let total = 0;
     let erreurs = 0;
@@ -500,7 +604,9 @@ export class BiotimeService {
         organisationId ? [organisationId] : [],
       );
     } catch (err: any) {
-      this.logger.error(`Récupération des équipements impossible : ${err.message}`);
+      this.logger.error(
+        `Récupération des équipements impossible : ${err.message}`,
+      );
       return [];
     }
   }
@@ -524,9 +630,13 @@ export class BiotimeService {
          VALUES ('BADGEUSE', $1, 'ACTIVE', now())`,
         [serialNumber],
       );
-      this.logger.log(`[Inventaire] Badgeuse "${serialNumber}" mise en stock, sans école.`);
+      this.logger.log(
+        `[Inventaire] Badgeuse "${serialNumber}" mise en stock, sans école.`,
+      );
     } catch (err: any) {
-      this.logger.error(`Auto-inscription de ${serialNumber} impossible : ${err.message}`);
+      this.logger.error(
+        `Auto-inscription de ${serialNumber} impossible : ${err.message}`,
+      );
     }
   }
 
@@ -536,7 +646,10 @@ export class BiotimeService {
 
   async getBiotimeTerminals(organisationId: string): Promise<any[]> {
     try {
-      const data = await this.lire(organisationId, '/iclock/api/terminals/?page_size=500');
+      const data = await this.lire(
+        organisationId,
+        '/iclock/api/terminals/?page_size=500',
+      );
       const terminaux = data?.data;
       if (!Array.isArray(terminaux)) return [];
 
@@ -551,8 +664,12 @@ export class BiotimeService {
         platform: t.platform,
       }));
     } catch (error: any) {
-      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
-      this.logger.error(`[BioTime] Lecture terminaux école ${organisationId} : ${message}`);
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : error.message;
+      this.logger.error(
+        `[BioTime] Lecture terminaux école ${organisationId} : ${message}`,
+      );
       throw new HttpException(
         `Lecture des terminaux BioTime impossible : ${message}`,
         HttpStatus.BAD_GATEWAY,
@@ -566,10 +683,15 @@ export class BiotimeService {
 
   async getBiotimeEmployees(organisationId: string): Promise<any[]> {
     try {
-      const data = await this.lire(organisationId, '/personnel/api/employees/?page_size=5000');
+      const data = await this.lire(
+        organisationId,
+        '/personnel/api/employees/?page_size=5000',
+      );
       return data?.data ?? [];
     } catch (error: any) {
-      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : error.message;
       throw new HttpException(
         `Lecture des employés BioTime impossible : ${message}`,
         HttpStatus.BAD_GATEWAY,
@@ -581,7 +703,10 @@ export class BiotimeService {
   // LECTURES POUR LA SUPERVISION (toujours limitées à une école)
   // ───────────────────────────────────────────────────────────────────────────
 
-  async findAllChildren(organisationId: string, dateStr?: string): Promise<SuperAppChild[]> {
+  async findAllChildren(
+    organisationId: string,
+    dateStr?: string,
+  ): Promise<SuperAppChild[]> {
     const children = await this.childRepository.find({
       where: { organisationId },
       relations: { punches: true },
@@ -591,13 +716,18 @@ export class BiotimeService {
     const jour = (dateStr ? new Date(dateStr) : new Date()).toDateString();
     for (const c of children) {
       if (c.punches) {
-        c.punches = c.punches.filter((p) => new Date(p.punchTime).toDateString() === jour);
+        c.punches = c.punches.filter(
+          (p) => new Date(p.punchTime).toDateString() === jour,
+        );
       }
     }
     return children;
   }
 
-  async findAllPunches(organisationId: string, dateStr?: string): Promise<Record<string, any[]>> {
+  async findAllPunches(
+    organisationId: string,
+    dateStr?: string,
+  ): Promise<Record<string, any[]>> {
     const cible = dateStr ? new Date(dateStr) : new Date();
     const debut = new Date(cible);
     debut.setHours(0, 0, 0, 0);
@@ -624,10 +754,15 @@ export class BiotimeService {
       groupes[cle].push({
         id: p.id,
         punchTime: p.punchTime,
-        time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        time: d.toLocaleTimeString('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
         stateCode: p.punchState,
         stateLabel: this.libelleSens(p.punchState),
-        terminal: p.terminalSn ? `Terminal : ${p.terminalSn}` : 'Terminal inconnu',
+        terminal: p.terminalSn
+          ? `Terminal : ${p.terminalSn}`
+          : 'Terminal inconnu',
         child: p.child
           ? {
               empCode: p.child.empCode,
@@ -648,12 +783,19 @@ export class BiotimeService {
     return groupes;
   }
 
-  async getPunchesByEmpCode(organisationId: string, empCode: string): Promise<any[]> {
+  async getPunchesByEmpCode(
+    organisationId: string,
+    empCode: string,
+  ): Promise<any[]> {
     const depuis = new Date();
     depuis.setDate(depuis.getDate() - 60);
 
     const punches = await this.punchRepository.find({
-      where: { organisationId, empCode, punchTime: Between(depuis, new Date()) },
+      where: {
+        organisationId,
+        empCode,
+        punchTime: Between(depuis, new Date()),
+      },
       order: { punchTime: 'DESC' },
     });
 
@@ -663,10 +805,15 @@ export class BiotimeService {
         id: p.id,
         punchTime: p.punchTime,
         date: d.toISOString().split('T')[0],
-        time: d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        time: d.toLocaleTimeString('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
         stateCode: p.punchState,
         stateLabel: this.libelleSens(p.punchState),
-        terminal: p.terminalSn ? `Terminal : ${p.terminalSn}` : 'Terminal inconnu',
+        terminal: p.terminalSn
+          ? `Terminal : ${p.terminalSn}`
+          : 'Terminal inconnu',
       };
     });
   }
@@ -679,13 +826,23 @@ export class BiotimeService {
    * horaires différentes selon les écrans.
    */
   private libelleSens(punchState?: string): string {
-    return sensFromPunchState(punchState) === SensPointage.DESCENTE ? 'DESCENTE' : 'MONTÉE';
+    return sensFromPunchState(punchState) === SensPointage.DESCENTE
+      ? 'DESCENTE'
+      : 'MONTÉE';
   }
 
-  async getEmployeeByEmpCode(organisationId: string, empCode: string): Promise<SuperAppChild> {
-    const child = await this.childRepository.findOne({ where: { organisationId, empCode } });
+  async getEmployeeByEmpCode(
+    organisationId: string,
+    empCode: string,
+  ): Promise<SuperAppChild> {
+    const child = await this.childRepository.findOne({
+      where: { organisationId, empCode },
+    });
     if (!child) {
-      throw new HttpException('Employé introuvable dans cette école', HttpStatus.NOT_FOUND);
+      throw new HttpException(
+        'Employé introuvable dans cette école',
+        HttpStatus.NOT_FOUND,
+      );
     }
     return child;
   }
@@ -697,7 +854,10 @@ export class BiotimeService {
     });
   }
 
-  async getDirectoryBulk(organisationId: string, empCodes: string[]): Promise<SuperAppChild[]> {
+  async getDirectoryBulk(
+    organisationId: string,
+    empCodes: string[],
+  ): Promise<SuperAppChild[]> {
     if (!empCodes?.length) return [];
     return this.childRepository.find({
       where: { organisationId, empCode: In(empCodes) },
@@ -710,10 +870,15 @@ export class BiotimeService {
 
   async getDepartments(organisationId: string): Promise<any[]> {
     try {
-      const data = await this.lire(organisationId, '/personnel/api/departments/?page_size=500');
+      const data = await this.lire(
+        organisationId,
+        '/personnel/api/departments/?page_size=500',
+      );
       return data?.data ?? [];
     } catch (error: any) {
-      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : error.message;
       throw new HttpException(
         `Lecture des départements impossible : ${message}`,
         HttpStatus.BAD_GATEWAY,
@@ -727,7 +892,10 @@ export class BiotimeService {
   ): Promise<any> {
     try {
       const resultat = await this.appelBiotime(
-        organisationId, 'post', '/personnel/api/departments/', donnees,
+        organisationId,
+        'post',
+        '/personnel/api/departments/',
+        donnees,
       );
       this.logger.log(
         `[BioTime] Département "${donnees.dept_name}" créé pour l'école ${organisationId}`,
@@ -749,7 +917,10 @@ export class BiotimeService {
   ): Promise<any> {
     try {
       const resultat = await this.appelBiotime(
-        organisationId, 'patch', `/personnel/api/departments/${deptId}/`, donnees,
+        organisationId,
+        'patch',
+        `/personnel/api/departments/${deptId}/`,
+        donnees,
       );
       this.logger.log(
         `[BioTime] Département #${deptId} mis à jour pour l'école ${organisationId}`,
@@ -758,16 +929,24 @@ export class BiotimeService {
     } catch (error: any) {
       const detail = error?.response?.data ?? error.message;
       throw new HttpException(
-        { message: 'Modification du département impossible sur BioTime', detail },
+        {
+          message: 'Modification du département impossible sur BioTime',
+          detail,
+        },
         error?.response?.status ?? HttpStatus.BAD_GATEWAY,
       );
     }
   }
 
-  async deleteDepartment(organisationId: string, deptId: number): Promise<void> {
+  async deleteDepartment(
+    organisationId: string,
+    deptId: number,
+  ): Promise<void> {
     try {
       await this.appelBiotime(
-        organisationId, 'delete', `/personnel/api/departments/${deptId}/`,
+        organisationId,
+        'delete',
+        `/personnel/api/departments/${deptId}/`,
       );
       this.logger.log(
         `[BioTime] Département #${deptId} supprimé pour l'école ${organisationId}`,
@@ -775,7 +954,10 @@ export class BiotimeService {
     } catch (error: any) {
       const detail = error?.response?.data ?? error.message;
       throw new HttpException(
-        { message: 'Suppression du département impossible sur BioTime', detail },
+        {
+          message: 'Suppression du département impossible sur BioTime',
+          detail,
+        },
         error?.response?.status ?? HttpStatus.BAD_GATEWAY,
       );
     }
@@ -787,10 +969,15 @@ export class BiotimeService {
 
   async getAreas(organisationId: string): Promise<any[]> {
     try {
-      const data = await this.lire(organisationId, '/personnel/api/areas/?page_size=500');
+      const data = await this.lire(
+        organisationId,
+        '/personnel/api/areas/?page_size=500',
+      );
       return data?.data ?? [];
     } catch (error: any) {
-      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : error.message;
       throw new HttpException(
         `Lecture des zones impossible : ${message}`,
         HttpStatus.BAD_GATEWAY,
@@ -804,7 +991,10 @@ export class BiotimeService {
   ): Promise<any> {
     try {
       const resultat = await this.appelBiotime(
-        organisationId, 'post', '/personnel/api/areas/', donnees,
+        organisationId,
+        'post',
+        '/personnel/api/areas/',
+        donnees,
       );
       this.logger.log(
         `[BioTime] Zone "${donnees.area_name}" créée pour l'école ${organisationId}`,
@@ -826,7 +1016,10 @@ export class BiotimeService {
   ): Promise<any> {
     try {
       const resultat = await this.appelBiotime(
-        organisationId, 'patch', `/personnel/api/areas/${areaId}/`, donnees,
+        organisationId,
+        'patch',
+        `/personnel/api/areas/${areaId}/`,
+        donnees,
       );
       this.logger.log(
         `[BioTime] Zone #${areaId} mise à jour pour l'école ${organisationId}`,
@@ -844,7 +1037,9 @@ export class BiotimeService {
   async deleteArea(organisationId: string, areaId: number): Promise<void> {
     try {
       await this.appelBiotime(
-        organisationId, 'delete', `/personnel/api/areas/${areaId}/`,
+        organisationId,
+        'delete',
+        `/personnel/api/areas/${areaId}/`,
       );
       this.logger.log(
         `[BioTime] Zone #${areaId} supprimée pour l'école ${organisationId}`,
@@ -866,7 +1061,9 @@ export class BiotimeService {
    * Charge (ou renvoie depuis le cache) la table className→deptId pour une école.
    * Un seul GET /departments par tranche de 10 min, même pour 3000 pushes.
    */
-  private async getDeptMap(organisationId: string): Promise<Map<string, number>> {
+  private async getDeptMap(
+    organisationId: string,
+  ): Promise<Map<string, number>> {
     const cached = this.deptCache.get(organisationId);
     if (cached && cached.expireLe > new Date()) return cached.data;
 
@@ -891,7 +1088,10 @@ export class BiotimeService {
    * Résout un nom de classe vers un ID de département BioTime.
    * Utilise le cache, crée le département s'il est absent, met à jour le cache.
    */
-  async resolveDepartmentId(organisationId: string, className: string): Promise<number | null> {
+  async resolveDepartmentId(
+    organisationId: string,
+    className: string,
+  ): Promise<number | null> {
     if (!className) return null;
 
     try {
@@ -899,7 +1099,9 @@ export class BiotimeService {
       const existant = map.get(className.toLowerCase());
       if (existant) return existant;
 
-      const nouveau = await this.createDepartment(organisationId, { dept_name: className });
+      const nouveau = await this.createDepartment(organisationId, {
+        dept_name: className,
+      });
       const newId = nouveau?.id ?? null;
       if (newId) map.set(className.toLowerCase(), newId);
 
@@ -938,10 +1140,17 @@ export class BiotimeService {
       className?: string;
       biotimeId?: number;
     },
-  ): Promise<{ biotimeId: number | null; action: 'created' | 'updated' | 'skipped'; error?: string; biotimeDepartmentId?: number }> {
+  ): Promise<{
+    biotimeId: number | null;
+    action: 'created' | 'updated' | 'skipped';
+    error?: string;
+    biotimeDepartmentId?: number;
+  }> {
     // Récupérer l'organisation pour déterminer si elle utilise le serveur central
     const orgRepo = this.centralDataSource.getRepository(Organisation);
-    const organisation = await orgRepo.findOne({ where: { id: organisationId } });
+    const organisation = await orgRepo.findOne({
+      where: { id: organisationId },
+    });
 
     if (!organisation) {
       return {
@@ -1022,7 +1231,10 @@ export class BiotimeService {
       };
       if (departmentId !== null) payload.department = departmentId;
 
-      const resultat = await this.createEmployee(organisationId, payload as any);
+      const resultat = await this.createEmployee(
+        organisationId,
+        payload as any,
+      );
       return { biotimeId: resultat?.id ?? null, action: 'created' };
     } catch (error: any) {
       const message = error?.response?.data?.detail
@@ -1031,7 +1243,11 @@ export class BiotimeService {
       this.logger.warn(
         `[BioTime→] Push échoué pour ${donnees.empCode} (école ${organisationId}) : ${message}`,
       );
-      return { biotimeId: donnees.biotimeId ?? null, action: 'skipped', error: message };
+      return {
+        biotimeId: donnees.biotimeId ?? null,
+        action: 'skipped',
+        error: message,
+      };
     }
   }
 
@@ -1051,8 +1267,20 @@ export class BiotimeService {
       className?: string;
       biotimeId?: number;
     }>,
-  ): Promise<Array<{ childId: string; biotimeId: number | null; action: string; error?: string }>> {
-    const resultats: Array<{ childId: string; biotimeId: number | null; action: string; error?: string }> = [];
+  ): Promise<
+    Array<{
+      childId: string;
+      biotimeId: number | null;
+      action: string;
+      error?: string;
+    }>
+  > {
+    const resultats: Array<{
+      childId: string;
+      biotimeId: number | null;
+      action: string;
+      error?: string;
+    }> = [];
 
     try {
       await this.getAuthToken(organisationId);
@@ -1069,7 +1297,9 @@ export class BiotimeService {
     try {
       await this.getDeptMap(organisationId);
     } catch {
-      this.logger.warn(`[BioTime→] Impossible de charger les départements, push sans département.`);
+      this.logger.warn(
+        `[BioTime→] Impossible de charger les départements, push sans département.`,
+      );
     }
 
     for (const enfant of enfants) {
@@ -1126,7 +1356,9 @@ export class BiotimeService {
       }
 
       try {
-        const nouveau = await this.createDepartment(organisationId, { dept_name: name });
+        const nouveau = await this.createDepartment(organisationId, {
+          dept_name: name,
+        });
         if (nouveau?.id) map.set(name.toLowerCase(), nouveau.id);
         created.push(name);
       } catch (error: any) {
@@ -1148,10 +1380,15 @@ export class BiotimeService {
 
   async getPositions(organisationId: string): Promise<any[]> {
     try {
-      const data = await this.lire(organisationId, '/personnel/api/positions/?page_size=500');
+      const data = await this.lire(
+        organisationId,
+        '/personnel/api/positions/?page_size=500',
+      );
       return data?.data ?? [];
     } catch (error: any) {
-      const message = error?.response?.status ? `HTTP ${error.response.status}` : error.message;
+      const message = error?.response?.status
+        ? `HTTP ${error.response.status}`
+        : error.message;
       throw new HttpException(
         `Lecture des postes impossible : ${message}`,
         HttpStatus.BAD_GATEWAY,
@@ -1165,7 +1402,10 @@ export class BiotimeService {
   ): Promise<any> {
     try {
       const resultat = await this.appelBiotime(
-        organisationId, 'post', '/personnel/api/positions/', donnees,
+        organisationId,
+        'post',
+        '/personnel/api/positions/',
+        donnees,
       );
       this.logger.log(
         `[BioTime] Poste "${donnees.position_name}" créé pour l'école ${organisationId}`,
@@ -1187,7 +1427,10 @@ export class BiotimeService {
   ): Promise<any> {
     try {
       const resultat = await this.appelBiotime(
-        organisationId, 'patch', `/personnel/api/positions/${posId}/`, donnees,
+        organisationId,
+        'patch',
+        `/personnel/api/positions/${posId}/`,
+        donnees,
       );
       this.logger.log(
         `[BioTime] Poste #${posId} mis à jour pour l'école ${organisationId}`,
@@ -1205,7 +1448,9 @@ export class BiotimeService {
   async deletePosition(organisationId: string, posId: number): Promise<void> {
     try {
       await this.appelBiotime(
-        organisationId, 'delete', `/personnel/api/positions/${posId}/`,
+        organisationId,
+        'delete',
+        `/personnel/api/positions/${posId}/`,
       );
       this.logger.log(
         `[BioTime] Poste #${posId} supprimé pour l'école ${organisationId}`,

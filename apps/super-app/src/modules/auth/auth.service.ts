@@ -13,7 +13,14 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
-import { User, UserStatus, UserRole, Subscription, SubscriptionPlan, SubscriptionStatus } from '@app/database';
+import {
+  User,
+  UserStatus,
+  UserRole,
+  Subscription,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from '@app/database';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { CandidatureDirecteurDto } from './dto/candidature-directeur.dto';
@@ -61,7 +68,16 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<User | null> {
     const user = await this.userRepository.findOne({
       where: { email },
-      select: { id: true, email: true, password: true, role: true, status: true, firstName: true, lastName: true, organisationId: true },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        role: true,
+        status: true,
+        firstName: true,
+        lastName: true,
+        organisationId: true,
+      },
     });
 
     if (!user) return null;
@@ -70,14 +86,18 @@ export class AuthService {
     if (!isPasswordValid) return null;
 
     if (user.status === UserStatus.SUSPENDED) {
-      throw new UnauthorizedException('Compte suspendu. Contactez l\'administrateur.');
+      throw new UnauthorizedException(
+        "Compte suspendu. Contactez l'administrateur.",
+      );
     }
 
     // Auto-inscription (voir `candidatureDirecteur`) en attente de validation
     // par le Super Admin — voir UsersService.activate. Aucune session tant
     // que ce n'est pas fait, pas un simple écran d'attente sans accès.
     if (user.status === UserStatus.PENDING) {
-      throw new UnauthorizedException("Votre compte est en attente d'activation par l'administrateur.");
+      throw new UnauthorizedException(
+        "Votre compte est en attente d'activation par l'administrateur.",
+      );
     }
 
     return user;
@@ -92,7 +112,9 @@ export class AuthService {
    * puisse se connecter et créer lui-même son école (voir `creerMonEcole`).
    */
   async candidatureDirecteur(dto: CandidatureDirecteurDto): Promise<void> {
-    const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+    const existing = await this.userRepository.findOne({
+      where: { email: dto.email },
+    });
     if (existing) {
       throw new ConflictException('Un compte avec cet email existe déjà');
     }
@@ -117,7 +139,10 @@ export class AuthService {
    * le directeur pour son propre compte plutôt que par le Super Admin pour
    * un tiers. Un directeur ne peut créer qu'une seule école.
    */
-  async creerMonEcole(userId: string, dto: CreateMySchoolDto): Promise<{ organisation: any; tokens: AuthTokens }> {
+  async creerMonEcole(
+    userId: string,
+    dto: CreateMySchoolDto,
+  ): Promise<{ organisation: any; tokens: AuthTokens }> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('Utilisateur introuvable');
@@ -135,11 +160,15 @@ export class AuthService {
 
     // 2. Déclencher le provisionnement de la base de données.
     // En cas d'échec on annule la création : sinon l'école existerait sans base.
-    const provisioning = await this.provisioningService.provisionOrganisation(organisation.id);
+    const provisioning = await this.provisioningService.provisionOrganisation(
+      organisation.id,
+    );
     if (provisioning.status === 'error') {
       await this.organisationsService.remove(organisation.id);
       // La base a pu être créée avant l'échec (l'organisation n'est alors pas marquée provisionnée)
-      await this.provisioningService.dropOrganisationDatabase(provisioning.dbName);
+      await this.provisioningService.dropOrganisationDatabase(
+        provisioning.dbName,
+      );
       throw new InternalServerErrorException(
         "La création de la base de données de l'école a échoué. Aucune école n'a été créée, veuillez réessayer.",
       );
@@ -179,11 +208,17 @@ export class AuthService {
    * vient de choisir son propre mot de passe, la connexion automatique est
    * légitime ici.
    */
-  async rejoindreEcole(dto: InscriptionDirecteurDto): Promise<{ user: Partial<User>; tokens: AuthTokens }> {
-    const organisationId = await this.directorInvitationService.verifier(dto.token);
+  async rejoindreEcole(
+    dto: InscriptionDirecteurDto,
+  ): Promise<{ user: Partial<User>; tokens: AuthTokens }> {
+    const organisationId = await this.directorInvitationService.verifier(
+      dto.token,
+    );
     await this.organisationsService.findOne(organisationId); // 404 si l'école n'existe plus
 
-    const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+    const existing = await this.userRepository.findOne({
+      where: { email: dto.email },
+    });
     if (existing) {
       throw new ConflictException('Un compte avec cet email existe déjà');
     }
@@ -203,14 +238,18 @@ export class AuthService {
     const tokens = await this.generateTokens(savedUser);
     await this.saveRefreshToken(savedUser.id, tokens.refreshToken);
 
-    const { password: _pw, ...userWithoutPassword } = savedUser as User & { password: string };
+    const { password: _pw, ...userWithoutPassword } = savedUser as User & {
+      password: string;
+    };
     return { user: userWithoutPassword, tokens };
   }
 
   /**
    * Inscription d'un nouvel utilisateur
    */
-  async register(registerDto: RegisterDto): Promise<{ user: Partial<User>; tokens: AuthTokens }> {
+  async register(
+    registerDto: RegisterDto,
+  ): Promise<{ user: Partial<User>; tokens: AuthTokens }> {
     const existing = await this.userRepository.findOne({
       where: { email: registerDto.email },
     });
@@ -231,21 +270,29 @@ export class AuthService {
     const tokens = await this.generateTokens(savedUser);
     await this.saveRefreshToken(savedUser.id, tokens.refreshToken);
 
-    const { password: _pw, ...userWithoutPassword } = savedUser as User & { password: string };
+    const { password: _pw, ...userWithoutPassword } = savedUser as User & {
+      password: string;
+    };
     return { user: userWithoutPassword, tokens };
   }
 
   /**
    * Connexion
    */
-  async login(user: User): Promise<{ user: Partial<User>; tokens: AuthTokens }> {
+  async login(
+    user: User,
+  ): Promise<{ user: Partial<User>; tokens: AuthTokens }> {
     const tokens = await this.generateTokens(user);
     await this.saveRefreshToken(user.id, tokens.refreshToken);
 
     // Mettre à jour la date de dernière connexion
     await this.userRepository.update(user.id, { lastLoginAt: new Date() });
 
-    const { password: _pw, refreshToken: _rt, ...userWithoutSensitive } = user as User & { password: string; refreshToken: string };
+    const {
+      password: _pw,
+      refreshToken: _rt,
+      ...userWithoutSensitive
+    } = user as User & { password: string; refreshToken: string };
     return { user: userWithoutSensitive, tokens };
   }
 
@@ -253,23 +300,37 @@ export class AuthService {
    * Déconnexion – suppression du refresh token
    */
   async logout(userId: string): Promise<void> {
-    await this.userRepository.update(userId, { refreshToken: null as unknown as string });
+    await this.userRepository.update(userId, {
+      refreshToken: null as unknown as string,
+    });
   }
 
   /**
    * Refresh tokens
    */
-  async refreshTokens(userId: string, refreshToken: string): Promise<AuthTokens> {
+  async refreshTokens(
+    userId: string,
+    refreshToken: string,
+  ): Promise<AuthTokens> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      select: { id: true, email: true, role: true, organisationId: true, refreshToken: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        organisationId: true,
+        refreshToken: true,
+      },
     });
 
     if (!user || !user.refreshToken) {
       throw new UnauthorizedException('Accès refusé');
     }
 
-    const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refreshToken);
+    const isRefreshTokenValid = await bcrypt.compare(
+      refreshToken,
+      user.refreshToken,
+    );
     if (!isRefreshTokenValid) {
       throw new UnauthorizedException('Refresh token invalide');
     }
@@ -292,7 +353,9 @@ export class AuthService {
     let allowAdditionalDirectors = false;
     if (user.role === UserRole.SCHOOL_ADMIN && user.organisationId) {
       try {
-        const organisation = await this.organisationsService.findOne(user.organisationId);
+        const organisation = await this.organisationsService.findOne(
+          user.organisationId,
+        );
         allowedFeatures = organisation.allowedFeatures;
         allowAdditionalDirectors = organisation.allowAdditionalDirectors;
       } catch {
@@ -314,11 +377,17 @@ export class AuthService {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(payload, {
         secret: jwtSecretRequis(this.configService),
-        expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '7d') as any,
+        expiresIn: this.configService.get<string>(
+          'JWT_EXPIRES_IN',
+          '7d',
+        ) as any,
       }),
       this.jwtService.signAsync(payload, {
         secret: this.configService.get<string>('JWT_REFRESH_SECRET', 'secret'),
-        expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRES_IN', '30d') as any,
+        expiresIn: this.configService.get<string>(
+          'JWT_REFRESH_EXPIRES_IN',
+          '30d',
+        ) as any,
       }),
     ]);
 
@@ -328,9 +397,14 @@ export class AuthService {
   /**
    * Sauvegarde le hash du refresh token
    */
-  private async saveRefreshToken(userId: string, refreshToken: string): Promise<void> {
+  private async saveRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<void> {
     const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    await this.userRepository.update(userId, { refreshToken: hashedRefreshToken });
+    await this.userRepository.update(userId, {
+      refreshToken: hashedRefreshToken,
+    });
   }
 
   /**
@@ -341,7 +415,10 @@ export class AuthService {
     if (!user) return; // Sécurité : On ne révèle pas si l'email existe ou non
 
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenHash = crypto
+      .createHash('sha256')
+      .update(resetToken)
+      .digest('hex');
 
     user.resetPasswordToken = resetTokenHash;
     user.resetPasswordExpires = new Date(Date.now() + 3600000); // Valable 1 heure
@@ -349,8 +426,14 @@ export class AuthService {
     await this.userRepository.save(user);
 
     // Simulation de l'envoi d'email
-    Logger.log(`[SIMULATION EMAIL] Réinitialisation demandée pour ${email}`, 'AuthService');
-    Logger.log(`[SIMULATION EMAIL] Cliquez ici : http://localhost:5173/reset-password?token=${resetToken}`, 'AuthService');
+    Logger.log(
+      `[SIMULATION EMAIL] Réinitialisation demandée pour ${email}`,
+      'AuthService',
+    );
+    Logger.log(
+      `[SIMULATION EMAIL] Cliquez ici : http://localhost:5173/reset-password?token=${resetToken}`,
+      'AuthService',
+    );
   }
 
   /**
@@ -363,14 +446,19 @@ export class AuthService {
    * compte était `PENDING` (jamais encore activé), il passe `ACTIVE` ici.
    */
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const resetTokenHash = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
 
     const user = await this.userRepository.findOne({
       where: { resetPasswordToken: resetTokenHash },
     });
 
     if (!user || user.resetPasswordExpires < new Date()) {
-      throw new BadRequestException('Le jeton de réinitialisation est invalide ou a expiré');
+      throw new BadRequestException(
+        'Le jeton de réinitialisation est invalide ou a expiré',
+      );
     }
 
     user.password = await bcrypt.hash(newPassword, 12);
@@ -394,7 +482,9 @@ export class AuthService {
     }
 
     if (dto.email && dto.email !== user.email) {
-      const existing = await this.userRepository.findOne({ where: { email: dto.email } });
+      const existing = await this.userRepository.findOne({
+        where: { email: dto.email },
+      });
       if (existing) {
         throw new ConflictException('Un compte avec cet email existe déjà');
       }
@@ -403,7 +493,11 @@ export class AuthService {
     Object.assign(user, dto);
     const saved = await this.userRepository.save(user);
 
-    const { password: _pw, refreshToken: _rt, ...userWithoutSensitive } = saved as User & {
+    const {
+      password: _pw,
+      refreshToken: _rt,
+      ...userWithoutSensitive
+    } = saved as User & {
       password: string;
       refreshToken: string;
     };
@@ -424,7 +518,10 @@ export class AuthService {
       throw new NotFoundException('Utilisateur introuvable');
     }
 
-    const isCurrentPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+    const isCurrentPasswordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
     if (!isCurrentPasswordValid) {
       throw new UnauthorizedException('Mot de passe actuel incorrect');
     }

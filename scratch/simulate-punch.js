@@ -11,7 +11,7 @@ async function simulatePunch(state) {
     punch_time: new Date().toISOString().replace('T', ' ').substring(0, 19),
     punch_state: state, // 0 = Check-In (Montée), 1 = Check-Out (Descente)
     verify_type: 1, // 1 = Empreinte
-    terminal_sn: TERMINAL_SN
+    terminal_sn: TERMINAL_SN,
   };
 
   try {

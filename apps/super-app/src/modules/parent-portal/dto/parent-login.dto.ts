@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 export class ParentLoginDto {
-  @ApiProperty({ description: "Email ou numéro de téléphone du parent" })
+  @ApiProperty({ description: 'Email ou numéro de téléphone du parent' })
   @IsNotEmpty()
   @IsString()
   emailOrPhone: string;
@@ -12,7 +12,10 @@ export class ParentLoginDto {
   @IsString()
   pinCode: string;
 
-  @ApiProperty({ description: "Code unique de l'école (optionnel)", required: false })
+  @ApiProperty({
+    description: "Code unique de l'école (optionnel)",
+    required: false,
+  })
   @IsOptional()
   @IsString()
   schoolCode?: string;

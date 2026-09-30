@@ -6,7 +6,9 @@ import { GatewayService } from './gateway.service';
 
 async function bootstrap() {
   // bodyParser désactivé : le corps des requêtes doit être relayé tel quel aux services
-  const app = await NestFactory.create<NestExpressApplication>(GatewayModule, { bodyParser: false });
+  const app = await NestFactory.create<NestExpressApplication>(GatewayModule, {
+    bodyParser: false,
+  });
 
   app.enableCors();
 
@@ -22,9 +24,13 @@ async function bootstrap() {
   await app.listen(port);
 
   // Socket.IO (flux matériel temps réel) : relais des connexions WebSocket
-  app.getHttpServer().on('upgrade', (req, socket, head) => gateway.upgrade(req, socket, head));
+  app
+    .getHttpServer()
+    .on('upgrade', (req, socket, head) => gateway.upgrade(req, socket, head));
 
-  console.log(`\n🚪 SMARTBUS API Gateway running on: http://localhost:${port}\n`);
+  console.log(
+    `\n🚪 SMARTBUS API Gateway running on: http://localhost:${port}\n`,
+  );
 }
 
 bootstrap();

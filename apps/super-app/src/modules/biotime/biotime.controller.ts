@@ -24,7 +24,13 @@ import {
 } from '@nestjs/swagger';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { JwtAuthGuard, RolesGuard, Roles, UserRole, CurrentUser } from '@app/common';
+import {
+  JwtAuthGuard,
+  RolesGuard,
+  Roles,
+  UserRole,
+  CurrentUser,
+} from '@app/common';
 import { BiotimeService } from './biotime.service';
 import {
   CreateBiotimeEmployeeDto,
@@ -76,7 +82,10 @@ export class BiotimeController {
 
   @Get('mon-ecole/biotime-employees')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Employés lus directement depuis le serveur BioTime (avec ID internes)" })
+  @ApiOperation({
+    summary:
+      'Employés lus directement depuis le serveur BioTime (avec ID internes)',
+  })
   getMonBiotimeEmployees(@CurrentUser() user: { organisationId?: string }) {
     return this.biotimeService.getBiotimeEmployees(this.ecoleDe(user));
   }
@@ -87,14 +96,21 @@ export class BiotimeController {
   @ApiOperation({ summary: "Synchronise l'annuaire de sa propre école" })
   async syncMonChildren(@CurrentUser() user: { organisationId?: string }) {
     const organisationId = this.ecoleDe(user);
-    const job = await this.biotimeQueue.add('sync-children', { organisationId });
-    return { message: "Synchronisation de l'annuaire mise en file.", jobId: job.id };
+    const job = await this.biotimeQueue.add('sync-children', {
+      organisationId,
+    });
+    return {
+      message: "Synchronisation de l'annuaire mise en file.",
+      jobId: job.id,
+    };
   }
 
   @Post('mon-ecole/push-child')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Pousse un élève vers le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Pousse un élève vers le serveur BioTime de sa propre école',
+  })
   @ApiBody({
     schema: {
       example: {
@@ -108,7 +124,14 @@ export class BiotimeController {
   })
   pushMonChild(
     @CurrentUser() user: { organisationId?: string },
-    @Body() body: { empCode: string; firstName: string; lastName: string; className?: string; biotimeId?: number },
+    @Body()
+    body: {
+      empCode: string;
+      firstName: string;
+      lastName: string;
+      className?: string;
+      biotimeId?: number;
+    },
   ) {
     return this.biotimeService.pushChild(this.ecoleDe(user), body);
   }
@@ -116,21 +139,34 @@ export class BiotimeController {
   @Post('mon-ecole/push-children-batch')
   @HttpCode(HttpStatus.ACCEPTED)
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Pousse un lot d'élèves vers BioTime (async via BullMQ)" })
+  @ApiOperation({
+    summary: "Pousse un lot d'élèves vers BioTime (async via BullMQ)",
+  })
   @ApiBody({
     schema: {
       example: {
         enfants: [
-          { childId: 'uuid', empCode: '10042', firstName: 'Aya', lastName: 'Konan', className: '6ème A' },
+          {
+            childId: 'uuid',
+            empCode: '10042',
+            firstName: 'Aya',
+            lastName: 'Konan',
+            className: '6ème A',
+          },
         ],
       },
     },
   })
   async pushMonChildrenBatch(
     @CurrentUser() user: { organisationId?: string },
-    @Body('enfants') enfants: Array<{
-      childId: string; empCode: string; firstName: string; lastName: string;
-      className?: string; biotimeId?: number;
+    @Body('enfants')
+    enfants: Array<{
+      childId: string;
+      empCode: string;
+      firstName: string;
+      lastName: string;
+      className?: string;
+      biotimeId?: number;
     }>,
   ) {
     const organisationId = this.ecoleDe(user);
@@ -147,18 +183,23 @@ export class BiotimeController {
   @Post('mon-ecole/sync-departments')
   @HttpCode(HttpStatus.OK)
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Synchronise les classes vers les départements BioTime" })
+  @ApiOperation({
+    summary: 'Synchronise les classes vers les départements BioTime',
+  })
   @ApiBody({ schema: { example: { classNames: ['6ème A', '5ème B', 'CM2'] } } })
   syncMonDepartments(
     @CurrentUser() user: { organisationId?: string },
     @Body('classNames') classNames: string[],
   ) {
-    return this.biotimeService.syncDepartmentsFromClasses(this.ecoleDe(user), classNames ?? []);
+    return this.biotimeService.syncDepartmentsFromClasses(
+      this.ecoleDe(user),
+      classNames ?? [],
+    );
   }
 
   @Get('mon-ecole/directory')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Répertoire BioTime de sa propre école" })
+  @ApiOperation({ summary: 'Répertoire BioTime de sa propre école' })
   getMonDirectory(@CurrentUser() user: { organisationId?: string }) {
     return this.biotimeService.getDirectory(this.ecoleDe(user));
   }
@@ -177,12 +218,17 @@ export class BiotimeController {
 
   @Get('mon-ecole/employee/:empCode')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Informations BioTime d'un élève de sa propre école" })
+  @ApiOperation({
+    summary: "Informations BioTime d'un élève de sa propre école",
+  })
   getMonEmployee(
     @CurrentUser() user: { organisationId?: string },
     @Param('empCode') empCode: string,
   ) {
-    return this.biotimeService.getEmployeeByEmpCode(this.ecoleDe(user), empCode);
+    return this.biotimeService.getEmployeeByEmpCode(
+      this.ecoleDe(user),
+      empCode,
+    );
   }
 
   @Get('mon-ecole/punches/empcode/:empCode')
@@ -199,7 +245,9 @@ export class BiotimeController {
 
   @Post('mon-ecole/employees')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Crée un employé sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Crée un employé sur le serveur BioTime de sa propre école',
+  })
   createMonEmployee(
     @CurrentUser() user: { organisationId?: string },
     @Body() dto: CreateBiotimeEmployeeDto,
@@ -209,18 +257,26 @@ export class BiotimeController {
 
   @Patch('mon-ecole/employees/:biotimeId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Met à jour un employé sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Met à jour un employé sur le serveur BioTime de sa propre école',
+  })
   updateMonEmployee(
     @CurrentUser() user: { organisationId?: string },
     @Param('biotimeId', ParseIntPipe) biotimeId: number,
     @Body() dto: UpdateBiotimeEmployeeDto,
   ) {
-    return this.biotimeService.updateEmployee(this.ecoleDe(user), biotimeId, dto);
+    return this.biotimeService.updateEmployee(
+      this.ecoleDe(user),
+      biotimeId,
+      dto,
+    );
   }
 
   @Delete('mon-ecole/employees/:biotimeId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Supprime un employé sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Supprime un employé sur le serveur BioTime de sa propre école',
+  })
   deleteMonEmployee(
     @CurrentUser() user: { organisationId?: string },
     @Param('biotimeId', ParseIntPipe) biotimeId: number,
@@ -230,21 +286,25 @@ export class BiotimeController {
 
   @Get('mon-ecole/biotime-terminals')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Liste les terminaux BioTime de sa propre école" })
+  @ApiOperation({ summary: 'Liste les terminaux BioTime de sa propre école' })
   getMonBiotimeTerminals(@CurrentUser() user: { organisationId?: string }) {
     return this.biotimeService.getBiotimeTerminals(this.ecoleDe(user));
   }
 
   @Get('mon-ecole/departments')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Liste les départements BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Liste les départements BioTime de sa propre école',
+  })
   getMonDepartments(@CurrentUser() user: { organisationId?: string }) {
     return this.biotimeService.getDepartments(this.ecoleDe(user));
   }
 
   @Post('mon-ecole/departments')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Crée un département sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Crée un département sur le serveur BioTime de sa propre école',
+  })
   createMonDepartment(
     @CurrentUser() user: { organisationId?: string },
     @Body() dto: CreateBiotimeDepartmentDto,
@@ -254,18 +314,28 @@ export class BiotimeController {
 
   @Patch('mon-ecole/departments/:deptId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Met à jour un département sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary:
+      'Met à jour un département sur le serveur BioTime de sa propre école',
+  })
   updateMonDepartment(
     @CurrentUser() user: { organisationId?: string },
     @Param('deptId', ParseIntPipe) deptId: number,
     @Body() dto: UpdateBiotimeDepartmentDto,
   ) {
-    return this.biotimeService.updateDepartment(this.ecoleDe(user), deptId, dto);
+    return this.biotimeService.updateDepartment(
+      this.ecoleDe(user),
+      deptId,
+      dto,
+    );
   }
 
   @Delete('mon-ecole/departments/:deptId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Supprime un département sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary:
+      'Supprime un département sur le serveur BioTime de sa propre école',
+  })
   deleteMonDepartment(
     @CurrentUser() user: { organisationId?: string },
     @Param('deptId', ParseIntPipe) deptId: number,
@@ -275,14 +345,16 @@ export class BiotimeController {
 
   @Get('mon-ecole/areas')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Liste les zones BioTime de sa propre école" })
+  @ApiOperation({ summary: 'Liste les zones BioTime de sa propre école' })
   getMonAreas(@CurrentUser() user: { organisationId?: string }) {
     return this.biotimeService.getAreas(this.ecoleDe(user));
   }
 
   @Post('mon-ecole/areas')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Crée une zone sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Crée une zone sur le serveur BioTime de sa propre école',
+  })
   createMonArea(
     @CurrentUser() user: { organisationId?: string },
     @Body() dto: CreateBiotimeAreaDto,
@@ -292,7 +364,9 @@ export class BiotimeController {
 
   @Patch('mon-ecole/areas/:areaId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Met à jour une zone sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Met à jour une zone sur le serveur BioTime de sa propre école',
+  })
   updateMonArea(
     @CurrentUser() user: { organisationId?: string },
     @Param('areaId', ParseIntPipe) areaId: number,
@@ -303,7 +377,9 @@ export class BiotimeController {
 
   @Delete('mon-ecole/areas/:areaId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Supprime une zone sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Supprime une zone sur le serveur BioTime de sa propre école',
+  })
   deleteMonArea(
     @CurrentUser() user: { organisationId?: string },
     @Param('areaId', ParseIntPipe) areaId: number,
@@ -313,14 +389,16 @@ export class BiotimeController {
 
   @Get('mon-ecole/positions')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Liste les postes BioTime de sa propre école" })
+  @ApiOperation({ summary: 'Liste les postes BioTime de sa propre école' })
   getMonPositions(@CurrentUser() user: { organisationId?: string }) {
     return this.biotimeService.getPositions(this.ecoleDe(user));
   }
 
   @Post('mon-ecole/positions')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Crée un poste sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Crée un poste sur le serveur BioTime de sa propre école',
+  })
   createMonPosition(
     @CurrentUser() user: { organisationId?: string },
     @Body() dto: CreateBiotimePositionDto,
@@ -330,7 +408,9 @@ export class BiotimeController {
 
   @Patch('mon-ecole/positions/:posId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Met à jour un poste sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Met à jour un poste sur le serveur BioTime de sa propre école',
+  })
   updateMonPosition(
     @CurrentUser() user: { organisationId?: string },
     @Param('posId', ParseIntPipe) posId: number,
@@ -341,7 +421,9 @@ export class BiotimeController {
 
   @Delete('mon-ecole/positions/:posId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Supprime un poste sur le serveur BioTime de sa propre école" })
+  @ApiOperation({
+    summary: 'Supprime un poste sur le serveur BioTime de sa propre école',
+  })
   deleteMonPosition(
     @CurrentUser() user: { organisationId?: string },
     @Param('posId', ParseIntPipe) posId: number,
@@ -362,41 +444,70 @@ export class BiotimeController {
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: "Synchronise l'annuaire des enfants d'une école" })
   async syncChildren(@Param('organisationId') organisationId: string) {
-    const job = await this.biotimeQueue.add('sync-children', { organisationId });
-    return { message: "Synchronisation de l'annuaire mise en file.", jobId: job.id };
+    const job = await this.biotimeQueue.add('sync-children', {
+      organisationId,
+    });
+    return {
+      message: "Synchronisation de l'annuaire mise en file.",
+      jobId: job.id,
+    };
   }
 
   @Post(':organisationId/sync-punches')
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({ summary: "Synchronise les pointages d'une école" })
-  @ApiQuery({ name: 'depuis', required: false, description: 'ISO. Par défaut : dernier passage.' })
+  @ApiQuery({
+    name: 'depuis',
+    required: false,
+    description: 'ISO. Par défaut : dernier passage.',
+  })
   async syncPunches(
     @Param('organisationId') organisationId: string,
     @Query('depuis') depuis?: string,
   ) {
-    const job = await this.biotimeQueue.add('sync-punches', { organisationId, depuis });
-    return { message: 'Synchronisation des pointages mise en file.', jobId: job.id };
+    const job = await this.biotimeQueue.add('sync-punches', {
+      organisationId,
+      depuis,
+    });
+    return {
+      message: 'Synchronisation des pointages mise en file.',
+      jobId: job.id,
+    };
   }
 
   // ── Lectures de supervision ─────────────────────────────────────────────
 
   @Get(':organisationId/devices')
-  @ApiOperation({ summary: "Terminaux physiques alloués à une école" })
+  @ApiOperation({ summary: 'Terminaux physiques alloués à une école' })
   getDevices(@Param('organisationId') organisationId: string) {
     return this.biotimeService.listDevices(organisationId);
   }
 
   @Get(':organisationId/children')
   @ApiOperation({ summary: "Enfants d'une école et leurs pointages du jour" })
-  @ApiQuery({ name: 'date', required: false, description: 'Format YYYY-MM-DD.' })
-  getChildren(@Param('organisationId') organisationId: string, @Query('date') date?: string) {
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Format YYYY-MM-DD.',
+  })
+  getChildren(
+    @Param('organisationId') organisationId: string,
+    @Query('date') date?: string,
+  ) {
     return this.biotimeService.findAllChildren(organisationId, date);
   }
 
   @Get(':organisationId/punches')
   @ApiOperation({ summary: "Historique des pointages d'une école" })
-  @ApiQuery({ name: 'date', required: false, description: 'Format YYYY-MM-DD.' })
-  getPunches(@Param('organisationId') organisationId: string, @Query('date') date?: string) {
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description: 'Format YYYY-MM-DD.',
+  })
+  getPunches(
+    @Param('organisationId') organisationId: string,
+    @Query('date') date?: string,
+  ) {
     return this.biotimeService.findAllPunches(organisationId, date);
   }
 
@@ -435,11 +546,12 @@ export class BiotimeController {
     return this.biotimeService.getDirectoryBulk(organisationId, empCodes);
   }
 
-
   // ── Écriture vers BioTime : Employés (Phase 1) ──────────────────────────
 
   @Post(':organisationId/employees')
-  @ApiOperation({ summary: "Crée un employé sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Crée un employé sur le serveur BioTime d'une école",
+  })
   createEmployee(
     @Param('organisationId') organisationId: string,
     @Body() dto: CreateBiotimeEmployeeDto,
@@ -448,7 +560,9 @@ export class BiotimeController {
   }
 
   @Patch(':organisationId/employees/:biotimeId')
-  @ApiOperation({ summary: "Met à jour un employé sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Met à jour un employé sur le serveur BioTime d'une école",
+  })
   updateEmployee(
     @Param('organisationId') organisationId: string,
     @Param('biotimeId', ParseIntPipe) biotimeId: number,
@@ -458,7 +572,9 @@ export class BiotimeController {
   }
 
   @Delete(':organisationId/employees/:biotimeId')
-  @ApiOperation({ summary: "Supprime un employé sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Supprime un employé sur le serveur BioTime d'une école",
+  })
   deleteEmployee(
     @Param('organisationId') organisationId: string,
     @Param('biotimeId', ParseIntPipe) biotimeId: number,
@@ -469,7 +585,9 @@ export class BiotimeController {
   // ── Supervision badgeuses via API BioTime (Phase 1) ────────────────────
 
   @Get(':organisationId/biotime-terminals')
-  @ApiOperation({ summary: "Liste les terminaux depuis le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Liste les terminaux depuis le serveur BioTime d'une école",
+  })
   getBiotimeTerminals(@Param('organisationId') organisationId: string) {
     return this.biotimeService.getBiotimeTerminals(organisationId);
   }
@@ -483,7 +601,9 @@ export class BiotimeController {
   }
 
   @Post(':organisationId/departments')
-  @ApiOperation({ summary: "Crée un département sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Crée un département sur le serveur BioTime d'une école",
+  })
   createDepartment(
     @Param('organisationId') organisationId: string,
     @Body() dto: CreateBiotimeDepartmentDto,
@@ -492,7 +612,9 @@ export class BiotimeController {
   }
 
   @Patch(':organisationId/departments/:deptId')
-  @ApiOperation({ summary: "Met à jour un département sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Met à jour un département sur le serveur BioTime d'une école",
+  })
   updateDepartment(
     @Param('organisationId') organisationId: string,
     @Param('deptId', ParseIntPipe) deptId: number,
@@ -502,7 +624,9 @@ export class BiotimeController {
   }
 
   @Delete(':organisationId/departments/:deptId')
-  @ApiOperation({ summary: "Supprime un département sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Supprime un département sur le serveur BioTime d'une école",
+  })
   deleteDepartment(
     @Param('organisationId') organisationId: string,
     @Param('deptId', ParseIntPipe) deptId: number,
@@ -528,7 +652,9 @@ export class BiotimeController {
   }
 
   @Patch(':organisationId/areas/:areaId')
-  @ApiOperation({ summary: "Met à jour une zone sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Met à jour une zone sur le serveur BioTime d'une école",
+  })
   updateArea(
     @Param('organisationId') organisationId: string,
     @Param('areaId', ParseIntPipe) areaId: number,
@@ -538,7 +664,9 @@ export class BiotimeController {
   }
 
   @Delete(':organisationId/areas/:areaId')
-  @ApiOperation({ summary: "Supprime une zone sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Supprime une zone sur le serveur BioTime d'une école",
+  })
   deleteArea(
     @Param('organisationId') organisationId: string,
     @Param('areaId', ParseIntPipe) areaId: number,
@@ -564,7 +692,9 @@ export class BiotimeController {
   }
 
   @Patch(':organisationId/positions/:posId')
-  @ApiOperation({ summary: "Met à jour un poste sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Met à jour un poste sur le serveur BioTime d'une école",
+  })
   updatePosition(
     @Param('organisationId') organisationId: string,
     @Param('posId', ParseIntPipe) posId: number,
@@ -574,12 +704,13 @@ export class BiotimeController {
   }
 
   @Delete(':organisationId/positions/:posId')
-  @ApiOperation({ summary: "Supprime un poste sur le serveur BioTime d'une école" })
+  @ApiOperation({
+    summary: "Supprime un poste sur le serveur BioTime d'une école",
+  })
   deletePosition(
     @Param('organisationId') organisationId: string,
     @Param('posId', ParseIntPipe) posId: number,
   ) {
     return this.biotimeService.deletePosition(organisationId, posId);
   }
-
 }

@@ -93,7 +93,9 @@ describe('HardwareStreamGateway — cloisonnement des salons', () => {
         client as any,
       );
 
-      expect(client.join).toHaveBeenCalledWith(`school:${ORG_A}:course:course-9`);
+      expect(client.join).toHaveBeenCalledWith(
+        `school:${ORG_A}:course:course-9`,
+      );
       expect(client.join).not.toHaveBeenCalledWith(
         expect.stringContaining(ORG_B),
       );
@@ -112,7 +114,9 @@ describe('HardwareStreamGateway — cloisonnement des salons', () => {
   describe('diffusion', () => {
     it("n'émet que vers les salons de l'école concernée", () => {
       const emit = jest.fn();
-      const to = jest.fn().mockReturnValue({ to: jest.fn().mockReturnValue({ emit }), emit });
+      const to = jest
+        .fn()
+        .mockReturnValue({ to: jest.fn().mockReturnValue({ emit }), emit });
       gateway.server = { to } as any;
 
       gateway.handleGpsBroadcast({

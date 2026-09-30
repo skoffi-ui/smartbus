@@ -9,7 +9,9 @@
   align-items: center;
   gap: 0.75rem;
   padding: 7px;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .dashboard-card:hover {
@@ -28,10 +30,22 @@
   flex-shrink: 0;
 }
 
-.stat-blue { background: var(--stat-blue-bg); color: var(--stat-blue-color); }
-.stat-indigo { background: var(--stat-indigo-bg); color: var(--stat-indigo-color); }
-.stat-emerald { background: var(--stat-emerald-bg); color: var(--stat-emerald-color); }
-.stat-amber { background: var(--stat-amber-bg); color: var(--stat-amber-color); }
+.stat-blue {
+  background: var(--stat-blue-bg);
+  color: var(--stat-blue-color);
+}
+.stat-indigo {
+  background: var(--stat-indigo-bg);
+  color: var(--stat-indigo-color);
+}
+.stat-emerald {
+  background: var(--stat-emerald-bg);
+  color: var(--stat-emerald-color);
+}
+.stat-amber {
+  background: var(--stat-amber-bg);
+  color: var(--stat-amber-color);
+}
 
 .dashboard-bottom-grid {
   display: grid;

@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { getSocket, subscribeToCourse, disconnectSocket } from '../services/socket.service';
+import {
+  getSocket,
+  subscribeToCourse,
+  disconnectSocket,
+} from '../services/socket.service';
 import api from '../services/api';
 
 export interface BusPosition {
@@ -38,7 +42,10 @@ export interface BusPosition {
 export const SEUIL_HORS_LIGNE_MS = 90_000; // 90s sans nouvelle position → hors ligne
 export const SEUIL_EXPIRATION_MS = 10 * 60_000; // 10min sans nouvelle position → retiré de la carte
 
-export function estEnLigne(bus: BusPosition, maintenant: number = Date.now()): boolean {
+export function estEnLigne(
+  bus: BusPosition,
+  maintenant: number = Date.now(),
+): boolean {
   const t = new Date(bus.timestamp).getTime();
   if (!Number.isFinite(t)) return false;
   return maintenant - t < SEUIL_HORS_LIGNE_MS;
@@ -94,7 +101,9 @@ interface UseRealTimeTrackingReturn {
  * enchaîner plusieurs courses dans la journée, et c'est bien un marqueur par
  * véhicule que l'on veut voir sur la carte.
  */
-function normaliserPosition(brut: any): { cle: string; position: BusPosition } | null {
+function normaliserPosition(
+  brut: any,
+): { cle: string; position: BusPosition } | null {
   const latitude = Number(brut?.latitude ?? brut?.lat);
   const longitude = Number(brut?.longitude ?? brut?.lng);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
@@ -125,9 +134,12 @@ function normaliserPosition(brut: any): { cle: string; position: BusPosition } |
 export function useRealTimeTracking({
   courseIds = [],
 }: UseRealTimeTrackingOptions = {}): UseRealTimeTrackingReturn {
-  const [busPositions, setBusPositions] = useState<Map<string, BusPosition>>(new Map());
+  const [busPositions, setBusPositions] = useState<Map<string, BusPosition>>(
+    new Map(),
+  );
   const [punchEvents, setPunchEvents] = useState<PunchEvent[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connecting');
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>('connecting');
   const socketRef = useRef(getSocket());
 
   const subscribeToRooms = useCallback(() => {
@@ -190,39 +202,43 @@ export function useRealTimeTracking({
 
     // Alerte de proximité
     socket.on('proximity_alert', (payload: any) => {
-      setPunchEvents((prev) => [
-        {
-          id: `prox-${Date.now()}`,
-          courseId: payload.courseId,
-          childName: payload.childName,
-          childId: payload.childId,
-          terminalSn: 'GPS',
-          time: new Date().toISOString(),
-          punchState: 'proximity',
-          lat: payload.busLat,
-          lng: payload.busLng,
-        },
-        ...prev,
-      ].slice(0, 50));
+      setPunchEvents((prev) =>
+        [
+          {
+            id: `prox-${Date.now()}`,
+            courseId: payload.courseId,
+            childName: payload.childName,
+            childId: payload.childId,
+            terminalSn: 'GPS',
+            time: new Date().toISOString(),
+            punchState: 'proximity',
+            lat: payload.busLat,
+            lng: payload.busLng,
+          },
+          ...prev,
+        ].slice(0, 50),
+      );
     });
 
     // Anomalie critique de pointage
     socket.on('critical_anomaly', (payload: any) => {
-      setPunchEvents((prev) => [
-        {
-          id: `crit-${Date.now()}`,
-          courseId: payload.detectedCourseId || 'default-course',
-          childName: payload.childName,
-          childId: payload.childId,
-          terminalSn: payload.detectedCarPlate || 'Bus',
-          time: payload.time || new Date().toISOString(),
-          punchState: 'critical',
-          message: payload.message,
-          lat: payload.lat,
-          lng: payload.lng,
-        },
-        ...prev,
-      ].slice(0, 50));
+      setPunchEvents((prev) =>
+        [
+          {
+            id: `crit-${Date.now()}`,
+            courseId: payload.detectedCourseId || 'default-course',
+            childName: payload.childName,
+            childId: payload.childId,
+            terminalSn: payload.detectedCarPlate || 'Bus',
+            time: payload.time || new Date().toISOString(),
+            punchState: 'critical',
+            message: payload.message,
+            lat: payload.lat,
+            lng: payload.lng,
+          },
+          ...prev,
+        ].slice(0, 50),
+      );
     });
   }
 
@@ -241,13 +257,16 @@ export function useRealTimeTracking({
       .get('/gps/live')
       .then((res) => {
         if (annule) return;
-        const liste: any[] = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        const liste: any[] = Array.isArray(res.data)
+          ? res.data
+          : res.data?.data || [];
         setBusPositions((prev) => {
           const next = new Map(prev);
           for (const brut of liste) {
             const normalisee = normaliserPosition(brut);
             // Une position reçue en direct pendant le chargement est plus fraîche.
-            if (normalisee && !next.has(normalisee.cle)) next.set(normalisee.cle, normalisee.position);
+            if (normalisee && !next.has(normalisee.cle))
+              next.set(normalisee.cle, normalisee.position);
           }
           return next;
         });
@@ -257,7 +276,9 @@ export function useRealTimeTracking({
         // WebSocket prendra le relais dès la première trame reçue.
       });
 
-    return () => { annule = true; };
+    return () => {
+      annule = true;
+    };
   }, []);
 
   // Purge périodique : un bus dont la position n'a plus bougé depuis
@@ -304,7 +325,9 @@ export function useRealTimeTracking({
     busPositions,
     punchEvents,
     connectionStatus,
-    activeBusCount: Array.from(busPositions.values()).filter((b) => estEnLigne(b)).length,
+    activeBusCount: Array.from(busPositions.values()).filter((b) =>
+      estEnLigne(b),
+    ).length,
     reconnect,
   };
 }

@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   SecretChiffre,
@@ -36,7 +40,9 @@ export class CryptoService {
   private obtenirCle(): Buffer {
     if (this.cle) return this.cle;
     try {
-      this.cle = validerEtConvertirCle(this.config.get<string>('ENCRYPTION_KEY'));
+      this.cle = validerEtConvertirCle(
+        this.config.get<string>('ENCRYPTION_KEY'),
+      );
     } catch (err: any) {
       throw new InternalServerErrorException(err.message);
     }

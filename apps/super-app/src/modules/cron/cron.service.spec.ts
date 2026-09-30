@@ -44,8 +44,14 @@ describe('CronService', () => {
     module = await Test.createTestingModule({
       providers: [
         CronService,
-        { provide: getRepositoryToken(Subscription), useValue: subscriptionRepo },
-        { provide: getRepositoryToken(Organisation), useValue: organisationRepo },
+        {
+          provide: getRepositoryToken(Subscription),
+          useValue: subscriptionRepo,
+        },
+        {
+          provide: getRepositoryToken(Organisation),
+          useValue: organisationRepo,
+        },
         { provide: DataSource, useValue: {} },
         { provide: getQueueToken('biotime-sync'), useValue: queue },
         { provide: BiotimeConfigService, useValue: biotimeConfig },
@@ -53,16 +59,14 @@ describe('CronService', () => {
     }).compile();
 
     // La connexion tenant est résolue à la demande, hors contexte HTTP.
-    jest
-      .spyOn(module.get(ModuleRef), 'resolve')
-      .mockResolvedValue({
-        getTenantConnection: jest.fn(async () => ({ query: tenantQuery })),
-      } as unknown as TenantConnectionService);
+    jest.spyOn(module.get(ModuleRef), 'resolve').mockResolvedValue({
+      getTenantConnection: jest.fn(async () => ({ query: tenantQuery })),
+    } as unknown as TenantConnectionService);
 
     service = module.get<CronService>(CronService);
   });
 
-  it("reste un fournisseur statique, sinon aucune tâche ne serait planifiée", () => {
+  it('reste un fournisseur statique, sinon aucune tâche ne serait planifiée', () => {
     // `module.get()` lève une exception sur un fournisseur en portée requête ou
     // transitoire — exactement le critère qu'applique @nestjs/schedule.
     expect(() => module.get(CronService)).not.toThrow();
@@ -79,7 +83,9 @@ describe('CronService', () => {
       await service.handleDeviceHeartbeats();
 
       expect(tenantQuery).toHaveBeenCalledTimes(2);
-      expect(organisationRepo.find).toHaveBeenCalledWith({ where: { dbProvisioned: true } });
+      expect(organisationRepo.find).toHaveBeenCalledWith({
+        where: { dbProvisioned: true },
+      });
     });
 
     it("poursuit avec les autres écoles si l'une est injoignable", async () => {
@@ -105,7 +111,11 @@ describe('CronService', () => {
 
   describe('handleSubscriptionExpirations', () => {
     it('suspend école et abonnement à échéance dépassée', async () => {
-      const organisation = { id: ORG_A, name: 'École A', status: OrganisationStatus.ACTIVE };
+      const organisation = {
+        id: ORG_A,
+        name: 'École A',
+        status: OrganisationStatus.ACTIVE,
+      };
       subscriptionRepo.find.mockResolvedValue([
         { id: 'sub-1', status: SubscriptionStatus.ACTIVE, organisation },
       ]);
@@ -145,8 +155,12 @@ describe('CronService', () => {
       await service.triggerBioTimeChildrenSync();
 
       expect(queue.add).toHaveBeenCalledTimes(2);
-      expect(queue.add).toHaveBeenCalledWith('sync-children', { organisationId: ORG_A });
-      expect(queue.add).toHaveBeenCalledWith('sync-children', { organisationId: ORG_B });
+      expect(queue.add).toHaveBeenCalledWith('sync-children', {
+        organisationId: ORG_A,
+      });
+      expect(queue.add).toHaveBeenCalledWith('sync-children', {
+        organisationId: ORG_B,
+      });
     });
 
     it("n'enfile rien si aucune école n'a de serveur BioTime", async () => {

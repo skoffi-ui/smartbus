@@ -39,7 +39,9 @@ export class ProvisioningService {
   /**
    * Provisionne la base de données pour une organisation
    */
-  async provisionOrganisation(organisationId: string): Promise<ProvisioningResult> {
+  async provisionOrganisation(
+    organisationId: string,
+  ): Promise<ProvisioningResult> {
     const organisation = await this.organisationRepository.findOne({
       where: { id: organisationId },
     });
@@ -55,7 +57,9 @@ export class ProvisioningService {
     }
 
     const dbName = this.generateDatabaseName(organisation.code);
-    this.logger.log(`Provisionnement de la base: ${dbName} pour org: ${organisation.name}`);
+    this.logger.log(
+      `Provisionnement de la base: ${dbName} pour org: ${organisation.name}`,
+    );
 
     try {
       // 1. Créer la base de données
@@ -70,7 +74,10 @@ export class ProvisioningService {
         dbHost: this.configService.get<string>('SUPER_DB_HOST', 'localhost'),
         dbPort: this.configService.get<number>('SUPER_DB_PORT', 5432),
         dbUser: this.configService.get<string>('SUPER_DB_USER', 'postgres'),
-        dbPassword: this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
+        dbPassword: this.configService.get<string>(
+          'SUPER_DB_PASSWORD',
+          'postgres',
+        ),
         dbProvisioned: true,
       });
 
@@ -83,7 +90,10 @@ export class ProvisioningService {
         message: `Base de données ${dbName} créée et configurée avec succès`,
       };
     } catch (error) {
-      this.logger.error(`❌ Erreur lors du provisionnement de ${dbName}:`, error);
+      this.logger.error(
+        `❌ Erreur lors du provisionnement de ${dbName}:`,
+        error,
+      );
       return {
         organisationId,
         dbName,
@@ -195,7 +205,8 @@ export class ProvisioningService {
       select: { id: true, dbProvisioned: true, dbName: true, dbHost: true },
     });
 
-    if (!org) throw new NotFoundException(`Organisation ${organisationId} introuvable`);
+    if (!org)
+      throw new NotFoundException(`Organisation ${organisationId} introuvable`);
 
     return {
       provisioned: org.dbProvisioned,
@@ -209,7 +220,9 @@ export class ProvisioningService {
    */
   async dropOrganisationDatabase(dbName: string): Promise<void> {
     if (!dbName || !dbName.startsWith('smartbus_school_')) {
-      this.logger.warn(`Nom de base de données invalide ou dangereux ignoré : ${dbName}`);
+      this.logger.warn(
+        `Nom de base de données invalide ou dangereux ignoré : ${dbName}`,
+      );
       return;
     }
 
@@ -218,17 +231,23 @@ export class ProvisioningService {
 
     try {
       // 1. Fermer toutes les connexions actives à cette base (PgAdmin, requêtes fantômes...)
-      await queryRunner.query(`
+      await queryRunner.query(
+        `
         SELECT pg_terminate_backend(pg_stat_activity.pid)
         FROM pg_stat_activity
         WHERE pg_stat_activity.datname = $1 AND pid <> pg_backend_pid();
-      `, [dbName]);
+      `,
+        [dbName],
+      );
 
       // 2. Supprimer la base de données
       await queryRunner.query(`DROP DATABASE IF EXISTS "${dbName}"`);
       this.logger.log(`🗑️ Base de données "${dbName}" totalement détruite.`);
     } catch (error) {
-      this.logger.error(`❌ Impossible de détruire la base de données "${dbName}":`, error);
+      this.logger.error(
+        `❌ Impossible de détruire la base de données "${dbName}":`,
+        error,
+      );
     } finally {
       await queryRunner.release();
     }

@@ -21,7 +21,9 @@ export async function ouvrirConnexionCentrale(): Promise<DataSource> {
     username: process.env.SUPER_DB_USER || 'postgres',
     password: process.env.SUPER_DB_PASSWORD || 'postgres',
     database: process.env.SUPER_DB_NAME || 'smartbus_super',
-    entities: [join(__dirname, '../libs/database/src/entities/*.entity{.ts,.js}')],
+    entities: [
+      join(__dirname, '../libs/database/src/entities/*.entity{.ts,.js}'),
+    ],
     synchronize: false,
   });
   await ds.initialize();
@@ -29,7 +31,9 @@ export async function ouvrirConnexionCentrale(): Promise<DataSource> {
 }
 
 /** Organisations provisionnées, avec `dbPassword` explicitement sélectionné (`select: false` par défaut). */
-export async function listerOrganisationsProvisionnees(central: DataSource): Promise<Organisation[]> {
+export async function listerOrganisationsProvisionnees(
+  central: DataSource,
+): Promise<Organisation[]> {
   return central.getRepository(Organisation).find({
     where: { dbProvisioned: true },
     select: {
@@ -59,7 +63,9 @@ export function optionsMigrationTenant(org: Organisation): DataSourceOptions {
     username: org.dbUser || process.env.SUPER_DB_USER || 'postgres',
     password: org.dbPassword || process.env.SUPER_DB_PASSWORD || 'postgres',
     database: org.dbName!,
-    migrations: [join(__dirname, '../libs/database/src/migrations/tenant/*{.ts,.js}')],
+    migrations: [
+      join(__dirname, '../libs/database/src/migrations/tenant/*{.ts,.js}'),
+    ],
     migrationsTableName: 'migrations_tenant',
     synchronize: false,
     logging: ['error', 'migration'],

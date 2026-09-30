@@ -5,13 +5,35 @@ import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import {
-  Map, Trash2, Route, Trash, MapPin, Plus,
-  Clock, Users, X, ChevronDown, ChevronUp, AlertCircle, MapPinned
+  Map,
+  Trash2,
+  Route,
+  Trash,
+  MapPin,
+  Plus,
+  Clock,
+  Users,
+  X,
+  ChevronDown,
+  ChevronUp,
+  AlertCircle,
+  MapPinned,
 } from 'lucide-react';
 import {
-  getTrajets, createTrajet, updateTrajet, deleteTrajet, reverseGeocode,
-  getPoints, createPoint, deletePoint, updatePoint,
-  getEleves, affecterEnfant, getAffectationsByPoint, supprimerAffectation, getAffectations
+  getTrajets,
+  createTrajet,
+  updateTrajet,
+  deleteTrajet,
+  reverseGeocode,
+  getPoints,
+  createPoint,
+  deletePoint,
+  updatePoint,
+  getEleves,
+  affecterEnfant,
+  getAffectationsByPoint,
+  supprimerAffectation,
+  getAffectations,
 } from '../services/transport.service';
 import { chargerLeafletRouting } from '../services/leaflet-routing';
 import { chargerLeafletGeocoder } from '../services/leaflet-geocoder';
@@ -27,7 +49,8 @@ const ABIDJAN: [number, number] = [5.3364, -4.0267];
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconRetinaUrl:
+    'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
@@ -43,14 +66,21 @@ type MarkerType = 'depart' | 'arret' | 'arrivee';
  * Source unique pour les marqueurs et pour la légende sous la carte, afin que
  * les deux ne puissent pas diverger au fil des retouches.
  */
-const MARQUEURS: Record<MarkerType, { lettre: string; couleur: string; libelle: string }> = {
-  depart:  { lettre: 'D', couleur: '#10B981', libelle: 'Départ' },
-  arret:   { lettre: 'A', couleur: '#3B82F6', libelle: 'Arrêt' },
+const MARQUEURS: Record<
+  MarkerType,
+  { lettre: string; couleur: string; libelle: string }
+> = {
+  depart: { lettre: 'D', couleur: '#10B981', libelle: 'Départ' },
+  arret: { lettre: 'A', couleur: '#3B82F6', libelle: 'Arrêt' },
   arrivee: { lettre: 'F', couleur: '#EF4444', libelle: 'Fin / Arrivée' },
 };
 
 // Composant pour gérer le curseur dynamique de la carte
-function MapCursorController({ cursorType }: { cursorType: MarkerType | null }) {
+function MapCursorController({
+  cursorType,
+}: {
+  cursorType: MarkerType | null;
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -60,7 +90,12 @@ function MapCursorController({ cursorType }: { cursorType: MarkerType | null }) 
     if (!container) return;
 
     // Retirer toutes les classes de curseur
-    container.classList.remove('cursor-crosshair', 'cursor-copy', 'cursor-cell', 'cursor-default');
+    container.classList.remove(
+      'cursor-crosshair',
+      'cursor-copy',
+      'cursor-cell',
+      'cursor-default',
+    );
 
     // Ajouter la classe appropriée et le style inline
     if (cursorType === 'depart') {
@@ -91,17 +126,23 @@ function FitBoundsOnWaypoints({ waypoints }: { waypoints: any[] }) {
     // Petit délai pour s'assurer que la carte est prête
     const timer = setTimeout(() => {
       try {
-        console.log('🎯 Recentrage de la carte sur', waypoints.length, 'points');
+        console.log(
+          '🎯 Recentrage de la carte sur',
+          waypoints.length,
+          'points',
+        );
 
         // Convertir les waypoints en LatLng si nécessaire
-        const latLngs = waypoints.map((wp: any) => {
-          if (wp && wp.lat !== undefined && wp.lng !== undefined) {
-            return L.latLng(wp.lat, wp.lng);
-          } else if (wp && wp.latLng) {
-            return wp.latLng;
-          }
-          return null;
-        }).filter(Boolean);
+        const latLngs = waypoints
+          .map((wp: any) => {
+            if (wp && wp.lat !== undefined && wp.lng !== undefined) {
+              return L.latLng(wp.lat, wp.lng);
+            } else if (wp && wp.latLng) {
+              return wp.latLng;
+            }
+            return null;
+          })
+          .filter(Boolean);
 
         if (latLngs.length === 0) return;
 
@@ -113,7 +154,7 @@ function FitBoundsOnWaypoints({ waypoints }: { waypoints: any[] }) {
           padding: [50, 50],
           maxZoom: 15,
           animate: true,
-          duration: 0.8
+          duration: 0.8,
         });
 
         console.log('✅ Carte recentrée avec succès');
@@ -154,7 +195,9 @@ function MapAutoResize() {
       // un cadre d'attente laisse la taille se stabiliser d'abord.
       if (frame !== null) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        try { map.invalidateSize({ animate: false }); } catch {}
+        try {
+          map.invalidateSize({ animate: false });
+        } catch {}
       });
     });
     observer.observe(container);
@@ -179,7 +222,7 @@ function FlyToPoint({ point }: { point: { lat: number; lng: number } | null }) {
       // Centrer la carte sur le point avec animation
       map.flyTo([point.lat, point.lng], 16, {
         animate: true,
-        duration: 0.8
+        duration: 0.8,
       });
     } catch (err) {
       console.error('❌ Erreur lors du centrage sur le point:', err);
@@ -215,15 +258,15 @@ function SearchControl() {
           errorMessage: 'Aucun résultat trouvé',
           position: 'topleft',
           collapsed: false,
-          defaultMarkGeocode: false
+          defaultMarkGeocode: false,
         })
-          .on('markgeocode', function(e: any) {
+          .on('markgeocode', function (e: any) {
             const bbox = e.geocode.bbox;
             const poly = L.polygon([
               bbox.getSouthEast(),
               bbox.getNorthEast(),
               bbox.getNorthWest(),
-              bbox.getSouthWest()
+              bbox.getSouthWest(),
             ]);
             map.fitBounds(poly.getBounds());
 
@@ -252,11 +295,13 @@ function SearchControl() {
                 `,
                 className: '',
                 iconSize: [40, 40] as [number, number],
-                iconAnchor: [20, 40] as [number, number]
-              })
+                iconAnchor: [20, 40] as [number, number],
+              }),
             })
               .addTo(map)
-              .bindPopup(`<strong>${e.geocode.name}</strong><br/><small>Cliquez sur la carte pour placer un point ici</small>`)
+              .bindPopup(
+                `<strong>${e.geocode.name}</strong><br/><small>Cliquez sur la carte pour placer un point ici</small>`,
+              )
               .openPopup();
 
             // Supprimer le marqueur après 10 secondes
@@ -268,7 +313,7 @@ function SearchControl() {
 
         controlRef.current = searchControl;
       } catch (error) {
-        console.error('Erreur lors de l\'initialisation du geocoder:', error);
+        console.error("Erreur lors de l'initialisation du geocoder:", error);
       }
     }
 
@@ -300,7 +345,16 @@ interface PointRecup {
   affectations?: any[];
 }
 
-function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, highlightedIndex, onRoutesFound, readOnly = false, selectedMarkerType }: any) {
+function RoutingMachine({
+  waypoints,
+  pointsTypes,
+  onRouteFound,
+  onDeleteMarker,
+  highlightedIndex,
+  onRoutesFound,
+  readOnly = false,
+  selectedMarkerType,
+}: any) {
   const map = useMap();
   const routingControlRef = useRef<any>(null);
 
@@ -310,16 +364,24 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
   // défaut. Ces références lui donnent accès aux valeurs courantes.
   const pointsTypesRef = useRef<MarkerType[]>(pointsTypes || []);
   const highlightedRef = useRef<number | null>(highlightedIndex ?? null);
-  useEffect(() => { pointsTypesRef.current = pointsTypes || []; }, [pointsTypes]);
-  useEffect(() => { highlightedRef.current = highlightedIndex ?? null; }, [highlightedIndex]);
+  useEffect(() => {
+    pointsTypesRef.current = pointsTypes || [];
+  }, [pointsTypes]);
+  useEffect(() => {
+    highlightedRef.current = highlightedIndex ?? null;
+  }, [highlightedIndex]);
 
   useEffect(() => {
     if (!map) return;
     let annule = false;
 
     chargerLeafletRouting()
-      .then(() => { if (!annule) initRouting(); })
-      .catch((err) => console.error('Leaflet Routing Machine indisponible', err));
+      .then(() => {
+        if (!annule) initRouting();
+      })
+      .catch((err) =>
+        console.error('Leaflet Routing Machine indisponible', err),
+      );
 
     function initRouting() {
       const Routing = routage();
@@ -339,7 +401,7 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
           lineOptions: {
             styles: [{ color: '#3b82f6', weight: 6, opacity: 0.85 }],
             extendToWaypoints: true,
-            missingRouteTolerance: 0
+            missingRouteTolerance: 0,
           },
           router: Routing.osrmv1({
             serviceUrl: 'https://router.project-osrm.org/route/v1',
@@ -350,19 +412,21 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
               steps: true,
               geometries: 'geojson',
               overview: 'full',
-              continue_straight: false
-            }
+              continue_straight: false,
+            },
           }),
           showAlternatives: true,
           altLineOptions: {
-            styles: [{ color: '#94a3b8', weight: 5, opacity: 0.6 }]
+            styles: [{ color: '#94a3b8', weight: 5, opacity: 0.6 }],
           },
-          createMarker: function(i: number, wp: any) {
+          createMarker: function (i: number, wp: any) {
             const typesCourants = pointsTypesRef.current;
-            const pointType = typesCourants && typesCourants[i] ? typesCourants[i] : 'arret';
+            const pointType =
+              typesCourants && typesCourants[i] ? typesCourants[i] : 'arret';
 
             const isHighlighted = highlightedRef.current === i;
-            const pulseAnimation = isHighlighted ? `
+            const pulseAnimation = isHighlighted
+              ? `
               @keyframes marker-pulse {
                 0%, 100% {
                   transform: rotate(-45deg) scale(1);
@@ -373,12 +437,14 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
                   box-shadow: 0 8px 16px rgba(0,0,0,0.4), 0 0 0 15px rgba(255, 193, 7, 0);
                 }
               }
-            ` : '';
+            `
+              : '';
 
             // Design retenu : une lettre par nature de point, sur la couleur associée.
             // Les trois variantes étaient auparavant trois blocs de code quasi
             // identiques ne différant que par l'emoji et la teinte.
-            const { lettre, couleur } = MARQUEURS[pointType as MarkerType] ?? MARQUEURS.arret;
+            const { lettre, couleur } =
+              MARQUEURS[pointType as MarkerType] ?? MARQUEURS.arret;
 
             const iconConfig: L.DivIconOptions = {
               html: `
@@ -411,21 +477,24 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
               `,
               className: '',
               iconSize: [40, 40] as [number, number],
-              iconAnchor: [20, 40] as [number, number]
+              iconAnchor: [20, 40] as [number, number],
             };
 
             const marker = L.marker(wp.latLng, {
               draggable: false, // Désactivé pour permettre la navigation sur la carte
-              icon: L.divIcon(iconConfig)
+              icon: L.divIcon(iconConfig),
             });
 
             // Ajouter un popup avec bouton de suppression
             if (!readOnly && onDeleteMarker) {
-              const pointName = pointsTypes && pointsTypes[i] ? (
-                pointType === 'depart' ? 'Point de Départ' :
-                pointType === 'arrivee' ? 'Point d\'Arrivée' :
-                `Arrêt ${i + 1}`
-              ) : `Point ${i + 1}`;
+              const pointName =
+                pointsTypes && pointsTypes[i]
+                  ? pointType === 'depart'
+                    ? 'Point de Départ'
+                    : pointType === 'arrivee'
+                      ? "Point d'Arrivée"
+                      : `Arrêt ${i + 1}`
+                  : `Point ${i + 1}`;
 
               const popupContent = `
                 <div style="text-align: center; font-family: system-ui, -apple-system, sans-serif;">
@@ -466,12 +535,15 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
             }
 
             return marker;
-          }
+          },
         }).addTo(map);
 
         control.on('routesfound', (e: any) => {
           const routes = e.routes || [];
-          const wps = control.getWaypoints().map((w: any) => w.latLng).filter(Boolean);
+          const wps = control
+            .getWaypoints()
+            .map((w: any) => w.latLng)
+            .filter(Boolean);
 
           // Préparer toutes les alternatives
           const allRoutes = routes.map((route: any, index: number) => ({
@@ -488,17 +560,27 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
             const mainRoute = routes[0];
             const geojson = {
               type: 'FeatureCollection',
-              features: [{
-                type: 'Feature',
-                geometry: {
-                  type: 'LineString',
-                  coordinates: mainRoute.coordinates.map((c: any) => [c.lng, c.lat])
-                }
-              }]
+              features: [
+                {
+                  type: 'Feature',
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: mainRoute.coordinates.map((c: any) => [
+                      c.lng,
+                      c.lat,
+                    ]),
+                  },
+                },
+              ],
             };
 
             if (onRouteFound) {
-              onRouteFound(mainRoute.summary.totalDistance, mainRoute.summary.totalTime, geojson, wps);
+              onRouteFound(
+                mainRoute.summary.totalDistance,
+                mainRoute.summary.totalTime,
+                geojson,
+                wps,
+              );
             }
           }
 
@@ -517,25 +599,37 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
     return () => {
       annule = true;
       if (routingControlRef.current) {
-        try { map.removeControl(routingControlRef.current); } catch { }
+        try {
+          map.removeControl(routingControlRef.current);
+        } catch {}
         routingControlRef.current = null;
       }
     };
   }, [map, readOnly]);
 
   useEffect(() => {
-    console.log('🔄 useEffect waypoints déclenché. waypoints:', waypoints?.length, 'routingControl:', !!routingControlRef.current);
+    console.log(
+      '🔄 useEffect waypoints déclenché. waypoints:',
+      waypoints?.length,
+      'routingControl:',
+      !!routingControlRef.current,
+    );
 
     // Si le RoutingControl n'est pas encore créé, attendre un peu puis réessayer
     if (!routingControlRef.current) {
       console.log('⚠️ RoutingControl pas encore créé, on attend...');
       const timeout = setTimeout(() => {
         if (routingControlRef.current && waypoints && waypoints.length > 0) {
-          console.log('🔄 RoutingControl maintenant disponible, application des waypoints');
+          console.log(
+            '🔄 RoutingControl maintenant disponible, application des waypoints',
+          );
           try {
             routingControlRef.current.setWaypoints(waypoints);
           } catch (err) {
-            console.error('❌ Erreur lors de la mise à jour des waypoints (retry)', err);
+            console.error(
+              '❌ Erreur lors de la mise à jour des waypoints (retry)',
+              err,
+            );
           }
         }
       }, 100);
@@ -566,10 +660,11 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
 
       const identiques =
         actuels.length === waypoints.length &&
-        waypoints.every((wp: any, i: number) =>
-          actuels[i] &&
-          Math.abs(actuels[i].lat - Number(wp.lat)) < 1e-6 &&
-          Math.abs(actuels[i].lng - Number(wp.lng)) < 1e-6,
+        waypoints.every(
+          (wp: any, i: number) =>
+            actuels[i] &&
+            Math.abs(actuels[i].lat - Number(wp.lat)) < 1e-6 &&
+            Math.abs(actuels[i].lng - Number(wp.lng)) < 1e-6,
         );
 
       if (!identiques) {
@@ -620,7 +715,9 @@ function RoutingMachine({ waypoints, pointsTypes, onRouteFound, onDeleteMarker, 
     };
 
     map.on('click', onMapClick);
-    return () => { map.off('click', onMapClick); };
+    return () => {
+      map.off('click', onMapClick);
+    };
   }, [map, readOnly, selectedMarkerType]); // ✅ Dépend maintenant de selectedMarkerType
 
   return null;
@@ -640,7 +737,7 @@ export default function TrajetEditor() {
     nom: '',
     description: '',
     sens: 'aller',
-    heureDepart: '07:00' // Heure de départ par défaut
+    heureDepart: '07:00', // Heure de départ par défaut
   });
 
   // États pour le loader
@@ -667,10 +764,19 @@ export default function TrajetEditor() {
   // le panneau complet. Préférence mémorisée par appareil : simple confort
   // d'affichage, pas un état à partager.
   const [pointsListReplie, setPointsListReplie] = useState<boolean>(() => {
-    try { return localStorage.getItem('trajetEditor.pointsListReplie') === '1'; } catch { return false; }
+    try {
+      return localStorage.getItem('trajetEditor.pointsListReplie') === '1';
+    } catch {
+      return false;
+    }
   });
   useEffect(() => {
-    try { localStorage.setItem('trajetEditor.pointsListReplie', pointsListReplie ? '1' : '0'); } catch {}
+    try {
+      localStorage.setItem(
+        'trajetEditor.pointsListReplie',
+        pointsListReplie ? '1' : '0',
+      );
+    } catch {}
   }, [pointsListReplie]);
 
   // Hauteur du panneau flottant "Points du Trajet", ajustable à la souris via
@@ -685,7 +791,9 @@ export default function TrajetEditor() {
     if (!el) return;
 
     try {
-      const hauteurMemorisee = localStorage.getItem('trajetEditor.pointsListHauteur');
+      const hauteurMemorisee = localStorage.getItem(
+        'trajetEditor.pointsListHauteur',
+      );
       el.style.height = hauteurMemorisee || '60vh';
     } catch {
       el.style.height = '60vh';
@@ -693,7 +801,9 @@ export default function TrajetEditor() {
 
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => {
-      try { localStorage.setItem('trajetEditor.pointsListHauteur', el.style.height); } catch {}
+      try {
+        localStorage.setItem('trajetEditor.pointsListHauteur', el.style.height);
+      } catch {}
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -702,14 +812,23 @@ export default function TrajetEditor() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [selectedMarkerType, setSelectedMarkerType] = useState<MarkerType | null>(null);
-  const [highlightedPointIndex, setHighlightedPointIndex] = useState<number | null>(null);
-  const [focusedPoint, setFocusedPoint] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedMarkerType, setSelectedMarkerType] =
+    useState<MarkerType | null>(null);
+  const [highlightedPointIndex, setHighlightedPointIndex] = useState<
+    number | null
+  >(null);
+  const [focusedPoint, setFocusedPoint] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
   const [alternativeRoutes, setAlternativeRoutes] = useState<any[]>([]);
   const [selectedRouteIndex, setSelectedRouteIndex] = useState<number>(0);
 
   useEffect(() => {
-    (window as any).handleMapClickForGeocode = async (lat: number, lng: number) => {
+    (window as any).handleMapClickForGeocode = async (
+      lat: number,
+      lng: number,
+    ) => {
       // Si mode navigation (null), ne rien faire - permet le déplacement de la carte
       if (!selectedMarkerType) {
         return; // Sortir silencieusement sans alerte
@@ -717,11 +836,18 @@ export default function TrajetEditor() {
 
       try {
         const geo = await reverseGeocode(lat, lng);
-        const address = geo?.success ? geo.address : `Point ${pointsRecup.length + 1}`;
+        const address = geo?.success
+          ? geo.address
+          : `Point ${pointsRecup.length + 1}`;
 
         // Pour départ et arrivée : un seul point autorisé (remplacer l'existant)
-        if (selectedMarkerType === 'depart' || selectedMarkerType === 'arrivee') {
-          const existingIndex = pointsRecup.findIndex(p => p.type === selectedMarkerType);
+        if (
+          selectedMarkerType === 'depart' ||
+          selectedMarkerType === 'arrivee'
+        ) {
+          const existingIndex = pointsRecup.findIndex(
+            (p) => p.type === selectedMarkerType,
+          );
 
           if (existingIndex !== -1) {
             // Remplacer le point existant
@@ -745,19 +871,23 @@ export default function TrajetEditor() {
           tempsArret: '08:00',
           ordrePassage: pointsRecup.length + 1,
           type: selectedMarkerType as MarkerType,
-          affectations: []
+          affectations: [],
         };
 
-        setPointsRecup(prev => [...prev, newPoint]);
-
+        setPointsRecup((prev) => [...prev, newPoint]);
       } catch (err) {
-        console.error("Geocoding failed", err);
+        console.error('Geocoding failed', err);
 
         // Même logique sans geocoding
         const address = `Point ${pointsRecup.length + 1}`;
 
-        if (selectedMarkerType === 'depart' || selectedMarkerType === 'arrivee') {
-          const existingIndex = pointsRecup.findIndex(p => p.type === selectedMarkerType);
+        if (
+          selectedMarkerType === 'depart' ||
+          selectedMarkerType === 'arrivee'
+        ) {
+          const existingIndex = pointsRecup.findIndex(
+            (p) => p.type === selectedMarkerType,
+          );
 
           if (existingIndex !== -1) {
             const updatedPoints = [...pointsRecup];
@@ -779,32 +909,39 @@ export default function TrajetEditor() {
           tempsArret: '08:00',
           ordrePassage: pointsRecup.length + 1,
           type: selectedMarkerType as MarkerType,
-          affectations: []
+          affectations: [],
         };
 
-        setPointsRecup(prev => [...prev, newPoint]);
+        setPointsRecup((prev) => [...prev, newPoint]);
       }
     };
 
-    return () => { delete (window as any).handleMapClickForGeocode; };
+    return () => {
+      delete (window as any).handleMapClickForGeocode;
+    };
   }, [pointsRecup, selectedMarkerType]);
 
   // Synchroniser les waypoints avec pointsRecup pour que les marqueurs s'affichent correctement
   // Vérification d'égalité pour éviter les boucles infinies et les re-renders inutiles
   useEffect(() => {
-    console.log('🔄 Synchronisation pointsRecup → waypoints. Points:', pointsRecup.length);
+    console.log(
+      '🔄 Synchronisation pointsRecup → waypoints. Points:',
+      pointsRecup.length,
+    );
 
-    const newWaypoints = pointsRecup.map(p => ({
+    const newWaypoints = pointsRecup.map((p) => ({
       lat: Number(p.latitude),
-      lng: Number(p.longitude)
+      lng: Number(p.longitude),
     }));
 
     // Vérifier si les waypoints sont réellement différents avant de mettre à jour
-    const areEqual = waypoints.length === newWaypoints.length &&
-      waypoints.every((wp, i) =>
-        newWaypoints[i] &&
-        Math.abs(wp.lat - newWaypoints[i].lat) < 0.000001 &&
-        Math.abs(wp.lng - newWaypoints[i].lng) < 0.000001
+    const areEqual =
+      waypoints.length === newWaypoints.length &&
+      waypoints.every(
+        (wp, i) =>
+          newWaypoints[i] &&
+          Math.abs(wp.lat - newWaypoints[i].lat) < 0.000001 &&
+          Math.abs(wp.lng - newWaypoints[i].lng) < 0.000001,
       );
 
     if (!areEqual) {
@@ -815,27 +952,37 @@ export default function TrajetEditor() {
     }
   }, [pointsRecup]); // Ne pas inclure waypoints dans les dépendances pour éviter la boucle
 
-  useEffect(() => { fetchTrajets(); fetchEleves(); fetchToutesAffectations(); }, []);
+  useEffect(() => {
+    fetchTrajets();
+    fetchEleves();
+    fetchToutesAffectations();
+  }, []);
 
   const fetchTrajets = async () => {
     try {
       const data = await getTrajets();
       setTrajets(Array.isArray(data) ? data : []);
-    } catch (e) { console.error('Fetch trajets failed', e); }
+    } catch (e) {
+      console.error('Fetch trajets failed', e);
+    }
   };
 
   const fetchEleves = async () => {
     try {
       const data = await getEleves();
       setEleves(Array.isArray(data) ? data : []);
-    } catch (e) { console.error('Fetch eleves failed', e); }
+    } catch (e) {
+      console.error('Fetch eleves failed', e);
+    }
   };
 
   const fetchToutesAffectations = async () => {
     try {
       const data = await getAffectations();
       setToutesAffectations(Array.isArray(data) ? data : []);
-    } catch (e) { console.error('Fetch affectations failed', e); }
+    } catch (e) {
+      console.error('Fetch affectations failed', e);
+    }
   };
 
   const handleSelectTrajet = async (trajet: any) => {
@@ -851,7 +998,7 @@ export default function TrajetEditor() {
       nom: trajet.nom,
       description: trajet.description || '',
       sens: trajet.sens || 'aller',
-      heureDepart: trajet.heureDepart || '07:00'
+      heureDepart: trajet.heureDepart || '07:00',
     });
     setDistanceKm(trajet.distanceKm || 0);
     setDureeMin(trajet.dureeEstimative || 0);
@@ -864,11 +1011,17 @@ export default function TrajetEditor() {
 
       // ⚡ AFFICHAGE IMMÉDIAT : Créer les points sans affectations pour un affichage instantané
       const quickPoints = points.map((p: any, index: number) => {
-        const type = p.type || (index === 0 ? 'depart' : (index === points.length - 1 ? 'arrivee' : 'arret'));
+        const type =
+          p.type ||
+          (index === 0
+            ? 'depart'
+            : index === points.length - 1
+              ? 'arrivee'
+              : 'arret');
         return {
           ...p,
           type,
-          affectations: [] // Vide temporairement pour affichage rapide
+          affectations: [], // Vide temporairement pour affichage rapide
         };
       });
 
@@ -878,31 +1031,37 @@ export default function TrajetEditor() {
       // ✅ CRÉER LES WAYPOINTS IMMÉDIATEMENT pour affichage sur la carte
       const newWaypoints = quickPoints.map((p: any) => ({
         lat: Number(p.latitude),
-        lng: Number(p.longitude)
+        lng: Number(p.longitude),
       }));
       setWaypoints(newWaypoints);
 
-      setLoadingMessage('Calcul de l\'itinéraire...');
-      console.log('🗺️ Points et waypoints définis:', newWaypoints.length, 'points');
+      setLoadingMessage("Calcul de l'itinéraire...");
+      console.log(
+        '🗺️ Points et waypoints définis:',
+        newWaypoints.length,
+        'points',
+      );
 
       // ⏳ ÉTAPE 2 : Charger les affectations en arrière-plan
       setLoadingMessage('Chargement des affectations...');
 
       const affectationsResults = await Promise.allSettled(
-        points.map((p: any) => getAffectationsByPoint(p.id))
+        points.map((p: any) => getAffectationsByPoint(p.id)),
       );
 
       // ✅ METTRE À JOUR AVEC LES AFFECTATIONS
-      const pointsWithAffectations = quickPoints.map((p: any, index: number) => ({
-        ...p,
-        affectations: affectationsResults[index].status === 'fulfilled'
-          ? affectationsResults[index].value
-          : []
-      }));
+      const pointsWithAffectations = quickPoints.map(
+        (p: any, index: number) => ({
+          ...p,
+          affectations:
+            affectationsResults[index].status === 'fulfilled'
+              ? affectationsResults[index].value
+              : [],
+        }),
+      );
 
       setPointsRecup(pointsWithAffectations);
       console.log('✅ Affectations chargées');
-
     } catch (err) {
       console.error('❌ Load points failed', err);
       setPointsRecup([]);
@@ -918,7 +1077,12 @@ export default function TrajetEditor() {
 
   const handleNew = () => {
     setSelectedTrajetId(null);
-    setFormData({ nom: '', description: '', sens: 'aller', heureDepart: '07:00' });
+    setFormData({
+      nom: '',
+      description: '',
+      sens: 'aller',
+      heureDepart: '07:00',
+    });
     setWaypoints([]);
     setPointsRecup([]);
     setGeoJson(null);
@@ -941,7 +1105,12 @@ export default function TrajetEditor() {
    * Les waypoints sont dérivés de `pointsRecup`, qui est la seule source de
    * vérité : le contrôle de routage les reçoit, il ne les dicte pas.
    */
-  const handleRouteFound = (dist: number, time: number, geo: any, _wps: any) => {
+  const handleRouteFound = (
+    dist: number,
+    time: number,
+    geo: any,
+    _wps: any,
+  ) => {
     setDistanceKm(dist / 1000);
     setDureeMin(Math.round(time / 60));
     setGeoJson(geo);
@@ -980,7 +1149,8 @@ export default function TrajetEditor() {
       } else {
         // Calculer le temps depuis le point précédent
         // On utilise la durée totale divisée par le nombre de segments
-        const dureeSegmentMin = dureeMin > 0 ? dureeMin / pointsRecup.length : 5;
+        const dureeSegmentMin =
+          dureeMin > 0 ? dureeMin / pointsRecup.length : 5;
         const dureeArret = pointsRecup[index - 1].dureeArretMin || 2;
 
         tempsAccumule += dureeSegmentMin + dureeArret;
@@ -993,7 +1163,7 @@ export default function TrajetEditor() {
       return {
         ...point,
         heurePassage,
-        dureeArretMin: point.dureeArretMin || 2 // 2 minutes par défaut
+        dureeArretMin: point.dureeArretMin || 2, // 2 minutes par défaut
       };
     });
 
@@ -1005,7 +1175,9 @@ export default function TrajetEditor() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (waypoints.length < 2) {
-      toast.error("Veuillez placer au moins un point de départ et un point d'arrivée sur la carte.");
+      toast.error(
+        "Veuillez placer au moins un point de départ et un point d'arrivée sur la carte.",
+      );
       return;
     }
 
@@ -1013,17 +1185,19 @@ export default function TrajetEditor() {
     setLoadingMessage('Sauvegarde du trajet...');
 
     // Nettoyer et valider les waypoints
-    const cleanWaypoints = waypoints.map(wp => {
-      if (wp && typeof wp === 'object') {
-        // Si c'est un objet Leaflet avec lat/lng
-        if (wp.lat !== undefined && wp.lng !== undefined) {
-          return { lat: Number(wp.lat), lng: Number(wp.lng) };
+    const cleanWaypoints = waypoints
+      .map((wp) => {
+        if (wp && typeof wp === 'object') {
+          // Si c'est un objet Leaflet avec lat/lng
+          if (wp.lat !== undefined && wp.lng !== undefined) {
+            return { lat: Number(wp.lat), lng: Number(wp.lng) };
+          }
+          // Si c'est déjà au bon format
+          return wp;
         }
-        // Si c'est déjà au bon format
-        return wp;
-      }
-      return null;
-    }).filter(Boolean);
+        return null;
+      })
+      .filter(Boolean);
 
     // Valider le geoJson - doit être un objet valide ou undefined
     let cleanGeoJson;
@@ -1039,7 +1213,7 @@ export default function TrajetEditor() {
       distanceKm: Number(distanceKm) || 0,
       dureeEstimative: Number(dureeMin) || 0,
       ...(cleanGeoJson && { geoJson: cleanGeoJson }),
-      ...(cleanWaypoints.length > 0 && { waypoints: cleanWaypoints })
+      ...(cleanWaypoints.length > 0 && { waypoints: cleanWaypoints }),
     };
 
     console.log('Payload envoyé:', JSON.stringify(payload, null, 2));
@@ -1050,10 +1224,14 @@ export default function TrajetEditor() {
 
       if (selectedTrajetId) {
         await updateTrajet(selectedTrajetId, payload);
-        setTrajets(prev => prev.map(t => t.id === selectedTrajetId ? { ...t, ...payload } : t));
+        setTrajets((prev) =>
+          prev.map((t) =>
+            t.id === selectedTrajetId ? { ...t, ...payload } : t,
+          ),
+        );
       } else {
         const created = await createTrajet(payload);
-        setTrajets(prev => [...prev, created]);
+        setTrajets((prev) => [...prev, created]);
         setSelectedTrajetId(created.id);
         trajetId = created.id;
       }
@@ -1061,7 +1239,9 @@ export default function TrajetEditor() {
       if (trajetId) {
         setLoadingMessage('Sauvegarde des points...');
 
-        const currentPointIds = pointsRecup.filter(p => p.id).map(p => p.id);
+        const currentPointIds = pointsRecup
+          .filter((p) => p.id)
+          .map((p) => p.id);
         const existingPoints = await getPoints(trajetId);
         for (const oldPoint of existingPoints) {
           if (!currentPointIds.includes(oldPoint.id)) {
@@ -1074,7 +1254,9 @@ export default function TrajetEditor() {
 
         for (let i = 0; i < pointsRecup.length; i++) {
           const point = pointsRecup[i];
-          setLoadingMessage(`Sauvegarde des points... (${i + 1}/${totalPoints})`);
+          setLoadingMessage(
+            `Sauvegarde des points... (${i + 1}/${totalPoints})`,
+          );
 
           const pointPayload = {
             trajetId,
@@ -1085,7 +1267,7 @@ export default function TrajetEditor() {
             heurePassage: point.heurePassage || undefined,
             dureeArretMin: point.dureeArretMin || 2,
             ordrePassage: Number(point.ordrePassage),
-            type: point.type || 'arret'
+            type: point.type || 'arret',
           };
 
           console.log('Point payload:', pointPayload);
@@ -1105,7 +1287,7 @@ export default function TrajetEditor() {
         // Synchroniser les waypoints avec les points mis à jour
         const syncedWaypoints = updatedPoints.map((p: any) => ({
           lat: Number(p.latitude),
-          lng: Number(p.longitude)
+          lng: Number(p.longitude),
         }));
         setWaypoints(syncedWaypoints);
       }
@@ -1116,7 +1298,8 @@ export default function TrajetEditor() {
     } catch (err: any) {
       console.error('Erreur complète:', err);
       console.error('Réponse du serveur:', err.response?.data);
-      const errorMessage = err.response?.data?.message || err.message || 'Erreur inconnue';
+      const errorMessage =
+        err.response?.data?.message || err.message || 'Erreur inconnue';
       toast.error('Erreur lors de la sauvegarde : ' + errorMessage);
     } finally {
       setIsSaving(false);
@@ -1126,11 +1309,17 @@ export default function TrajetEditor() {
 
   const handleDeleteTrajet = async () => {
     if (!selectedTrajetId) return;
-    if (!(await confirmer('Voulez-vous vraiment supprimer ce trajet et tous ses points ?', { danger: true }))) return;
+    if (
+      !(await confirmer(
+        'Voulez-vous vraiment supprimer ce trajet et tous ses points ?',
+        { danger: true },
+      ))
+    )
+      return;
     setIsDeleting(true);
     try {
       await deleteTrajet(selectedTrajetId);
-      setTrajets(prev => prev.filter(t => t.id !== selectedTrajetId));
+      setTrajets((prev) => prev.filter((t) => t.id !== selectedTrajetId));
       handleNew();
     } catch (err) {
       toast.error('Erreur lors de la suppression.');
@@ -1140,10 +1329,17 @@ export default function TrajetEditor() {
   };
 
   const handleDeletePoint = async (index: number) => {
-    if (!(await confirmer('Supprimer ce point de récupération ?', { danger: true }))) return;
+    if (
+      !(await confirmer('Supprimer ce point de récupération ?', {
+        danger: true,
+      }))
+    )
+      return;
 
     const newPoints = pointsRecup.filter((_, i) => i !== index);
-    newPoints.forEach((p, i) => { p.ordrePassage = i + 1; });
+    newPoints.forEach((p, i) => {
+      p.ordrePassage = i + 1;
+    });
 
     const newWps = waypoints.filter((_, i) => i !== index);
 
@@ -1174,19 +1370,27 @@ export default function TrajetEditor() {
 
     // Seuls les points d'arrêt peuvent avoir des affectations d'enfants
     if (point.type !== 'arret') {
-      toast.error('Vous ne pouvez affecter des enfants qu\'aux points d\'arrêt.');
+      toast.error("Vous ne pouvez affecter des enfants qu'aux points d'arrêt.");
       return;
     }
 
     if (!point.id) {
-      toast.error('Veuillez d\'abord enregistrer le trajet avant d\'affecter des enfants.');
+      toast.error(
+        "Veuillez d'abord enregistrer le trajet avant d'affecter des enfants.",
+      );
       return;
     }
 
     try {
-      const affectation = await affecterEnfant(point.id, { childId, ordreMontee: (point.affectations?.length || 0) + 1 });
+      const affectation = await affecterEnfant(point.id, {
+        childId,
+        ordreMontee: (point.affectations?.length || 0) + 1,
+      });
       const newPoints = [...pointsRecup];
-      newPoints[pointIndex].affectations = [...(newPoints[pointIndex].affectations || []), affectation];
+      newPoints[pointIndex].affectations = [
+        ...(newPoints[pointIndex].affectations || []),
+        affectation,
+      ];
       setPointsRecup(newPoints);
       // Sans ce rafraîchissement, cet élève resterait proposable dans le menu
       // d'un AUTRE point jusqu'au prochain rechargement complet de la page.
@@ -1199,11 +1403,16 @@ export default function TrajetEditor() {
     }
   };
 
-  const handleSupprimerAffectation = async (pointIndex: number, affectationId: string) => {
+  const handleSupprimerAffectation = async (
+    pointIndex: number,
+    affectationId: string,
+  ) => {
     try {
       await supprimerAffectation(affectationId);
       const newPoints = [...pointsRecup];
-      newPoints[pointIndex].affectations = newPoints[pointIndex].affectations?.filter(a => a.id !== affectationId);
+      newPoints[pointIndex].affectations = newPoints[
+        pointIndex
+      ].affectations?.filter((a) => a.id !== affectationId);
       setPointsRecup(newPoints);
       fetchToutesAffectations();
     } catch (err: any) {
@@ -1212,7 +1421,11 @@ export default function TrajetEditor() {
   };
 
   const clearMap = async () => {
-    if (await confirmer("Voulez-vous effacer le tracé et tous les points ?", { danger: true })) {
+    if (
+      await confirmer('Voulez-vous effacer le tracé et tous les points ?', {
+        danger: true,
+      })
+    ) {
       setWaypoints([]);
       setPointsRecup([]);
       setGeoJson(null);
@@ -1225,17 +1438,15 @@ export default function TrajetEditor() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-4 font-sans text-[var(--text-primary)]">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-6rem)]">
-
         {/* Colonne Gauche */}
         <div className="lg:col-span-3 flex flex-col gap-3 overflow-hidden">
-
           <div className="bg-white rounded-[10px] p-5 shadow-sm border border-slate-100 shrink-0">
             <h2 className="text-[28px] font-bold text-slate-900 mb-1 leading-tight flex items-center gap-2">
               <Route className="text-blue-600" /> Éditeur de Trajet
             </h2>
             <p className="text-[var(--text-secondary)] text-[13px] mb-4">
               {trajets.length === 0
-                ? "Créez un trajet, placez des points sur la carte, et affectez des enfants."
+                ? 'Créez un trajet, placez des points sur la carte, et affectez des enfants.'
                 : `${trajets.length} trajet${trajets.length > 1 ? 's' : ''} enregistré${trajets.length > 1 ? 's' : ''}.`}
             </p>
 
@@ -1246,19 +1457,27 @@ export default function TrajetEditor() {
                 onChange={(e) => {
                   if (e.target.value === '') handleNew();
                   else {
-                    const trj = trajets.find(t => t.id === e.target.value);
+                    const trj = trajets.find((t) => t.id === e.target.value);
                     if (trj) handleSelectTrajet(trj);
                   }
                 }}
               >
                 <option value="">-- Créer un nouveau trajet --</option>
-                {trajets.map(t => (
-                  <option key={t.id} value={t.id}>{t.nom} ({t.sens})</option>
+                {trajets.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nom} ({t.sens})
+                  </option>
                 ))}
               </select>
               {selectedTrajetId && (
-                <button onClick={handleNew} className="uiverse-new-btn px-3 flex-shrink-0" title="Nouveau">
-                  <span className="button_top"><Plus size={18}/></span>
+                <button
+                  onClick={handleNew}
+                  className="uiverse-new-btn px-3 flex-shrink-0"
+                  title="Nouveau"
+                >
+                  <span className="button_top">
+                    <Plus size={18} />
+                  </span>
                 </button>
               )}
             </div>
@@ -1269,18 +1488,28 @@ export default function TrajetEditor() {
               <div className="uiverse-flex-column mb-4">
                 <label>Nom de la Ligne</label>
                 <div className="uiverse-inputForm mt-1">
-                  <input required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})}
-                    placeholder="Ex: Ligne 1 - Nord" className="uiverse-input" />
+                  <input
+                    required
+                    value={formData.nom}
+                    onChange={(e) =>
+                      setFormData({ ...formData, nom: e.target.value })
+                    }
+                    placeholder="Ex: Ligne 1 - Nord"
+                    className="uiverse-input"
+                  />
                 </div>
               </div>
 
               <div className="uiverse-flex-column mb-4">
                 <label>Sens du trajet</label>
                 <div className="mt-2 flex gap-2">
-                  {['aller', 'retour', 'mixte'].map(s => (
-                    <button key={s} type="button"
-                      onClick={() => setFormData({...formData, sens: s})}
-                      className={`flex-1 py-2 rounded font-semibold text-sm border capitalize transition-colors ${formData.sens === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                  {['aller', 'retour', 'mixte'].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, sens: s })}
+                      className={`flex-1 py-2 rounded font-semibold text-sm border capitalize transition-colors ${formData.sens === s ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-600 border-gray-200'}`}
+                    >
                       {s}
                     </button>
                   ))}
@@ -1297,20 +1526,29 @@ export default function TrajetEditor() {
                     type="time"
                     required
                     value={formData.heureDepart}
-                    onChange={e => setFormData({...formData, heureDepart: e.target.value})}
+                    onChange={(e) =>
+                      setFormData({ ...formData, heureDepart: e.target.value })
+                    }
                     className="uiverse-input"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Les horaires de passage seront calculés automatiquement pour chaque arrêt
+                  Les horaires de passage seront calculés automatiquement pour
+                  chaque arrêt
                 </p>
               </div>
 
               <div className="uiverse-flex-column mb-6 flex-1">
                 <label>Description / Notes</label>
                 <div className="uiverse-inputForm mt-1 h-full">
-                  <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})}
-                    placeholder="Quartiers traversés..." className="uiverse-input resize-none h-full min-h-[80px]" />
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value })
+                    }
+                    placeholder="Quartiers traversés..."
+                    className="uiverse-input resize-none h-full min-h-[80px]"
+                  />
                 </div>
               </div>
 
@@ -1322,40 +1560,65 @@ export default function TrajetEditor() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-blue-600 block">Distance totale</span>
-                    <span className="font-bold text-blue-900 text-lg">{distanceKm.toFixed(2)} km</span>
+                    <span className="font-bold text-blue-900 text-lg">
+                      {distanceKm.toFixed(2)} km
+                    </span>
                   </div>
                   <div>
                     <span className="text-blue-600 block">Durée route</span>
-                    <span className="font-bold text-blue-900 text-lg">{dureeMin} min</span>
+                    <span className="font-bold text-blue-900 text-lg">
+                      {dureeMin} min
+                    </span>
                   </div>
                 </div>
 
-                {pointsRecup.length > 0 && pointsRecup[0]?.heurePassage && pointsRecup[pointsRecup.length - 1]?.heurePassage && (
-                  <div className="mt-3 pt-3 border-t border-blue-200">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
-                        <Clock size={14} className="text-green-600" />
-                        <span className="text-blue-600">Départ</span>
-                        <span className="font-bold text-blue-900">{pointsRecup[0].heurePassage}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock size={14} className="text-red-600" />
-                        <span className="text-blue-600">Arrivée</span>
-                        <span className="font-bold text-blue-900">{pointsRecup[pointsRecup.length - 1].heurePassage}</span>
+                {pointsRecup.length > 0 &&
+                  pointsRecup[0]?.heurePassage &&
+                  pointsRecup[pointsRecup.length - 1]?.heurePassage && (
+                    <div className="mt-3 pt-3 border-t border-blue-200">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-green-600" />
+                          <span className="text-blue-600">Départ</span>
+                          <span className="font-bold text-blue-900">
+                            {pointsRecup[0].heurePassage}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock size={14} className="text-red-600" />
+                          <span className="text-blue-600">Arrivée</span>
+                          <span className="font-bold text-blue-900">
+                            {pointsRecup[pointsRecup.length - 1].heurePassage}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
               <div className="flex gap-2 mt-auto">
                 {selectedTrajetId && (
-                  <button type="button" onClick={handleDeleteTrajet} disabled={isDeleting} className="uiverse-delete-btn flex-shrink-0">
-                    <span className="button_top"><Trash2 size={20}/></span>
+                  <button
+                    type="button"
+                    onClick={handleDeleteTrajet}
+                    disabled={isDeleting}
+                    className="uiverse-delete-btn flex-shrink-0"
+                  >
+                    <span className="button_top">
+                      <Trash2 size={20} />
+                    </span>
                   </button>
                 )}
-                <button type="submit" disabled={isSaving} className="uiverse-btn-submit flex-1">
-                  {isSaving ? '...' : (selectedTrajetId ? 'Mettre à jour le trajet' : 'Enregistrer le trajet')}
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="uiverse-btn-submit flex-1"
+                >
+                  {isSaving
+                    ? '...'
+                    : selectedTrajetId
+                      ? 'Mettre à jour le trajet'
+                      : 'Enregistrer le trajet'}
                 </button>
               </div>
 
@@ -1364,12 +1627,15 @@ export default function TrajetEditor() {
               {trajetJusteCree && (
                 <div className="mt-3 p-3 rounded-lg border border-emerald-200 bg-emerald-50 flex items-start justify-between gap-2">
                   <p className="text-[13px] text-emerald-800">
-                    Trajet créé. Planifiez maintenant une course sur cette ligne pour pouvoir y affecter des élèves.
+                    Trajet créé. Planifiez maintenant une course sur cette ligne
+                    pour pouvoir y affecter des élèves.
                   </p>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
-                      onClick={() => naviguer(`/courses?trajetId=${trajetJusteCree}`)}
+                      onClick={() =>
+                        naviguer(`/courses?trajetId=${trajetJusteCree}`)
+                      }
                       className="text-[12px] font-semibold px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 whitespace-nowrap"
                     >
                       Créer une course
@@ -1391,24 +1657,32 @@ export default function TrajetEditor() {
 
         {/* Colonne Droite */}
         <div className="lg:col-span-9 flex flex-col gap-3 overflow-hidden">
-
           {/* Carte */}
           <div className="bg-white rounded-[10px] shadow-sm border border-slate-200 flex flex-col overflow-hidden relative flex-1 min-h-[300px]">
             <div className="p-2 bg-white border-b z-10 relative space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Map size={18} className="text-blue-600" />
-                  <span className="text-sm font-semibold text-slate-700">Sélectionnez le type de point à placer :</span>
+                  <span className="text-sm font-semibold text-slate-700">
+                    Sélectionnez le type de point à placer :
+                  </span>
                 </div>
-                <button onClick={clearMap} className="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors flex items-center gap-1 text-sm font-bold">
-                  <Trash size={16}/> Effacer tout
+                <button
+                  onClick={clearMap}
+                  className="text-red-500 hover:bg-red-50 p-2 rounded-md transition-colors flex items-center gap-1 text-sm font-bold"
+                >
+                  <Trash size={16} /> Effacer tout
                 </button>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setSelectedMarkerType(prev => prev === 'depart' ? null : 'depart')}
+                  onClick={() =>
+                    setSelectedMarkerType((prev) =>
+                      prev === 'depart' ? null : 'depart',
+                    )
+                  }
                   className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
                     selectedMarkerType === 'depart'
                       ? 'bg-emerald-500 text-white border-emerald-300 scale-105 shadow-[0_0_15px_rgba(16,185,129,0.7)]'
@@ -1420,7 +1694,11 @@ export default function TrajetEditor() {
 
                 <button
                   type="button"
-                  onClick={() => setSelectedMarkerType(prev => prev === 'arret' ? null : 'arret')}
+                  onClick={() =>
+                    setSelectedMarkerType((prev) =>
+                      prev === 'arret' ? null : 'arret',
+                    )
+                  }
                   className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
                     selectedMarkerType === 'arret'
                       ? 'bg-blue-500 text-white border-blue-300 scale-105 shadow-[0_0_15px_rgba(59,130,246,0.7)]'
@@ -1438,13 +1716,17 @@ export default function TrajetEditor() {
                       ? "Le point d'arrivée n'est un point de récupération que pour un trajet mixte — passez le sens à \"mixte\" pour l'utiliser en affectation."
                       : undefined
                   }
-                  onClick={() => setSelectedMarkerType(prev => prev === 'arrivee' ? null : 'arrivee')}
+                  onClick={() =>
+                    setSelectedMarkerType((prev) =>
+                      prev === 'arrivee' ? null : 'arrivee',
+                    )
+                  }
                   className={`px-4 py-2 rounded-md font-bold tracking-wide text-sm uppercase transition-all duration-200 border-2 ${
                     formData.sens !== 'mixte'
                       ? 'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed'
                       : selectedMarkerType === 'arrivee'
-                      ? 'bg-red-500 text-white border-red-300 scale-105 shadow-[0_0_15px_rgba(239,68,68,0.7)]'
-                      : 'bg-white text-red-600 border-red-500 hover:scale-105 hover:shadow-lg'
+                        ? 'bg-red-500 text-white border-red-300 scale-105 shadow-[0_0_15px_rgba(239,68,68,0.7)]'
+                        : 'bg-white text-red-600 border-red-500 hover:scale-105 hover:shadow-lg'
                   }`}
                 >
                   Arrivée
@@ -1452,30 +1734,45 @@ export default function TrajetEditor() {
               </div>
               {formData.sens !== 'mixte' && (
                 <p className="text-[11px] text-slate-500 -mt-1">
-                  Point d'arrivée désactivé : non affectable pour un trajet « {formData.sens} ». Passez le sens à « mixte » pour l'utiliser en affectation.
+                  Point d'arrivée désactivé : non affectable pour un trajet «{' '}
+                  {formData.sens} ». Passez le sens à « mixte » pour l'utiliser
+                  en affectation.
                 </p>
               )}
 
               {/* Bandeau indicateur du mode actif */}
               {selectedMarkerType && (
-                <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 animate-in fade-in slide-in-from-top-2 duration-300 ${
-                  selectedMarkerType === 'depart'
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
-                    : selectedMarkerType === 'arret'
-                    ? 'bg-blue-50 border-blue-300 text-blue-700'
-                    : 'bg-red-50 border-red-300 text-red-700'
-                }`}>
+                <div
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border-2 animate-in fade-in slide-in-from-top-2 duration-300 ${
+                    selectedMarkerType === 'depart'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
+                      : selectedMarkerType === 'arret'
+                        ? 'bg-blue-50 border-blue-300 text-blue-700'
+                        : 'bg-red-50 border-red-300 text-red-700'
+                  }`}
+                >
                   <MapPin size={16} className="flex-shrink-0" />
                   <span className="text-xs font-semibold">
-                    Mode actif : <span className="uppercase font-bold">{selectedMarkerType}</span> — Cliquez sur la carte pour placer le point
-                    {selectedMarkerType !== 'arret' && <span className="text-xs font-normal opacity-75"> (remplace l'existant si déjà placé)</span>}
+                    Mode actif :{' '}
+                    <span className="uppercase font-bold">
+                      {selectedMarkerType}
+                    </span>{' '}
+                    — Cliquez sur la carte pour placer le point
+                    {selectedMarkerType !== 'arret' && (
+                      <span className="text-xs font-normal opacity-75">
+                        {' '}
+                        (remplace l'existant si déjà placé)
+                      </span>
+                    )}
                   </span>
                 </div>
               )}
 
               <div className="text-xs text-slate-600 flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-md border border-blue-100">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-semibold text-blue-700">Sur la carte :</span>
+                  <span className="font-semibold text-blue-700">
+                    Sur la carte :
+                  </span>
                   {(Object.keys(MARQUEURS) as MarkerType[]).map((type, i) => (
                     <React.Fragment key={type}>
                       {i > 0 && <span className="text-slate-300">•</span>}
@@ -1492,7 +1789,10 @@ export default function TrajetEditor() {
                         >
                           {MARQUEURS[type].lettre}
                         </span>
-                        <span className="text-[10px] font-bold" style={{ color: MARQUEURS[type].couleur }}>
+                        <span
+                          className="text-[10px] font-bold"
+                          style={{ color: MARQUEURS[type].couleur }}
+                        >
                           {MARQUEURS[type].libelle}
                         </span>
                       </span>
@@ -1507,7 +1807,8 @@ export default function TrajetEditor() {
                   <div className="flex items-center gap-2">
                     <Route size={14} className="text-blue-600" />
                     <span className="text-xs font-semibold text-slate-700">
-                      Choisissez votre itinéraire ({alternativeRoutes.length} options) :
+                      Choisissez votre itinéraire ({alternativeRoutes.length}{' '}
+                      options) :
                     </span>
                   </div>
                   <div className="flex gap-2 overflow-x-auto pb-2">
@@ -1523,12 +1824,18 @@ export default function TrajetEditor() {
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className={`text-xs font-bold ${
-                            selectedRouteIndex === index ? 'text-blue-700' : 'text-slate-600'
-                          }`}>
-                            {index === 0 ? '⚡ Le plus rapide' :
-                             index === 1 ? '📏 Le plus court' :
-                             `🔄 Alternatif ${index}`}
+                          <span
+                            className={`text-xs font-bold ${
+                              selectedRouteIndex === index
+                                ? 'text-blue-700'
+                                : 'text-slate-600'
+                            }`}
+                          >
+                            {index === 0
+                              ? '⚡ Le plus rapide'
+                              : index === 1
+                                ? '📏 Le plus court'
+                                : `🔄 Alternatif ${index}`}
                           </span>
                           {selectedRouteIndex === index && (
                             <span className="text-blue-600">✓</span>
@@ -1564,7 +1871,7 @@ export default function TrajetEditor() {
               >
                 <TileLayer
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; OpenStreetMap'
+                  attribution="&copy; OpenStreetMap"
                 />
                 <MapAutoResize />
                 <MapCursorController cursorType={selectedMarkerType} />
@@ -1579,7 +1886,7 @@ export default function TrajetEditor() {
                 */}
                 <RoutingMachine
                   waypoints={waypoints}
-                  pointsTypes={pointsRecup.map(p => p.type)}
+                  pointsTypes={pointsRecup.map((p) => p.type)}
                   onRouteFound={handleRouteFound}
                   onRoutesFound={handleRoutesFound}
                   onDeleteMarker={handleDeletePoint}
@@ -1603,7 +1910,9 @@ export default function TrajetEditor() {
                     {/* Message */}
                     <div className="text-center">
                       <p className="text-lg font-semibold text-slate-800 mb-1">
-                        {isSaving ? 'Sauvegarde en cours' : 'Chargement du trajet'}
+                        {isSaving
+                          ? 'Sauvegarde en cours'
+                          : 'Chargement du trajet'}
                       </p>
                       <p className="text-sm text-slate-600">
                         {loadingMessage || 'Veuillez patienter...'}
@@ -1628,277 +1937,355 @@ export default function TrajetEditor() {
                 permanence, et ce panneau flotte juste par-dessus, sans jamais
                 réduire la carte elle-même.
               */}
-              {pointsRecup.length > 0 && (
-                pointsListReplie ? (
+              {pointsRecup.length > 0 &&
+                (pointsListReplie ? (
                   <button
                     type="button"
                     onClick={() => setPointsListReplie(false)}
                     className="absolute bottom-3 right-3 z-[1000] bg-white shadow-lg hover:shadow-xl rounded-full pl-3 pr-4 py-2 flex items-center gap-2 border border-slate-200 transition-shadow text-sm font-semibold text-slate-800"
                     title="Afficher les points du trajet"
                   >
-                    <MapPin size={16} className="text-blue-600"/>
+                    <MapPin size={16} className="text-blue-600" />
                     Points du Trajet ({pointsRecup.length})
-                    <ChevronUp size={16}/>
+                    <ChevronUp size={16} />
                   </button>
                 ) : (
-                <div
-                  ref={pointsListPanelRef}
-                  className="absolute bottom-3 right-3 z-[1000] w-[calc(100%-1.5rem)] sm:w-[360px] bg-white rounded-[10px] shadow-xl border border-slate-200 overflow-y-auto custom-scrollbar resize-y"
-                  style={{ minHeight: '180px', maxHeight: '85vh' }}
-                  title="Glissez le coin inférieur droit pour redimensionner"
-                >
-                  <div className="p-4 border-b bg-slate-50 space-y-3 sticky top-0 z-10">
-                    <div className="flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={() => setPointsListReplie(true)}
-                        className="font-bold text-slate-900 flex items-center gap-2 hover:text-blue-600 transition-colors"
-                        title="Replier pour dégager la carte"
-                      >
-                        <MapPin size={16} className="text-blue-600"/>
-                        Points du Trajet ({pointsRecup.length})
-                        <ChevronDown size={16}/>
-                      </button>
-                      <div className="flex items-center gap-2 text-[10px] font-semibold">
-                        <span className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-gradient-to-br from-emerald-400 to-green-600"></div>
-                          Départ
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-gradient-to-br from-sky-400 to-blue-600"></div>
-                          Arrêts
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-gradient-to-br from-rose-400 to-red-600"></div>
-                          Arrivée
-                        </span>
-                      </div>
-                    </div>
-
-                    {pointsRecup.length >= 2 && (
-                      <button
-                        type="button"
-                        onClick={calculerHoraires}
-                        className="w-full flex items-center justify-center gap-2 p-[10px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm text-sm font-semibold"
-                      >
-                        <Clock size={16} />
-                        Calculer les horaires automatiquement
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="p-2">
-                {pointsRecup.map((point, index) => {
-                  const isExpanded = expandedPoint === `${index}`;
-
-                  let badgeConfig;
-                  if (point.type === 'depart') {
-                    badgeConfig = {
-                      label: 'DÉPART',
-                      gradient: 'from-emerald-500 to-green-600',
-                      textColor: 'text-emerald-600',
-                    };
-                  } else if (point.type === 'arrivee') {
-                    badgeConfig = {
-                      label: 'ARRIVÉE',
-                      gradient: 'from-red-500 to-rose-600',
-                      textColor: 'text-red-600',
-                    };
-                  } else {
-                    badgeConfig = {
-                      label: `ARRÊT ${index + 1}`,
-                      gradient: 'from-blue-500 to-indigo-600',
-                      textColor: 'text-blue-600',
-                    };
-                  }
-
-                  return (
-                    <div key={index} className="mb-2 border border-slate-200 rounded-lg overflow-hidden hover:border-slate-300 transition-all">
-                      <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100/50 flex items-center gap-3">
+                  <div
+                    ref={pointsListPanelRef}
+                    className="absolute bottom-3 right-3 z-[1000] w-[calc(100%-1.5rem)] sm:w-[360px] bg-white rounded-[10px] shadow-xl border border-slate-200 overflow-y-auto custom-scrollbar resize-y"
+                    style={{ minHeight: '180px', maxHeight: '85vh' }}
+                    title="Glissez le coin inférieur droit pour redimensionner"
+                  >
+                    <div className="p-4 border-b bg-slate-50 space-y-3 sticky top-0 z-10">
+                      <div className="flex items-center justify-between">
                         <button
                           type="button"
-                          onClick={() => {
-                            const newIndex = highlightedPointIndex === index ? null : index;
-                            setHighlightedPointIndex(newIndex);
-                            if (newIndex !== null) {
-                              setFocusedPoint({ lat: point.latitude, lng: point.longitude });
-                            }
-                          }}
-                          className={`p-[3px] relative cursor-pointer ${highlightedPointIndex === index ? 'ring-4 ring-yellow-400 rounded-lg' : ''}`}
-                          title="Cliquer pour localiser sur la carte"
+                          onClick={() => setPointsListReplie(true)}
+                          className="font-bold text-slate-900 flex items-center gap-2 hover:text-blue-600 transition-colors"
+                          title="Replier pour dégager la carte"
                         >
-                          <div className={`absolute inset-0 bg-gradient-to-r ${badgeConfig.gradient} rounded-lg`} />
-                          <div className="px-4 py-2 bg-[var(--bg-secondary)] rounded-[6px] relative group transition duration-200 text-white hover:bg-transparent">
-                            <span className="font-bold tracking-wide text-sm uppercase">
-                              {badgeConfig.label}
-                            </span>
-                          </div>
+                          <MapPin size={16} className="text-blue-600" />
+                          Points du Trajet ({pointsRecup.length})
+                          <ChevronDown size={16} />
                         </button>
-                        <div className="flex-1 flex flex-col gap-1">
-                          <input
-                            type="text"
-                            value={point.nom}
-                            onChange={(e) => handleUpdatePointName(index, e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-slate-200 rounded"
-                            placeholder="Nom du point"
-                          />
-                          {point.heurePassage && (
-                            <div className="flex items-center gap-1 text-xs text-blue-600 font-semibold">
-                              <Clock size={12} />
-                              {point.heurePassage}
-                              {point.dureeArretMin && point.type === 'arret' && (
-                                <span className="text-gray-500">• Arrêt {point.dureeArretMin}min</span>
-                              )}
-                            </div>
-                          )}
+                        <div className="flex items-center gap-2 text-[10px] font-semibold">
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-gradient-to-br from-emerald-400 to-green-600"></div>
+                            Départ
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-gradient-to-br from-sky-400 to-blue-600"></div>
+                            Arrêts
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-gradient-to-br from-rose-400 to-red-600"></div>
+                            Arrivée
+                          </span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const newIndex = highlightedPointIndex === index ? null : index;
-                            setHighlightedPointIndex(newIndex);
-                            if (newIndex !== null) {
-                              setFocusedPoint({ lat: point.latitude, lng: point.longitude });
-                            }
-                          }}
-                          className={`p-1.5 hover:bg-blue-100 rounded transition-colors ${highlightedPointIndex === index ? 'bg-blue-100 text-blue-600' : 'text-slate-500'}`}
-                          title="Localiser sur la carte"
-                        >
-                          <MapPinned size={16}/>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedPoint(isExpanded ? null : `${index}`)}
-                          className="p-1 hover:bg-slate-200 rounded"
-                        >
-                          {isExpanded ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeletePoint(index)}
-                          className="p-1 hover:bg-red-100 text-red-500 rounded"
-                        >
-                          <Trash size={16}/>
-                        </button>
                       </div>
 
-                      {isExpanded && (
-                        <div className="p-3 bg-white border-t space-y-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                                <Clock size={12}/> Heure de passage
-                              </label>
-                              <input
-                                type="time"
-                                value={point.heurePassage || ''}
-                                onChange={(e) => {
-                                  const updated = [...pointsRecup];
-                                  updated[index] = {...updated[index], heurePassage: e.target.value};
-                                  setPointsRecup(updated);
-                                }}
-                                className="w-full mt-1 px-2 py-1 text-sm border border-slate-200 rounded"
-                                placeholder="Calculé auto"
-                              />
-                            </div>
-                            <div>
-                              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
-                                <Clock size={12}/> Temps d'arrêt (min)
-                              </label>
-                              <input
-                                type="number"
-                                min="0"
-                                max="30"
-                                value={point.dureeArretMin || 2}
-                                onChange={(e) => {
-                                  const updated = [...pointsRecup];
-                                  updated[index] = {...updated[index], dureeArretMin: parseInt(e.target.value) || 2};
-                                  setPointsRecup(updated);
-                                }}
-                                className="w-full mt-1 px-2 py-1 text-sm border border-slate-200 rounded"
-                              />
-                            </div>
-                          </div>
-
-                          {/* Affectation d'enfants uniquement pour les arrêts */}
-                          {point.type === 'arret' ? (
-                            <div>
-                              <label className="text-xs font-semibold text-slate-700 flex items-center gap-1 mb-2">
-                                <Users size={12}/> Enfants à récupérer ({point.affectations?.length || 0})
-                              </label>
-
-                              {point.affectations && point.affectations.length > 0 && (
-                                <div className="space-y-1 mb-2">
-                                  {point.affectations.map((aff: any) => {
-                                    const enfant = eleves.find(e => e.id === aff.childId);
-                                    // `Child` n'a pas de champ `nom` (seulement
-                                    // `firstName`/`lastName`) : chaque élève déjà
-                                    // affecté s'affichait donc comme "Inconnu" ici.
-                                    const nomEnfant = enfant ? `${enfant.firstName} ${enfant.lastName}`.trim() : '';
-                                    return (
-                                      <div key={aff.id} className="flex items-center justify-between bg-slate-50 px-2 py-1 rounded text-xs">
-                                        <span className="font-medium">{nomEnfant || 'Inconnu'}</span>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleSupprimerAffectation(index, aff.id)}
-                                          className="text-red-500 hover:text-red-700"
-                                        >
-                                          <X size={14}/>
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-
-                              <select
-                                onChange={(e) => {
-                                  if (e.target.value) {
-                                    handleAffecterEnfant(index, e.target.value);
-                                    e.target.value = '';
-                                  }
-                                }}
-                                className="w-full px-2 py-1 text-xs border border-slate-200 rounded"
-                              >
-                                <option value="">+ Ajouter un enfant</option>
-                                {eleves
-                                  // Exclut tout élève déjà affecté à N'IMPORTE
-                                  // QUEL point (pas seulement celui-ci) — sinon
-                                  // on pouvait choisir un élève déjà affecté à
-                                  // un autre point/trajet et recevoir une erreur
-                                  // HTTP brute au lieu de ne simplement pas le
-                                  // proposer dans la liste.
-                                  .filter(eleve => !toutesAffectations.some((a: any) => a.childId === eleve.id))
-                                  .map(eleve => (
-                                    <option key={eleve.id} value={eleve.id}>{eleve.firstName} {eleve.lastName}</option>
-                                  ))}
-                              </select>
-                            </div>
-                          ) : (
-                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                              <p className="text-xs text-slate-600 flex items-center gap-2">
-                                <AlertCircle size={14} className="text-slate-400 flex-shrink-0"/>
-                                {point.type === 'depart' ? (
-                                  <span>Point de départ : pas d'enfant à récupérer ici</span>
-                                ) : (
-                                  <span>Point d'arrivée : tous les enfants descendent ici</span>
-                                )}
-                              </p>
-                            </div>
-                          )}
-                        </div>
+                      {pointsRecup.length >= 2 && (
+                        <button
+                          type="button"
+                          onClick={calculerHoraires}
+                          className="w-full flex items-center justify-center gap-2 p-[10px] bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm text-sm font-semibold"
+                        >
+                          <Clock size={16} />
+                          Calculer les horaires automatiquement
+                        </button>
                       )}
                     </div>
-                  );
-                })}
+
+                    <div className="p-2">
+                      {pointsRecup.map((point, index) => {
+                        const isExpanded = expandedPoint === `${index}`;
+
+                        let badgeConfig;
+                        if (point.type === 'depart') {
+                          badgeConfig = {
+                            label: 'DÉPART',
+                            gradient: 'from-emerald-500 to-green-600',
+                            textColor: 'text-emerald-600',
+                          };
+                        } else if (point.type === 'arrivee') {
+                          badgeConfig = {
+                            label: 'ARRIVÉE',
+                            gradient: 'from-red-500 to-rose-600',
+                            textColor: 'text-red-600',
+                          };
+                        } else {
+                          badgeConfig = {
+                            label: `ARRÊT ${index + 1}`,
+                            gradient: 'from-blue-500 to-indigo-600',
+                            textColor: 'text-blue-600',
+                          };
+                        }
+
+                        return (
+                          <div
+                            key={index}
+                            className="mb-2 border border-slate-200 rounded-lg overflow-hidden hover:border-slate-300 transition-all"
+                          >
+                            <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100/50 flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newIndex =
+                                    highlightedPointIndex === index
+                                      ? null
+                                      : index;
+                                  setHighlightedPointIndex(newIndex);
+                                  if (newIndex !== null) {
+                                    setFocusedPoint({
+                                      lat: point.latitude,
+                                      lng: point.longitude,
+                                    });
+                                  }
+                                }}
+                                className={`p-[3px] relative cursor-pointer ${highlightedPointIndex === index ? 'ring-4 ring-yellow-400 rounded-lg' : ''}`}
+                                title="Cliquer pour localiser sur la carte"
+                              >
+                                <div
+                                  className={`absolute inset-0 bg-gradient-to-r ${badgeConfig.gradient} rounded-lg`}
+                                />
+                                <div className="px-4 py-2 bg-[var(--bg-secondary)] rounded-[6px] relative group transition duration-200 text-white hover:bg-transparent">
+                                  <span className="font-bold tracking-wide text-sm uppercase">
+                                    {badgeConfig.label}
+                                  </span>
+                                </div>
+                              </button>
+                              <div className="flex-1 flex flex-col gap-1">
+                                <input
+                                  type="text"
+                                  value={point.nom}
+                                  onChange={(e) =>
+                                    handleUpdatePointName(index, e.target.value)
+                                  }
+                                  className="w-full px-2 py-1 text-sm border border-slate-200 rounded"
+                                  placeholder="Nom du point"
+                                />
+                                {point.heurePassage && (
+                                  <div className="flex items-center gap-1 text-xs text-blue-600 font-semibold">
+                                    <Clock size={12} />
+                                    {point.heurePassage}
+                                    {point.dureeArretMin &&
+                                      point.type === 'arret' && (
+                                        <span className="text-gray-500">
+                                          • Arrêt {point.dureeArretMin}min
+                                        </span>
+                                      )}
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newIndex =
+                                    highlightedPointIndex === index
+                                      ? null
+                                      : index;
+                                  setHighlightedPointIndex(newIndex);
+                                  if (newIndex !== null) {
+                                    setFocusedPoint({
+                                      lat: point.latitude,
+                                      lng: point.longitude,
+                                    });
+                                  }
+                                }}
+                                className={`p-1.5 hover:bg-blue-100 rounded transition-colors ${highlightedPointIndex === index ? 'bg-blue-100 text-blue-600' : 'text-slate-500'}`}
+                                title="Localiser sur la carte"
+                              >
+                                <MapPinned size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedPoint(
+                                    isExpanded ? null : `${index}`,
+                                  )
+                                }
+                                className="p-1 hover:bg-slate-200 rounded"
+                              >
+                                {isExpanded ? (
+                                  <ChevronUp size={16} />
+                                ) : (
+                                  <ChevronDown size={16} />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePoint(index)}
+                                className="p-1 hover:bg-red-100 text-red-500 rounded"
+                              >
+                                <Trash size={16} />
+                              </button>
+                            </div>
+
+                            {isExpanded && (
+                              <div className="p-3 bg-white border-t space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                                      <Clock size={12} /> Heure de passage
+                                    </label>
+                                    <input
+                                      type="time"
+                                      value={point.heurePassage || ''}
+                                      onChange={(e) => {
+                                        const updated = [...pointsRecup];
+                                        updated[index] = {
+                                          ...updated[index],
+                                          heurePassage: e.target.value,
+                                        };
+                                        setPointsRecup(updated);
+                                      }}
+                                      className="w-full mt-1 px-2 py-1 text-sm border border-slate-200 rounded"
+                                      placeholder="Calculé auto"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1">
+                                      <Clock size={12} /> Temps d'arrêt (min)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="30"
+                                      value={point.dureeArretMin || 2}
+                                      onChange={(e) => {
+                                        const updated = [...pointsRecup];
+                                        updated[index] = {
+                                          ...updated[index],
+                                          dureeArretMin:
+                                            parseInt(e.target.value) || 2,
+                                        };
+                                        setPointsRecup(updated);
+                                      }}
+                                      className="w-full mt-1 px-2 py-1 text-sm border border-slate-200 rounded"
+                                    />
+                                  </div>
+                                </div>
+
+                                {/* Affectation d'enfants uniquement pour les arrêts */}
+                                {point.type === 'arret' ? (
+                                  <div>
+                                    <label className="text-xs font-semibold text-slate-700 flex items-center gap-1 mb-2">
+                                      <Users size={12} /> Enfants à récupérer (
+                                      {point.affectations?.length || 0})
+                                    </label>
+
+                                    {point.affectations &&
+                                      point.affectations.length > 0 && (
+                                        <div className="space-y-1 mb-2">
+                                          {point.affectations.map(
+                                            (aff: any) => {
+                                              const enfant = eleves.find(
+                                                (e) => e.id === aff.childId,
+                                              );
+                                              // `Child` n'a pas de champ `nom` (seulement
+                                              // `firstName`/`lastName`) : chaque élève déjà
+                                              // affecté s'affichait donc comme "Inconnu" ici.
+                                              const nomEnfant = enfant
+                                                ? `${enfant.firstName} ${enfant.lastName}`.trim()
+                                                : '';
+                                              return (
+                                                <div
+                                                  key={aff.id}
+                                                  className="flex items-center justify-between bg-slate-50 px-2 py-1 rounded text-xs"
+                                                >
+                                                  <span className="font-medium">
+                                                    {nomEnfant || 'Inconnu'}
+                                                  </span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      handleSupprimerAffectation(
+                                                        index,
+                                                        aff.id,
+                                                      )
+                                                    }
+                                                    className="text-red-500 hover:text-red-700"
+                                                  >
+                                                    <X size={14} />
+                                                  </button>
+                                                </div>
+                                              );
+                                            },
+                                          )}
+                                        </div>
+                                      )}
+
+                                    <select
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          handleAffecterEnfant(
+                                            index,
+                                            e.target.value,
+                                          );
+                                          e.target.value = '';
+                                        }
+                                      }}
+                                      className="w-full px-2 py-1 text-xs border border-slate-200 rounded"
+                                    >
+                                      <option value="">
+                                        + Ajouter un enfant
+                                      </option>
+                                      {eleves
+                                        // Exclut tout élève déjà affecté à N'IMPORTE
+                                        // QUEL point (pas seulement celui-ci) — sinon
+                                        // on pouvait choisir un élève déjà affecté à
+                                        // un autre point/trajet et recevoir une erreur
+                                        // HTTP brute au lieu de ne simplement pas le
+                                        // proposer dans la liste.
+                                        .filter(
+                                          (eleve) =>
+                                            !toutesAffectations.some(
+                                              (a: any) =>
+                                                a.childId === eleve.id,
+                                            ),
+                                        )
+                                        .map((eleve) => (
+                                          <option
+                                            key={eleve.id}
+                                            value={eleve.id}
+                                          >
+                                            {eleve.firstName} {eleve.lastName}
+                                          </option>
+                                        ))}
+                                    </select>
+                                  </div>
+                                ) : (
+                                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                                    <p className="text-xs text-slate-600 flex items-center gap-2">
+                                      <AlertCircle
+                                        size={14}
+                                        className="text-slate-400 flex-shrink-0"
+                                      />
+                                      {point.type === 'depart' ? (
+                                        <span>
+                                          Point de départ : pas d'enfant à
+                                          récupérer ici
+                                        </span>
+                                      ) : (
+                                        <span>
+                                          Point d'arrivée : tous les enfants
+                                          descendent ici
+                                        </span>
+                                      )}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-                )
-              )}
+                ))}
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

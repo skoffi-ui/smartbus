@@ -1,5 +1,12 @@
 import {
-  Controller, Get, Post, Body, Patch, Param, Query, UseGuards,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
@@ -30,7 +37,7 @@ export class BillingController {
 
   @Get('organisation/:organisationId')
   @Roles(UserRole.SUPER_ADMIN, UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: 'Facturation d\'une organisation' })
+  @ApiOperation({ summary: "Facturation d'une organisation" })
   findByOrganisation(@Param('organisationId') organisationId: string) {
     return this.service.findByOrganisation(organisationId);
   }
@@ -45,7 +52,10 @@ export class BillingController {
   @Patch(':id/complete')
   @Roles(UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Marquer un paiement comme effectué' })
-  markCompleted(@Param('id') id: string, @Body('transactionId') transactionId: string) {
+  markCompleted(
+    @Param('id') id: string,
+    @Body('transactionId') transactionId: string,
+  ) {
     return this.service.markAsCompleted(id, transactionId);
   }
 

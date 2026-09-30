@@ -47,7 +47,10 @@ export class TrajetsService {
    * Met à jour uniquement le tracé GeoJSON d'un trajet.
    * Appelé par le composant MapEditor.tsx du frontend lors du dessin.
    */
-  async updateGeoJson(id: string, geoJson: Record<string, any>): Promise<Trajet> {
+  async updateGeoJson(
+    id: string,
+    geoJson: Record<string, any>,
+  ): Promise<Trajet> {
     const repo = await this.getRepo();
     const trajet = await this.findById(id);
     trajet.geoJson = geoJson;

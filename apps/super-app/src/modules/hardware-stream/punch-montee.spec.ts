@@ -15,8 +15,17 @@ describe('Badgeage → historique des montées', () => {
   let monteeRepo: { create: jest.Mock; save: jest.Mock };
   let saved: any[];
 
-  const child: any = { id: 'child-1', firstName: 'Awa', lastName: 'Koné', empCode: '42' };
-  const course: any = { id: 'course-1', nom: 'Aller Matin', trajetId: 'trajet-1' };
+  const child: any = {
+    id: 'child-1',
+    firstName: 'Awa',
+    lastName: 'Koné',
+    empCode: '42',
+  };
+  const course: any = {
+    id: 'course-1',
+    nom: 'Aller Matin',
+    trajetId: 'trajet-1',
+  };
   const car: any = { id: 'car-1', plateNumber: 'AA-001' };
 
   beforeEach(() => {
@@ -72,7 +81,7 @@ describe('Badgeage → historique des montées', () => {
     });
   });
 
-  it('distingue une descente d\'une montée', async () => {
+  it("distingue une descente d'une montée", async () => {
     await saveMontee(SensPointage.DESCENTE, {
       statut: MonteeStatut.VALIDE,
       message: 'Descente conforme.',
@@ -98,14 +107,21 @@ describe('Badgeage → historique des montées', () => {
   });
 
   it("extrait l'heure du moment du badgeage, pas de l'heure courante", async () => {
-    await saveMontee(SensPointage.MONTEE, { statut: MonteeStatut.VALIDE, message: 'ok' });
+    await saveMontee(SensPointage.MONTEE, {
+      statut: MonteeStatut.VALIDE,
+      message: 'ok',
+    });
 
     expect(saved[0].heure).toMatch(/^\d{2}:\d{2}:\d{2}$/);
     expect(saved[0].date).toEqual(new Date('2026-09-20T07:45:30.000Z'));
   });
 
   it('accepte un badgeage sans car identifié sans planter', async () => {
-    await saveMontee(SensPointage.MONTEE, { statut: MonteeStatut.VALIDE, message: 'ok' }, null);
+    await saveMontee(
+      SensPointage.MONTEE,
+      { statut: MonteeStatut.VALIDE, message: 'ok' },
+      null,
+    );
 
     expect(saved[0].carId).toBeUndefined();
   });
@@ -116,7 +132,10 @@ describe('Badgeage → historique des montées', () => {
     // L'événement biométrique et l'alerte sont déjà enregistrés en amont :
     // un échec de consignation ne doit pas faire échouer le flux matériel.
     await expect(
-      saveMontee(SensPointage.MONTEE, { statut: MonteeStatut.VALIDE, message: 'ok' }),
+      saveMontee(SensPointage.MONTEE, {
+        statut: MonteeStatut.VALIDE,
+        message: 'ok',
+      }),
     ).resolves.toBeUndefined();
   });
 });

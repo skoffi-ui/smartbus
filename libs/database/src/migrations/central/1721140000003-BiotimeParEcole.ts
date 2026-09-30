@@ -131,8 +131,12 @@ export class BiotimeParEcole1721140000003 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_super_app_punches_organisation"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "uq_super_app_punches_org_punch"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_super_app_punches_organisation"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "uq_super_app_punches_org_punch"`,
+    );
     await queryRunner.query(
       `ALTER TABLE "super_app_punches" DROP CONSTRAINT IF EXISTS "FK_super_app_punches_organisation"`,
     );
@@ -140,8 +144,12 @@ export class BiotimeParEcole1721140000003 implements MigrationInterface {
       `ALTER TABLE "super_app_punches" DROP COLUMN IF EXISTS "organisation_id"`,
     );
 
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_super_app_children_organisation"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "uq_super_app_children_org_emp"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_super_app_children_organisation"`,
+    );
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "uq_super_app_children_org_emp"`,
+    );
     await queryRunner.query(
       `ALTER TABLE "super_app_children" DROP CONSTRAINT IF EXISTS "FK_super_app_children_organisation"`,
     );

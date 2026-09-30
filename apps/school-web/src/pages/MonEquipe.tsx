@@ -20,7 +20,9 @@ export default function MonEquipe() {
     try {
       const jeton = localStorage.getItem('accessToken');
       return jeton ? JSON.parse(atob(jeton.split('.')[1])).sub : null;
-    } catch { return null; }
+    } catch {
+      return null;
+    }
   })();
 
   const [equipe, setEquipe] = useState<any[]>([]);
@@ -41,7 +43,9 @@ export default function MonEquipe() {
     }
   };
 
-  useEffect(() => { fetchEquipe(); }, []);
+  useEffect(() => {
+    fetchEquipe();
+  }, []);
 
   const inviterCollaborateur = async () => {
     setInvitationEnCours(true);
@@ -67,7 +71,9 @@ export default function MonEquipe() {
       await api.patch(`/users/${id}/toggle-status`);
       fetchEquipe();
     } catch (err) {
-      toast.error(messageFromError(err, 'Erreur lors du changement de statut.'));
+      toast.error(
+        messageFromError(err, 'Erreur lors du changement de statut.'),
+      );
     }
   };
 
@@ -82,21 +88,45 @@ export default function MonEquipe() {
     }
   };
 
-  if (loading) return <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Chargement…</div>;
-  if (erreur) return <div style={{ padding: '2rem', color: 'var(--danger)' }}>{erreur}</div>;
+  if (loading)
+    return (
+      <div
+        style={{
+          padding: '3rem',
+          textAlign: 'center',
+          color: 'var(--text-secondary)',
+        }}
+      >
+        Chargement…
+      </div>
+    );
+  if (erreur)
+    return (
+      <div style={{ padding: '2rem', color: 'var(--danger)' }}>{erreur}</div>
+    );
 
   return (
     <div className="animate-fade-in">
       <div className="glass-panel p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold" style={{ margin: 0 }}>Mon Équipe</h1>
-            <p className="text-secondary" style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>
+            <h1 className="text-2xl font-bold" style={{ margin: 0 }}>
+              Mon Équipe
+            </h1>
+            <p
+              className="text-secondary"
+              style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}
+            >
               Comptes directeur de votre école.
             </p>
           </div>
-          <button onClick={inviterCollaborateur} disabled={invitationEnCours} className="btn btn-primary gap-2 text-sm">
-            <Plus size={18} /> {invitationEnCours ? 'Invitation…' : 'Inviter un collaborateur'}
+          <button
+            onClick={inviterCollaborateur}
+            disabled={invitationEnCours}
+            className="btn btn-primary gap-2 text-sm"
+          >
+            <Plus size={18} />{' '}
+            {invitationEnCours ? 'Invitation…' : 'Inviter un collaborateur'}
           </button>
         </div>
 
@@ -104,28 +134,58 @@ export default function MonEquipe() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                <th className="p-3 text-sm text-secondary font-semibold">Directeur</th>
-                <th className="p-3 text-sm text-secondary font-semibold">Statut</th>
-                <th className="p-3 text-sm text-secondary font-semibold">Inscrit le</th>
-                <th className="p-3 text-sm text-secondary font-semibold text-right">Actions</th>
+                <th className="p-3 text-sm text-secondary font-semibold">
+                  Directeur
+                </th>
+                <th className="p-3 text-sm text-secondary font-semibold">
+                  Statut
+                </th>
+                <th className="p-3 text-sm text-secondary font-semibold">
+                  Inscrit le
+                </th>
+                <th className="p-3 text-sm text-secondary font-semibold text-right">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {equipe.map((u) => (
-                <tr key={u.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                <tr
+                  key={u.id}
+                  style={{ borderBottom: '1px solid var(--glass-border)' }}
+                >
                   <td className="p-3">
                     <div style={{ fontWeight: 600 }}>
                       {u.firstName} {u.lastName}
-                      {u.id === monId && <span className="text-secondary" style={{ fontWeight: 400 }}> (vous)</span>}
+                      {u.id === monId && (
+                        <span
+                          className="text-secondary"
+                          style={{ fontWeight: 400 }}
+                        >
+                          {' '}
+                          (vous)
+                        </span>
+                      )}
                     </div>
                     <div className="text-secondary text-sm">{u.email}</div>
                   </td>
                   <td className="p-3">
-                    <span style={{
-                      padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700,
-                      background: u.status === 'active' ? 'var(--success-tint)' : 'var(--danger-tint)',
-                      color: u.status === 'active' ? 'var(--success)' : 'var(--danger)',
-                    }}>
+                    <span
+                      style={{
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '1rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        background:
+                          u.status === 'active'
+                            ? 'var(--success-tint)'
+                            : 'var(--danger-tint)',
+                        color:
+                          u.status === 'active'
+                            ? 'var(--success)'
+                            : 'var(--danger)',
+                      }}
+                    >
                       {u.status === 'active' ? 'Actif' : 'Bloqué'}
                     </span>
                   </td>
@@ -134,7 +194,10 @@ export default function MonEquipe() {
                   </td>
                   <td className="p-3 text-right">
                     {u.id !== monId && (
-                      <button onClick={() => toggleStatus(u.id, u.status)} className="btn btn-secondary text-xs">
+                      <button
+                        onClick={() => toggleStatus(u.id, u.status)}
+                        className="btn btn-secondary text-xs"
+                      >
                         {u.status === 'active' ? 'Bloquer' : 'Débloquer'}
                       </button>
                     )}
@@ -143,7 +206,14 @@ export default function MonEquipe() {
               ))}
               {equipe.length === 0 && (
                 <tr>
-                  <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <td
+                    colSpan={4}
+                    style={{
+                      padding: '2rem',
+                      textAlign: 'center',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
                     Aucun directeur pour le moment.
                   </td>
                 </tr>
@@ -154,18 +224,46 @@ export default function MonEquipe() {
       </div>
 
       {lienInvitation && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+        >
           <div className="glass-panel p-6 w-full" style={{ maxWidth: '32rem' }}>
-            <h3 className="text-xl font-bold mb-1">Lien à transmettre au collaborateur</h3>
-            <p className="text-secondary text-sm mb-6">Il choisira lui-même son mot de passe en l'ouvrant. Valable 7 jours.</p>
-            <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--glass-border)', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1.5rem', wordBreak: 'break-all', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+            <h3 className="text-xl font-bold mb-1">
+              Lien à transmettre au collaborateur
+            </h3>
+            <p className="text-secondary text-sm mb-6">
+              Il choisira lui-même son mot de passe en l'ouvrant. Valable 7
+              jours.
+            </p>
+            <div
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '0.75rem',
+                padding: '1rem',
+                marginBottom: '1.5rem',
+                wordBreak: 'break-all',
+                fontFamily: 'monospace',
+                fontSize: '0.8rem',
+              }}
+            >
               {lienInvitation}
             </div>
             <div className="flex gap-3">
-              <button className="btn btn-secondary flex-1 gap-1.5" onClick={copierLien}>
-                {copie ? <Check size={15} /> : <Copy size={15} />} {copie ? 'Copié' : 'Copier'}
+              <button
+                className="btn btn-secondary flex-1 gap-1.5"
+                onClick={copierLien}
+              >
+                {copie ? <Check size={15} /> : <Copy size={15} />}{' '}
+                {copie ? 'Copié' : 'Copier'}
               </button>
-              <button className="btn btn-primary flex-1" onClick={() => setLienInvitation(null)}>Terminé</button>
+              <button
+                className="btn btn-primary flex-1"
+                onClick={() => setLienInvitation(null)}
+              >
+                Terminé
+              </button>
             </div>
           </div>
         </div>

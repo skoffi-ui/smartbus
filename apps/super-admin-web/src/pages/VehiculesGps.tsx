@@ -71,7 +71,9 @@ export default function VehiculesGps() {
   const [searchTerm, setSearchTerm] = useState('');
 
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedDevice, setSelectedDevice] = useState<DeviceCentral | null>(null);
+  const [selectedDevice, setSelectedDevice] = useState<DeviceCentral | null>(
+    null,
+  );
   const [selectedOrgForAssign, setSelectedOrgForAssign] = useState('');
   const [sante, setSante] = useState<SanteGpswox | null>(null);
 
@@ -83,11 +85,15 @@ export default function VehiculesGps() {
         api.get('/devices'),
         api.get('/organisations', { params: { limit: 100 } }),
       ]);
-      const tousAppareils: DeviceCentral[] = Array.isArray(devicesRes.data) ? devicesRes.data : [];
+      const tousAppareils: DeviceCentral[] = Array.isArray(devicesRes.data)
+        ? devicesRes.data
+        : [];
       // `/devices` couvre tout le parc (badgeuses + GPS) : cette page ne
       // concerne que les véhicules GPS.
       setAppareils(tousAppareils.filter((d) => d.type_device === 'GPS'));
-      setOrganisations(Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : []);
+      setOrganisations(
+        Array.isArray(orgsRes.data?.data) ? orgsRes.data.data : [],
+      );
     } catch (err) {
       setError(messageFromError(err, 'Impossible de charger les données.'));
     } finally {
@@ -114,8 +120,12 @@ export default function VehiculesGps() {
     setError('');
     setSuccess('');
     try {
-      await api.post(`/devices/${selectedDevice.id}/assign`, { organisationId: selectedOrgForAssign });
-      setSuccess(`Véhicule ${selectedDevice.serial_number} assigné avec succès !`);
+      await api.post(`/devices/${selectedDevice.id}/assign`, {
+        organisationId: selectedOrgForAssign,
+      });
+      setSuccess(
+        `Véhicule ${selectedDevice.serial_number} assigné avec succès !`,
+      );
       setShowAssignModal(false);
       setSelectedDevice(null);
       setSelectedOrgForAssign('');
@@ -126,7 +136,13 @@ export default function VehiculesGps() {
   };
 
   const desassignerAppareil = async (device: DeviceCentral) => {
-    if (!(await confirmer(`Désassigner le véhicule ${device.serial_number} de son école ?`, { danger: true }))) return;
+    if (
+      !(await confirmer(
+        `Désassigner le véhicule ${device.serial_number} de son école ?`,
+        { danger: true },
+      ))
+    )
+      return;
     setError('');
     setSuccess('');
     try {
@@ -144,19 +160,26 @@ export default function VehiculesGps() {
     return Date.now() - new Date(device.last_seen_at).getTime() < 5 * 60 * 1000;
   };
 
-  const appareilsDisponibles = appareils.filter((d) => !d.assigned_organisation_id);
+  const appareilsDisponibles = appareils.filter(
+    (d) => !d.assigned_organisation_id,
+  );
   const appareilsAssignes = appareils.filter((d) => d.assigned_organisation_id);
   const appareilsEnLigne = appareils.filter(estEnLigne);
 
   const filteredAssignes = appareilsAssignes.filter(
     (d) =>
       d.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (d.assigned_organisation_name || '').toLowerCase().includes(searchTerm.toLowerCase()),
+      (d.assigned_organisation_name || '')
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()),
   );
 
   const formatDerniereSuel = (date: string | null) => {
     if (!date) return '—';
-    return new Date(date).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+    return new Date(date).toLocaleString('fr-FR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
   };
 
   if (loading) {
@@ -174,7 +197,10 @@ export default function VehiculesGps() {
               Appareils de géolocalisation (GPSWOX…) • Assignation aux écoles
             </p>
           </div>
-          <button onClick={chargerDonnees} className="btn-secondary flex items-center gap-2">
+          <button
+            onClick={chargerDonnees}
+            className="btn-secondary flex items-center gap-2"
+          >
             <RefreshCw size={16} />
             Actualiser
           </button>
@@ -214,19 +240,31 @@ export default function VehiculesGps() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <div className="text-3xl font-bold text-white">{appareils.length}</div>
-            <div className="text-sm text-navy-300 mt-1">Total véhicules GPS</div>
+            <div className="text-3xl font-bold text-white">
+              {appareils.length}
+            </div>
+            <div className="text-sm text-navy-300 mt-1">
+              Total véhicules GPS
+            </div>
           </div>
           <div className="bg-emerald-500/10 rounded-xl p-4 border border-emerald-500/20">
-            <div className="text-3xl font-bold text-emerald-400">{appareilsEnLigne.length}</div>
-            <div className="text-sm text-emerald-300/70 mt-1">En ligne (&lt; 5 min)</div>
+            <div className="text-3xl font-bold text-emerald-400">
+              {appareilsEnLigne.length}
+            </div>
+            <div className="text-sm text-emerald-300/70 mt-1">
+              En ligne (&lt; 5 min)
+            </div>
           </div>
           <div className="bg-indigo-500/10 rounded-xl p-4 border border-indigo-500/20">
-            <div className="text-3xl font-bold text-indigo-400">{appareilsAssignes.length}</div>
+            <div className="text-3xl font-bold text-indigo-400">
+              {appareilsAssignes.length}
+            </div>
             <div className="text-sm text-indigo-300/70 mt-1">Assignés</div>
           </div>
           <div className="bg-amber-500/10 rounded-xl p-4 border border-amber-500/20">
-            <div className="text-3xl font-bold text-amber-400">{appareilsDisponibles.length}</div>
+            <div className="text-3xl font-bold text-amber-400">
+              {appareilsDisponibles.length}
+            </div>
             <div className="text-sm text-amber-300/70 mt-1">Non affectés</div>
           </div>
         </div>
@@ -239,8 +277,9 @@ export default function VehiculesGps() {
           </h3>
           {appareilsDisponibles.length === 0 ? (
             <div className="text-center text-navy-400 py-8">
-              Aucun véhicule en attente d'affectation. Les appareils apparaissent ici automatiquement dès
-              leur première position reçue depuis GPSWOX.
+              Aucun véhicule en attente d'affectation. Les appareils
+              apparaissent ici automatiquement dès leur première position reçue
+              depuis GPSWOX.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -258,12 +297,20 @@ export default function VehiculesGps() {
                             : 'bg-white/5 border-white/10'
                         }`}
                       >
-                        <MapPin size={18} className={estEnLigne(d) ? 'text-emerald-400' : 'text-navy-400'} />
+                        <MapPin
+                          size={18}
+                          className={
+                            estEnLigne(d) ? 'text-emerald-400' : 'text-navy-400'
+                          }
+                        />
                       </div>
                       <div>
-                        <div className="font-mono text-sm font-semibold text-white">{d.serial_number}</div>
+                        <div className="font-mono text-sm font-semibold text-white">
+                          {d.serial_number}
+                        </div>
                         <div className="text-xs text-navy-300">
-                          {estEnLigne(d) ? 'En ligne' : 'Hors ligne'} • {formatDerniereSuel(d.last_seen_at)}
+                          {estEnLigne(d) ? 'En ligne' : 'Hors ligne'} •{' '}
+                          {formatDerniereSuel(d.last_seen_at)}
                         </div>
                       </div>
                     </div>
@@ -291,7 +338,10 @@ export default function VehiculesGps() {
             Assignés ({appareilsAssignes.length})
           </h3>
           <div className="relative max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" size={16} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400"
+              size={16}
+            />
             <input
               type="text"
               placeholder="Rechercher…"
@@ -308,7 +358,9 @@ export default function VehiculesGps() {
         </div>
 
         {appareilsAssignes.length === 0 ? (
-          <div className="text-center text-navy-400 py-8">Aucun véhicule assigné pour l'instant.</div>
+          <div className="text-center text-navy-400 py-8">
+            Aucun véhicule assigné pour l'instant.
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -323,7 +375,10 @@ export default function VehiculesGps() {
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filteredAssignes.map((d) => (
-                  <tr key={d.id} className="text-white hover:bg-white/5 transition-colors">
+                  <tr
+                    key={d.id}
+                    className="text-white hover:bg-white/5 transition-colors"
+                  >
                     <td className="p-4">
                       {estEnLigne(d) ? (
                         <span className="flex items-center gap-2 text-emerald-400 font-medium text-sm">
@@ -336,7 +391,9 @@ export default function VehiculesGps() {
                       )}
                     </td>
                     <td className="p-4 font-mono text-sm">{d.serial_number}</td>
-                    <td className="p-4 text-sm text-navy-300">{formatDerniereSuel(d.last_seen_at)}</td>
+                    <td className="p-4 text-sm text-navy-300">
+                      {formatDerniereSuel(d.last_seen_at)}
+                    </td>
                     <td className="p-4 text-sm">
                       <span className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                         <Building2 size={14} />
@@ -364,9 +421,14 @@ export default function VehiculesGps() {
       {showAssignModal && selectedDevice && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="glass-panel p-6 max-w-md w-full">
-            <h3 className="text-xl font-bold text-white mb-4">Assigner un véhicule</h3>
+            <h3 className="text-xl font-bold text-white mb-4">
+              Assigner un véhicule
+            </h3>
             <p className="text-navy-300 text-sm mb-6">
-              Véhicule : <span className="font-mono font-semibold">{selectedDevice.serial_number}</span>
+              Véhicule :{' '}
+              <span className="font-mono font-semibold">
+                {selectedDevice.serial_number}
+              </span>
             </p>
             <div className="mb-6">
               <label className="form-label">École</label>
@@ -384,14 +446,18 @@ export default function VehiculesGps() {
                   Sélectionner une école…
                 </option>
                 {organisations.map((org) => (
-                  <option key={org.id} value={org.id} style={{ background: '#1e293b' }}>
+                  <option
+                    key={org.id}
+                    value={org.id}
+                    style={{ background: '#1e293b' }}
+                  >
                     {org.name} ({org.code})
                   </option>
                 ))}
               </select>
               <p className="text-xs text-navy-400 mt-2">
-                Le directeur de l'école liera ensuite cet appareil à un bus précis, depuis « Véhicules »
-                (menu « Périphérique GPS »).
+                Le directeur de l'école liera ensuite cet appareil à un bus
+                précis, depuis « Véhicules » (menu « Périphérique GPS »).
               </p>
             </div>
             <div className="flex gap-3">

@@ -7,7 +7,13 @@ import { Repository, LessThan, DataSource } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { DataSource as TenantDataSource } from 'typeorm';
-import { Subscription, SubscriptionStatus, Organisation, OrganisationStatus, TenantConnectionService } from '@app/database';
+import {
+  Subscription,
+  SubscriptionStatus,
+  Organisation,
+  OrganisationStatus,
+  TenantConnectionService,
+} from '@app/database';
 
 /**
  * Tâches planifiées de la plateforme.
@@ -45,13 +51,19 @@ export class CronService {
    * l'école ; ici l'identifiant est passé explicitement, donc un contexte vide
    * suffit et aucun en-tête n'est jamais consulté.
    */
-  private async connexionEcole(organisationId: string): Promise<TenantDataSource> {
+  private async connexionEcole(
+    organisationId: string,
+  ): Promise<TenantDataSource> {
     const contextId = ContextIdFactory.create();
     this.moduleRef.registerRequestByContextId({}, contextId);
 
-    const service = await this.moduleRef.resolve(TenantConnectionService, contextId, {
-      strict: false,
-    });
+    const service = await this.moduleRef.resolve(
+      TenantConnectionService,
+      contextId,
+      {
+        strict: false,
+      },
+    );
     return service.getTenantConnection(organisationId);
   }
 
@@ -76,7 +88,9 @@ export class CronService {
       return; // Rien à faire
     }
 
-    this.logger.warn(`⚠️ ${expiredSubscriptions.length} école(s) expirée(s) détectée(s) !`);
+    this.logger.warn(
+      `⚠️ ${expiredSubscriptions.length} école(s) expirée(s) détectée(s) !`,
+    );
 
     // 2. Suspendre chaque école et son abonnement
     for (const sub of expiredSubscriptions) {
@@ -88,7 +102,9 @@ export class CronService {
       if (sub.organisation) {
         sub.organisation.status = OrganisationStatus.SUSPENDED;
         await this.organisationRepository.save(sub.organisation);
-        this.logger.log(`⛔ L'école ${sub.organisation.name} a été automatiquement suspendue pour défaut de paiement.`);
+        this.logger.log(
+          `⛔ L'école ${sub.organisation.name} a été automatiquement suspendue pour défaut de paiement.`,
+        );
       }
     }
   }
@@ -96,7 +112,9 @@ export class CronService {
   // Tâche de fond de surveillance de présence des badgeuses et GPS (Multi-Tenant)
   @Cron(CronExpression.EVERY_MINUTE)
   async handleDeviceHeartbeats() {
-    this.logger.debug('🤖 Robot de surveillance des battements de cœur des équipements...');
+    this.logger.debug(
+      '🤖 Robot de surveillance des battements de cœur des équipements...',
+    );
 
     try {
       // 1. Récupérer toutes les écoles provisionnées
@@ -125,18 +143,20 @@ export class CronService {
           if (result && result.length > 0) {
             for (const dev of result) {
               this.logger.error(
-                `🚨 ALERTE SÉCURITÉ [École: ${school.name}] : L'équipement [Modèle: ${dev.model}] avec le numéro de série [${dev.serialNumber}] est inactif (aucun signal depuis plus de 5 minutes) !`
+                `🚨 ALERTE SÉCURITÉ [École: ${school.name}] : L'équipement [Modèle: ${dev.model}] avec le numéro de série [${dev.serialNumber}] est inactif (aucun signal depuis plus de 5 minutes) !`,
               );
             }
           }
         } catch (schoolErr) {
           this.logger.warn(
-            `Impossible de vérifier les équipements pour l'école ${school.name} (${school.id}) : ${schoolErr.message}`
+            `Impossible de vérifier les équipements pour l'école ${school.name} (${school.id}) : ${schoolErr.message}`,
           );
         }
       }
     } catch (err) {
-      this.logger.error(`Erreur globale lors de la vérification des battements de cœur : ${err.message}`);
+      this.logger.error(
+        `Erreur globale lors de la vérification des battements de cœur : ${err.message}`,
+      );
     }
   }
 
@@ -149,7 +169,9 @@ export class CronService {
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async triggerBioTimePunchesSync() {
-    this.logger.debug('Planificateur : synchronisation des pointages de toutes les ecoles configurees...');
+    this.logger.debug(
+      'Planificateur : synchronisation des pointages de toutes les ecoles configurees...',
+    );
     await this.biotimeQueue.add('sync-punches', {});
   }
 
@@ -158,13 +180,19 @@ export class CronService {
   async triggerBioTimeChildrenSync() {
     const configs = await this.biotimeConfigService.listerActives();
     if (configs.length === 0) {
-      this.logger.debug('Planificateur : aucune ecole avec un serveur BioTime configure.');
+      this.logger.debug(
+        'Planificateur : aucune ecole avec un serveur BioTime configure.',
+      );
       return;
     }
     for (const config of configs) {
-      await this.biotimeQueue.add('sync-children', { organisationId: config.organisationId });
+      await this.biotimeQueue.add('sync-children', {
+        organisationId: config.organisationId,
+      });
     }
-    this.logger.debug(`Planificateur : annuaire mis en file pour ${configs.length} ecole(s).`);
+    this.logger.debug(
+      `Planificateur : annuaire mis en file pour ${configs.length} ecole(s).`,
+    );
   }
 
   /**
@@ -179,7 +207,9 @@ export class CronService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async purgerHistoriquePositionsGps() {
-    const schools = await this.organisationRepository.find({ where: { dbProvisioned: true } });
+    const schools = await this.organisationRepository.find({
+      where: { dbProvisioned: true },
+    });
     if (schools.length === 0) return;
 
     let totalSupprime = 0;
@@ -199,12 +229,16 @@ export class CronService {
         );
         totalSupprime += Array.isArray(result) ? result.length : 0;
       } catch (err: any) {
-        this.logger.warn(`Purge historique GPS impossible pour ${school.name} : ${err.message}`);
+        this.logger.warn(
+          `Purge historique GPS impossible pour ${school.name} : ${err.message}`,
+        );
       }
     }
 
     if (totalSupprime > 0) {
-      this.logger.log(`Purge historique GPS : ${totalSupprime} position(s) de plus de 30 jours supprimée(s).`);
+      this.logger.log(
+        `Purge historique GPS : ${totalSupprime} position(s) de plus de 30 jours supprimée(s).`,
+      );
     }
   }
 }

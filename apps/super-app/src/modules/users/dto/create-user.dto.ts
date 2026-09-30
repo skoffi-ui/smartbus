@@ -25,12 +25,14 @@ export class CreateUserDto {
 
   @ApiProperty({ example: 'admin@smartbus.com' })
   @IsEmail({}, { message: 'Format email invalide' })
-  @IsNotEmpty({ message: 'L\'email est requis' })
+  @IsNotEmpty({ message: "L'email est requis" })
   email: string;
 
   @ApiProperty({ example: 'Password123!' })
   @IsString()
-  @MinLength(8, { message: 'Le mot de passe doit contenir au moins 8 caractères' })
+  @MinLength(8, {
+    message: 'Le mot de passe doit contenir au moins 8 caractères',
+  })
   @IsNotEmpty({ message: 'Le mot de passe est requis' })
   password: string;
 }

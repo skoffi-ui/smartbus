@@ -24,29 +24,37 @@ export class EncryptOrganisationDbPassword1727500000000 implements MigrationInte
   public async up(queryRunner: QueryRunner): Promise<void> {
     const cle = obtenirCleChiffrementDepuisEnv();
 
-    const lignes: Array<{ id: string; db_password: string | null }> = await queryRunner.query(
-      `SELECT id, db_password FROM organisations WHERE db_password IS NOT NULL`,
-    );
+    const lignes: Array<{ id: string; db_password: string | null }> =
+      await queryRunner.query(
+        `SELECT id, db_password FROM organisations WHERE db_password IS NOT NULL`,
+      );
 
     for (const ligne of lignes) {
       if (deballerSecret(ligne.db_password!)) continue; // déjà chiffré (migration rejouée)
       const chiffre = emballerSecret(chiffrerAvecCle(ligne.db_password!, cle));
-      await queryRunner.query(`UPDATE organisations SET db_password = $1 WHERE id = $2`, [chiffre, ligne.id]);
+      await queryRunner.query(
+        `UPDATE organisations SET db_password = $1 WHERE id = $2`,
+        [chiffre, ligne.id],
+      );
     }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     const cle = obtenirCleChiffrementDepuisEnv();
 
-    const lignes: Array<{ id: string; db_password: string | null }> = await queryRunner.query(
-      `SELECT id, db_password FROM organisations WHERE db_password IS NOT NULL`,
-    );
+    const lignes: Array<{ id: string; db_password: string | null }> =
+      await queryRunner.query(
+        `SELECT id, db_password FROM organisations WHERE db_password IS NOT NULL`,
+      );
 
     for (const ligne of lignes) {
       const secret = deballerSecret(ligne.db_password!);
       if (!secret) continue; // déjà en clair
       const clair = dechiffrerAvecCle(secret, cle);
-      await queryRunner.query(`UPDATE organisations SET db_password = $1 WHERE id = $2`, [clair, ligne.id]);
+      await queryRunner.query(
+        `UPDATE organisations SET db_password = $1 WHERE id = $2`,
+        [clair, ligne.id],
+      );
     }
   }
 }

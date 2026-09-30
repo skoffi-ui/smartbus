@@ -32,6 +32,7 @@
 ### 1. Structure de base de données
 
 #### **Entité Organisation** (déjà existante)
+
 ```typescript
 @Entity('organisations')
 export class Organisation {
@@ -60,12 +61,13 @@ export class Organisation {
   @Column({ nullable: true })
   biotimeDepartmentName: string; // "École Nangui Abrogoua"
 
-  @OneToMany(() => BiotimeTerminal, terminal => terminal.organisation)
+  @OneToMany(() => BiotimeTerminal, (terminal) => terminal.organisation)
   biotimeTerminals: BiotimeTerminal[];
 }
 ```
 
 #### **NOUVELLE Entité : BiotimeTerminal**
+
 ```typescript
 @Entity('biotime_terminals')
 export class BiotimeTerminal {
@@ -87,14 +89,18 @@ export class BiotimeTerminal {
   @Column({ nullable: true })
   model: string; // "ZKTeco F18", "SpeedFace-V5L", etc.
 
-  @Column({ type: 'enum', enum: ['ACTIVE', 'INACTIVE', 'ERROR'], default: 'INACTIVE' })
+  @Column({
+    type: 'enum',
+    enum: ['ACTIVE', 'INACTIVE', 'ERROR'],
+    default: 'INACTIVE',
+  })
   status: string;
 
   @Column({ type: 'timestamp', nullable: true })
   lastSyncAt: Date;
 
   // ASSOCIATION À UNE ÉCOLE
-  @ManyToOne(() => Organisation, org => org.biotimeTerminals)
+  @ManyToOne(() => Organisation, (org) => org.biotimeTerminals)
   @JoinColumn({ name: 'organisation_id' })
   organisation: Organisation;
 
@@ -107,6 +113,7 @@ export class BiotimeTerminal {
 ```
 
 #### **Entité Car** (mise à jour)
+
 ```typescript
 @Entity('cars')
 export class Car {
@@ -123,6 +130,7 @@ export class Car {
 ```
 
 #### **Entité Child** (mise à jour)
+
 ```typescript
 @Entity('children')
 export class Child {
@@ -163,7 +171,8 @@ export class BiotimeCentralService {
 
   constructor(
     @InjectRepository(Organisation) private orgRepo: Repository<Organisation>,
-    @InjectRepository(BiotimeTerminal) private terminalRepo: Repository<BiotimeTerminal>,
+    @InjectRepository(BiotimeTerminal)
+    private terminalRepo: Repository<BiotimeTerminal>,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
@@ -182,15 +191,17 @@ export class BiotimeCentralService {
     if (!org) throw new NotFoundException('Organisation not found');
 
     // Créer le département sur BioTime
-    const response = await this.httpService.post(
-      `${this.API_BASE}/personnel/api/departments/`,
-      {
-        dept_name: org.name,
-        dept_code: org.code,
-        parent: null, // Département racine
-      },
-      { headers: { Authorization: `Token ${this.AUTH_TOKEN}` } }
-    ).toPromise();
+    const response = await this.httpService
+      .post(
+        `${this.API_BASE}/personnel/api/departments/`,
+        {
+          dept_name: org.name,
+          dept_code: org.code,
+          parent: null, // Département racine
+        },
+        { headers: { Authorization: `Token ${this.AUTH_TOKEN}` } },
+      )
+      .toPromise();
 
     // Sauvegarder l'ID du département
     org.biotimeDepartmentId = response.data.id;
@@ -204,10 +215,11 @@ export class BiotimeCentralService {
    * Récupérer tous les terminaux disponibles sur le serveur BioTime
    */
   async fetchAllTerminalsFromBiotime(): Promise<any[]> {
-    const response = await this.httpService.get(
-      `${this.API_BASE}/iclock/api/terminals/`,
-      { headers: { Authorization: `Token ${this.AUTH_TOKEN}` } }
-    ).toPromise();
+    const response = await this.httpService
+      .get(`${this.API_BASE}/iclock/api/terminals/`, {
+        headers: { Authorization: `Token ${this.AUTH_TOKEN}` },
+      })
+      .toPromise();
 
     return response.data.data || response.data;
   }
@@ -218,14 +230,16 @@ export class BiotimeCentralService {
   async assignTerminalToOrganisation(
     serialNumber: string,
     organisationId: string,
-    terminalName: string
+    terminalName: string,
   ): Promise<BiotimeTerminal> {
     // Vérifier que le terminal existe sur BioTime
     const biotimeTerminals = await this.fetchAllTerminalsFromBiotime();
-    const biotimeTerminal = biotimeTerminals.find(t => t.sn === serialNumber);
-    
+    const biotimeTerminal = biotimeTerminals.find((t) => t.sn === serialNumber);
+
     if (!biotimeTerminal) {
-      throw new NotFoundException(`Terminal ${serialNumber} not found on BioTime server`);
+      throw new NotFoundException(
+        `Terminal ${serialNumber} not found on BioTime server`,
+      );
     }
 
     // Vérifier que l'école existe
@@ -234,7 +248,7 @@ export class BiotimeCentralService {
 
     // Créer ou mettre à jour le terminal dans notre DB
     let terminal = await this.terminalRepo.findOne({ where: { serialNumber } });
-    
+
     if (!terminal) {
       terminal = this.terminalRepo.create({
         serialNumber,
@@ -258,7 +272,9 @@ export class BiotimeCentralService {
    * Désassigner un terminal (le rendre disponible pour une autre école)
    */
   async unassignTerminal(terminalId: string): Promise<void> {
-    const terminal = await this.terminalRepo.findOne({ where: { id: terminalId } });
+    const terminal = await this.terminalRepo.findOne({
+      where: { id: terminalId },
+    });
     if (!terminal) throw new NotFoundException('Terminal not found');
 
     terminal.organisationId = null;
@@ -278,7 +294,9 @@ export class BiotimeCentralService {
   /**
    * Lister les terminaux d'une école
    */
-  async getOrganisationTerminals(organisationId: string): Promise<BiotimeTerminal[]> {
+  async getOrganisationTerminals(
+    organisationId: string,
+  ): Promise<BiotimeTerminal[]> {
     return await this.terminalRepo.find({
       where: { organisationId },
       relations: ['organisation'],
@@ -296,7 +314,9 @@ export class BiotimeCentralService {
     const org = child.organisation;
 
     if (!org.biotimeDepartmentId) {
-      throw new BadRequestException('Organisation has no BioTime department assigned');
+      throw new BadRequestException(
+        'Organisation has no BioTime department assigned',
+      );
     }
 
     // Créer l'employé sur BioTime
@@ -310,11 +330,11 @@ export class BiotimeCentralService {
     };
 
     try {
-      const response = await this.httpService.post(
-        `${this.API_BASE}/personnel/api/employees/`,
-        payload,
-        { headers: { Authorization: `Token ${this.AUTH_TOKEN}` } }
-      ).toPromise();
+      const response = await this.httpService
+        .post(`${this.API_BASE}/personnel/api/employees/`, payload, {
+          headers: { Authorization: `Token ${this.AUTH_TOKEN}` },
+        })
+        .toPromise();
 
       // Mettre à jour l'élève
       child.biotimeId = response.data.id;
@@ -340,7 +360,7 @@ export class BiotimeCentralService {
   async getOrganisationTransactions(
     organisationId: string,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<any[]> {
     const org = await this.orgRepo.findOne({ where: { id: organisationId } });
     if (!org || !org.biotimeDepartmentId) {
@@ -348,17 +368,16 @@ export class BiotimeCentralService {
     }
 
     // Récupérer les transactions du département
-    const response = await this.httpService.get(
-      `${this.API_BASE}/iclock/api/transactions/`,
-      {
+    const response = await this.httpService
+      .get(`${this.API_BASE}/iclock/api/transactions/`, {
         params: {
           start_time: startDate.toISOString(),
           end_time: endDate.toISOString(),
           department: org.biotimeDepartmentId, // ⭐ Filtrage par département
         },
-        headers: { Authorization: `Token ${this.AUTH_TOKEN}` }
-      }
-    ).toPromise();
+        headers: { Authorization: `Token ${this.AUTH_TOKEN}` },
+      })
+      .toPromise();
 
     return response.data.data || response.data;
   }
@@ -380,13 +399,17 @@ export class BiotimeAdminController {
   // ===== GESTION DES TERMINAUX =====
 
   @Get('terminals/available')
-  @ApiOperation({ summary: 'Lister les terminaux BioTime disponibles (non assignés)' })
+  @ApiOperation({
+    summary: 'Lister les terminaux BioTime disponibles (non assignés)',
+  })
   async getAvailableTerminals() {
     return this.biotimeService.getAvailableTerminals();
   }
 
   @Get('terminals/all-from-server')
-  @ApiOperation({ summary: 'Récupérer tous les terminaux du serveur BioTime central' })
+  @ApiOperation({
+    summary: 'Récupérer tous les terminaux du serveur BioTime central',
+  })
   async fetchAllTerminals() {
     return this.biotimeService.fetchAllTerminalsFromBiotime();
   }
@@ -397,7 +420,7 @@ export class BiotimeAdminController {
     return this.biotimeService.assignTerminalToOrganisation(
       dto.serialNumber,
       dto.organisationId,
-      dto.terminalName
+      dto.terminalName,
     );
   }
 
@@ -409,7 +432,7 @@ export class BiotimeAdminController {
   }
 
   @Get('organisations/:orgId/terminals')
-  @ApiOperation({ summary: 'Lister les terminaux d\'une école' })
+  @ApiOperation({ summary: "Lister les terminaux d'une école" })
   async getOrgTerminals(@Param('orgId') orgId: string) {
     return this.biotimeService.getOrganisationTerminals(orgId);
   }
@@ -449,7 +472,7 @@ export default function BiotimeTerminals() {
   return (
     <div>
       <h1>Gestion des Terminaux BioTime</h1>
-      
+
       <section>
         <h2>Terminaux Disponibles</h2>
         <select onChange={(e) => setSelectedOrg(e.target.value)}>
@@ -465,7 +488,7 @@ export default function BiotimeTerminals() {
               <h3>{terminal.serialNumber}</h3>
               <p>IP: {terminal.ipAddress}</p>
               <p>Modèle: {terminal.model}</p>
-              <button 
+              <button
                 onClick={() => handleAssignTerminal(terminal.serialNumber)}
                 disabled={!selectedOrg}
               >

@@ -18,14 +18,21 @@ export class SubscriptionsService {
     return this.subscriptionRepository.save(sub);
   }
 
-  async findAll(pagination: PaginationDto): Promise<PaginationResponseDto<Subscription>> {
+  async findAll(
+    pagination: PaginationDto,
+  ): Promise<PaginationResponseDto<Subscription>> {
     const [data, total] = await this.subscriptionRepository.findAndCount({
       skip: pagination.skip,
       take: pagination.limit,
       order: { createdAt: 'DESC' },
       relations: { organisation: true },
     });
-    return new PaginationResponseDto(data, total, pagination.page ?? 1, pagination.limit ?? 10);
+    return new PaginationResponseDto(
+      data,
+      total,
+      pagination.page ?? 1,
+      pagination.limit ?? 10,
+    );
   }
 
   async findByOrganisation(organisationId: string): Promise<Subscription[]> {

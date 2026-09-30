@@ -32,7 +32,12 @@ export default function SuiviMontees() {
       // Aucune donnée de démonstration ici : un écran qui invente des pointages
       // empêche de voir que la chaîne de badgeage ne remonte rien.
       setMontees([]);
-      setErreur(messageFromError(error, "Impossible de charger l'historique des pointages."));
+      setErreur(
+        messageFromError(
+          error,
+          "Impossible de charger l'historique des pointages.",
+        ),
+      );
     } finally {
       setChargement(false);
     }
@@ -42,8 +47,12 @@ export default function SuiviMontees() {
   const stats = useMemo(() => {
     const valides = montees.filter((m) => m.statut === 'valide');
     return {
-      courses: new Set(montees.map((m) => m.courseId ?? m.course?.id).filter(Boolean)).size,
-      eleves: new Set(montees.map((m) => m.childId ?? m.child?.id).filter(Boolean)).size,
+      courses: new Set(
+        montees.map((m) => m.courseId ?? m.course?.id).filter(Boolean),
+      ).size,
+      eleves: new Set(
+        montees.map((m) => m.childId ?? m.child?.id).filter(Boolean),
+      ).size,
       montees: valides.filter((m) => m.sens !== 'descente').length,
       descentes: valides.filter((m) => m.sens === 'descente').length,
       refus: montees.filter((m) => m.statut === 'refuse').length,
@@ -58,7 +67,8 @@ export default function SuiviMontees() {
           Tableau de Bord &amp; Suivi
         </h1>
         <p className="text-gray-500 mt-2">
-          Chaque badgeage d'un enfant dans un car, avec son sens et le verdict de validation.
+          Chaque badgeage d'un enfant dans un car, avec son sens et le verdict
+          de validation.
         </p>
       </div>
 
@@ -69,7 +79,9 @@ export default function SuiviMontees() {
             <Bus size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Courses concernées</p>
+            <p className="text-sm text-gray-500 font-medium">
+              Courses concernées
+            </p>
             <p className="text-2xl font-bold text-gray-900">{stats.courses}</p>
           </div>
         </div>
@@ -79,7 +91,9 @@ export default function SuiviMontees() {
             <Users size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Élèves transportés</p>
+            <p className="text-sm text-gray-500 font-medium">
+              Élèves transportés
+            </p>
             <p className="text-2xl font-bold text-gray-900">{stats.eleves}</p>
           </div>
         </div>
@@ -89,7 +103,9 @@ export default function SuiviMontees() {
             <CheckCircle size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Montées / Descentes</p>
+            <p className="text-sm text-gray-500 font-medium">
+              Montées / Descentes
+            </p>
             <p className="text-2xl font-bold text-gray-900">
               {stats.montees} / {stats.descentes}
             </p>
@@ -101,7 +117,9 @@ export default function SuiviMontees() {
             <AlertTriangle size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500 font-medium">Pointages refusés</p>
+            <p className="text-sm text-gray-500 font-medium">
+              Pointages refusés
+            </p>
             <p className="text-2xl font-bold text-gray-900">{stats.refus}</p>
           </div>
         </div>
@@ -118,7 +136,8 @@ export default function SuiviMontees() {
             disabled={chargement}
             className="flex items-center gap-2 text-sm font-medium text-blue-600 disabled:opacity-50"
           >
-            <RefreshCw size={15} className={chargement ? 'animate-spin' : ''} /> Actualiser
+            <RefreshCw size={15} className={chargement ? 'animate-spin' : ''} />{' '}
+            Actualiser
           </button>
         </div>
 
@@ -136,7 +155,9 @@ export default function SuiviMontees() {
                 <th className="p-4 font-semibold text-gray-600">Sens</th>
                 <th className="p-4 font-semibold text-gray-600">Course</th>
                 <th className="p-4 font-semibold text-gray-600">Arrêt</th>
-                <th className="p-4 font-semibold text-gray-600">Date &amp; Heure</th>
+                <th className="p-4 font-semibold text-gray-600">
+                  Date &amp; Heure
+                </th>
                 <th className="p-4 font-semibold text-gray-600">Statut</th>
               </tr>
             </thead>
@@ -191,9 +212,10 @@ export default function SuiviMontees() {
                       Aucun pointage enregistré
                     </p>
                     <p className="text-sm text-gray-500 max-w-lg mx-auto">
-                      Une ligne apparaît ici dès qu'un élève badge dans un car. Il faut pour cela
-                      que la badgeuse du car soit allouée à l'école, que le car porte son numéro de
-                      série, que l'élève ait un matricule et soit affecté à un arrêt du trajet, et
+                      Une ligne apparaît ici dès qu'un élève badge dans un car.
+                      Il faut pour cela que la badgeuse du car soit allouée à
+                      l'école, que le car porte son numéro de série, que l'élève
+                      ait un matricule et soit affecté à un arrêt du trajet, et
                       qu'une course soit active sur ce car.
                     </p>
                   </td>

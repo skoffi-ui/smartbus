@@ -6,7 +6,9 @@ import { Course } from './course.entity';
 
 @Entity('affectations')
 export class Affectation extends BaseEntityModel {
-  @ManyToOne(() => PointRecuperation, (point) => point.affectations, { onDelete: 'CASCADE' })
+  @ManyToOne(() => PointRecuperation, (point) => point.affectations, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'point_id' })
   pointRecuperation: PointRecuperation;
 

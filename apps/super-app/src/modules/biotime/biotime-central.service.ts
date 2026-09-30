@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { HttpService } from '@nestjs/axios';
@@ -31,7 +35,10 @@ export class BiotimeCentralService {
     // l'application de démarrer. Les appels HTTP échoueront simplement (déjà
     // interceptés par des try/catch dans ce service) tant qu'il n'est pas configuré.
     this.API_BASE = this.configService.get<string>('BIOTIME_CENTRAL_URL', '');
-    this.AUTH_TOKEN = this.configService.get<string>('BIOTIME_CENTRAL_TOKEN', '');
+    this.AUTH_TOKEN = this.configService.get<string>(
+      'BIOTIME_CENTRAL_TOKEN',
+      '',
+    );
   }
 
   // ==================== GESTION DES DÉPARTEMENTS ====================
@@ -47,7 +54,9 @@ export class BiotimeCentralService {
     }
 
     if (org.biotimeDepartmentId) {
-      throw new BadRequestException('Organisation already has a BioTime department');
+      throw new BadRequestException(
+        'Organisation already has a BioTime department',
+      );
     }
 
     try {
@@ -124,7 +133,11 @@ export class BiotimeCentralService {
    * Synchroniser les terminaux du serveur BioTime avec notre base de données
    * Crée ou met à jour les terminaux dans notre DB
    */
-  async syncTerminalsFromBiotime(): Promise<{ synced: number; created: number; updated: number }> {
+  async syncTerminalsFromBiotime(): Promise<{
+    synced: number;
+    created: number;
+    updated: number;
+  }> {
     const biotimeTerminals = await this.fetchAllTerminalsFromBiotime();
     let created = 0;
     let updated = 0;
@@ -138,11 +151,15 @@ export class BiotimeCentralService {
         // Créer un nouveau terminal
         terminal = this.terminalRepo.create({
           serialNumber: btTerminal.sn,
-          terminalName: btTerminal.alias || btTerminal.terminal_name || btTerminal.sn,
+          terminalName:
+            btTerminal.alias || btTerminal.terminal_name || btTerminal.sn,
           biotimeTerminalId: btTerminal.id,
           ipAddress: btTerminal.ip_address,
           model: btTerminal.terminal_name,
-          status: btTerminal.state === 1 ? TerminalStatus.ACTIVE : TerminalStatus.INACTIVE,
+          status:
+            btTerminal.state === 1
+              ? TerminalStatus.ACTIVE
+              : TerminalStatus.INACTIVE,
         });
         await this.terminalRepo.save(terminal);
         created++;
@@ -151,7 +168,10 @@ export class BiotimeCentralService {
         terminal.biotimeTerminalId = btTerminal.id;
         terminal.ipAddress = btTerminal.ip_address;
         terminal.model = btTerminal.terminal_name;
-        terminal.status = btTerminal.state === 1 ? TerminalStatus.ACTIVE : TerminalStatus.INACTIVE;
+        terminal.status =
+          btTerminal.state === 1
+            ? TerminalStatus.ACTIVE
+            : TerminalStatus.INACTIVE;
         terminal.lastSyncAt = new Date();
         await this.terminalRepo.save(terminal);
         updated++;
@@ -177,7 +197,9 @@ export class BiotimeCentralService {
     if (!terminal) {
       // Si le terminal n'existe pas, le chercher sur BioTime
       const biotimeTerminals = await this.fetchAllTerminalsFromBiotime();
-      const biotimeTerminal = biotimeTerminals.find((t) => t.sn === serialNumber);
+      const biotimeTerminal = biotimeTerminals.find(
+        (t) => t.sn === serialNumber,
+      );
 
       if (!biotimeTerminal) {
         throw new NotFoundException(
@@ -188,11 +210,17 @@ export class BiotimeCentralService {
       // Créer le terminal dans notre DB
       terminal = this.terminalRepo.create({
         serialNumber,
-        terminalName: terminalName || biotimeTerminal.alias || biotimeTerminal.terminal_name,
+        terminalName:
+          terminalName ||
+          biotimeTerminal.alias ||
+          biotimeTerminal.terminal_name,
         biotimeTerminalId: biotimeTerminal.id,
         ipAddress: biotimeTerminal.ip_address,
         model: biotimeTerminal.terminal_name,
-        status: biotimeTerminal.state === 1 ? TerminalStatus.ACTIVE : TerminalStatus.INACTIVE,
+        status:
+          biotimeTerminal.state === 1
+            ? TerminalStatus.ACTIVE
+            : TerminalStatus.INACTIVE,
       });
     }
 
@@ -215,7 +243,9 @@ export class BiotimeCentralService {
    * Désassigner un terminal (le rendre disponible pour une autre école)
    */
   async unassignTerminal(terminalId: string): Promise<void> {
-    const terminal = await this.terminalRepo.findOne({ where: { id: terminalId } });
+    const terminal = await this.terminalRepo.findOne({
+      where: { id: terminalId },
+    });
     if (!terminal) {
       throw new NotFoundException('Terminal not found');
     }
@@ -249,7 +279,9 @@ export class BiotimeCentralService {
   /**
    * Lister les terminaux assignés à une organisation
    */
-  async getOrganisationTerminals(organisationId: string): Promise<BiotimeTerminal[]> {
+  async getOrganisationTerminals(
+    organisationId: string,
+  ): Promise<BiotimeTerminal[]> {
     return await this.terminalRepo.find({
       where: { organisationId },
       relations: { organisation: true },
@@ -260,7 +292,9 @@ export class BiotimeCentralService {
   /**
    * Récupérer un terminal par son numéro de série
    */
-  async getTerminalBySerialNumber(serialNumber: string): Promise<BiotimeTerminal> {
+  async getTerminalBySerialNumber(
+    serialNumber: string,
+  ): Promise<BiotimeTerminal> {
     const terminal = await this.terminalRepo.findOne({
       where: { serialNumber },
       relations: { organisation: true },
@@ -325,7 +359,10 @@ export class BiotimeCentralService {
   /**
    * Mettre à jour un employé existant sur BioTime
    */
-  private async updateEmployeeOnBiotime(empCode: string, payload: any): Promise<any> {
+  private async updateEmployeeOnBiotime(
+    empCode: string,
+    payload: any,
+  ): Promise<any> {
     try {
       // Récupérer l'employé par emp_code
       const getResponse = await firstValueFrom(
@@ -379,7 +416,9 @@ export class BiotimeCentralService {
   ): Promise<any[]> {
     const org = await this.orgRepo.findOne({ where: { id: organisationId } });
     if (!org || !org.biotimeDepartmentId) {
-      throw new NotFoundException('Organisation has no BioTime department assigned');
+      throw new NotFoundException(
+        'Organisation has no BioTime department assigned',
+      );
     }
 
     try {
@@ -411,7 +450,9 @@ export class BiotimeCentralService {
   ): Promise<any[]> {
     const org = await this.orgRepo.findOne({ where: { id: organisationId } });
     if (!org || !org.biotimeDepartmentId) {
-      throw new NotFoundException('Organisation has no BioTime department assigned');
+      throw new NotFoundException(
+        'Organisation has no BioTime department assigned',
+      );
     }
 
     try {

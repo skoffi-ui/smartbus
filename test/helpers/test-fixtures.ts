@@ -31,7 +31,7 @@ export const createMockOrganisation = (
     contactPhone: '+225012345678',
     address: '123 Rue de Test, Abidjan',
     city: 'Abidjan',
-    country: 'Côte d\'Ivoire',
+    country: "Côte d'Ivoire",
     dbHost: 'localhost',
     dbPort: 5432,
     dbName: 'smartbus_school_test',

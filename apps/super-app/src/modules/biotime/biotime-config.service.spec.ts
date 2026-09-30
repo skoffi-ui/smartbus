@@ -47,7 +47,11 @@ describe('BiotimeConfigService', () => {
     crypto = new CryptoService({
       get: (k: string) => (k === 'ENCRYPTION_KEY' ? CLE : undefined),
     } as unknown as ConfigService);
-    service = new BiotimeConfigService(configRepo as any, orgRepo as any, crypto);
+    service = new BiotimeConfigService(
+      configRepo as any,
+      orgRepo as any,
+      crypto,
+    );
   });
 
   it('chiffre le mot de passe et ne le renvoie jamais', async () => {
@@ -63,11 +67,13 @@ describe('BiotimeConfigService', () => {
     const stockee = enregistrees[ORG_A];
     expect(stockee.passwordCiphertext).toBeTruthy();
     expect(stockee.passwordCiphertext).not.toContain('secret-ecole-A');
-    expect(crypto.dechiffrer({
-      ciphertext: stockee.passwordCiphertext,
-      iv: stockee.passwordIv,
-      tag: stockee.passwordTag,
-    })).toBe('secret-ecole-A');
+    expect(
+      crypto.dechiffrer({
+        ciphertext: stockee.passwordCiphertext,
+        iv: stockee.passwordIv,
+        tag: stockee.passwordTag,
+      }),
+    ).toBe('secret-ecole-A');
   });
 
   it('garde des identifiants distincts pour deux écoles', async () => {
@@ -107,7 +113,7 @@ describe('BiotimeConfigService', () => {
     });
   });
 
-  it('conserve le mot de passe existant quand il n\'est pas resaisi', async () => {
+  it("conserve le mot de passe existant quand il n'est pas resaisi", async () => {
     const existante = {
       organisationId: ORG_A,
       url: 'http://ancienne:8080',
@@ -119,7 +125,10 @@ describe('BiotimeConfigService', () => {
     };
     configRepo.findOne.mockResolvedValue(existante);
 
-    await service.enregistrer(ORG_A, { url: 'http://nouvelle:9090', username: 'admin2' });
+    await service.enregistrer(ORG_A, {
+      url: 'http://nouvelle:9090',
+      username: 'admin2',
+    });
 
     expect(enregistrees[ORG_A].url).toBe('http://nouvelle:9090');
     expect(enregistrees[ORG_A].username).toBe('admin2');
@@ -134,11 +143,15 @@ describe('BiotimeConfigService', () => {
 
   it('refuse une URL sans schéma', async () => {
     await expect(
-      service.enregistrer(ORG_A, { url: '192.168.1.50:8080', username: 'a', password: 'p' }),
+      service.enregistrer(ORG_A, {
+        url: '192.168.1.50:8080',
+        username: 'a',
+        password: 'p',
+      }),
     ).rejects.toThrow(BadRequestException);
   });
 
-  it('normalise la barre oblique finale de l\'URL', async () => {
+  it("normalise la barre oblique finale de l'URL", async () => {
     await service.enregistrer(ORG_A, {
       url: 'http://192.168.1.50:8080/',
       username: 'admin',
@@ -150,13 +163,19 @@ describe('BiotimeConfigService', () => {
 
   it('refuse une école inexistante', async () => {
     await expect(
-      service.enregistrer('org-inconnue', { url: 'http://x:8080', username: 'a', password: 'p' }),
+      service.enregistrer('org-inconnue', {
+        url: 'http://x:8080',
+        username: 'a',
+        password: 'p',
+      }),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('refuse de fournir des identifiants pour une école non configurée', async () => {
     configRepo.findOne.mockResolvedValue(null);
 
-    await expect(service.obtenirIdentifiants(ORG_B)).rejects.toThrow(NotFoundException);
+    await expect(service.obtenirIdentifiants(ORG_B)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });

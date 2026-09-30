@@ -1,17 +1,31 @@
-import { IsString, IsOptional, IsObject, IsEnum, IsNumber, IsArray, Min } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsObject,
+  IsEnum,
+  IsNumber,
+  IsArray,
+  Min,
+} from 'class-validator';
 import { TrajetSens } from '@app/database';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTrajetDto {
-  @ApiProperty({ description: 'Nom du trajet (ex: Ligne A - Cocody → Plateau)' })
+  @ApiProperty({
+    description: 'Nom du trajet (ex: Ligne A - Cocody → Plateau)',
+  })
   @IsString()
   nom: string;
 
   @ApiPropertyOptional({
-    description: 'GeoJSON LineString représentant le tracé de la polyline sur la carte',
+    description:
+      'GeoJSON LineString représentant le tracé de la polyline sur la carte',
     example: {
       type: 'LineString',
-      coordinates: [[-3.99, 5.36], [-4.01, 5.34]],
+      coordinates: [
+        [-3.99, 5.36],
+        [-4.01, 5.34],
+      ],
     },
   })
   @IsOptional()
@@ -31,19 +45,25 @@ export class CreateTrajetDto {
   @IsEnum(TrajetSens)
   sens?: TrajetSens;
 
-  @ApiPropertyOptional({ description: 'Distance totale calculée par OSRM, en kilomètres' })
+  @ApiPropertyOptional({
+    description: 'Distance totale calculée par OSRM, en kilomètres',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   distanceKm?: number;
 
-  @ApiPropertyOptional({ description: "Durée estimée par OSRM, en minutes, hors arrêts" })
+  @ApiPropertyOptional({
+    description: 'Durée estimée par OSRM, en minutes, hors arrêts',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   dureeEstimative?: number;
 
-  @ApiPropertyOptional({ description: 'Heure de départ du trajet (format HH:mm)' })
+  @ApiPropertyOptional({
+    description: 'Heure de départ du trajet (format HH:mm)',
+  })
   @IsOptional()
   @IsString()
   heureDepart?: string;

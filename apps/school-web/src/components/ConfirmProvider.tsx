@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n } from '../i18n';
 
@@ -16,13 +23,19 @@ interface ConfirmOptions {
   danger?: boolean;
 }
 
-type ConfirmFn = (message: string, options?: ConfirmOptions) => Promise<boolean>;
+type ConfirmFn = (
+  message: string,
+  options?: ConfirmOptions,
+) => Promise<boolean>;
 
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
-  const [etat, setEtat] = useState<{ message: string; options: ConfirmOptions } | null>(null);
+  const [etat, setEtat] = useState<{
+    message: string;
+    options: ConfirmOptions;
+  } | null>(null);
   const resolveRef = useRef<((valeur: boolean) => void) | null>(null);
 
   const confirmer: ConfirmFn = useCallback((message, options = {}) => {
@@ -74,7 +87,9 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             <div className="premium-modal-header">
               <div
                 className="premium-modal-icon"
-                style={etat.options.danger ? { color: 'var(--danger)' } : undefined}
+                style={
+                  etat.options.danger ? { color: 'var(--danger)' } : undefined
+                }
               >
                 <AlertTriangle size={18} />
               </div>
@@ -83,19 +98,32 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
               </span>
             </div>
             <div className="premium-modal-body">
-              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+              <p
+                style={{
+                  margin: 0,
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.9rem',
+                  lineHeight: 1.5,
+                }}
+              >
                 {etat.message}
               </p>
             </div>
             <div className="premium-modal-footer">
-              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => repondre(false)}>
+              <button
+                className="btn btn-secondary"
+                style={{ flex: 1 }}
+                onClick={() => repondre(false)}
+              >
                 {etat.options.libelleAnnuler || t('action.annuler')}
               </button>
               <button
                 className="btn"
                 style={{
                   flex: 1,
-                  background: etat.options.danger ? 'var(--danger-container)' : 'var(--accent-gradient)',
+                  background: etat.options.danger
+                    ? 'var(--danger-container)'
+                    : 'var(--accent-gradient)',
                   color: etat.options.danger ? '#fff' : 'var(--on-primary)',
                 }}
                 onClick={() => repondre(true)}
@@ -112,6 +140,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext);
-  if (!ctx) throw new Error('useConfirm() doit être utilisé sous <ConfirmProvider>');
+  if (!ctx)
+    throw new Error('useConfirm() doit être utilisé sous <ConfirmProvider>');
   return ctx;
 }

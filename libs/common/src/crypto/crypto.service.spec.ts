@@ -46,7 +46,7 @@ describe('CryptoService', () => {
     expect(s.dechiffrer(s.chiffrer(valeur))).toBe(valeur);
   });
 
-  it('détecte une donnée altérée en base au lieu de renvoyer n\'importe quoi', () => {
+  it("détecte une donnée altérée en base au lieu de renvoyer n'importe quoi", () => {
     const s = service(CLE);
     const secret = s.chiffrer('mot-de-passe');
 
@@ -61,7 +61,9 @@ describe('CryptoService', () => {
     const secret = service(CLE).chiffrer('mot-de-passe');
     const autre = service('b'.repeat(64));
 
-    expect(() => autre.dechiffrer(secret)).toThrow(InternalServerErrorException);
+    expect(() => autre.dechiffrer(secret)).toThrow(
+      InternalServerErrorException,
+    );
   });
 
   it('exige une clé, avec un message actionnable', () => {

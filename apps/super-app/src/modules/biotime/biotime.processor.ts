@@ -31,7 +31,10 @@ export class BiotimeProcessor extends WorkerHost {
         if (!organisationId) {
           return this.biotimeService.syncToutesLesEcoles();
         }
-        return this.biotimeService.syncPunches(organisationId, job.data?.depuis);
+        return this.biotimeService.syncPunches(
+          organisationId,
+          job.data?.depuis,
+        );
 
       case 'sync-children':
         if (!organisationId) {
@@ -48,7 +51,9 @@ export class BiotimeProcessor extends WorkerHost {
 
       case 'push-children-batch': {
         if (!organisationId) {
-          throw new Error("Le job 'push-children-batch' exige un organisationId.");
+          throw new Error(
+            "Le job 'push-children-batch' exige un organisationId.",
+          );
         }
         const enfants = job.data.enfants ?? [];
         this.logger.log(

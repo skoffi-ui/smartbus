@@ -1,8 +1,21 @@
-import { Controller, Get, Post, Body, UseGuards, Inject, Param } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Inject,
+  Param,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { NotificationsService } from './notifications.service';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard, RolesGuard, Roles, InternalApiKeyGuard } from '@app/common';
+import {
+  JwtAuthGuard,
+  RolesGuard,
+  Roles,
+  InternalApiKeyGuard,
+} from '@app/common';
 import { UserRole } from '@app/database';
 
 @ApiTags('Notifications')
@@ -34,7 +47,10 @@ export class NotificationsController {
   @Roles(UserRole.SCHOOL_ADMIN)
   @Post('parents/:id/fcm-token')
   @ApiOperation({ summary: "Enregistrer le jeton FCM d'un parent" })
-  async updateFcmToken(@Param('id') parentId: string, @Body('token') fcmToken: string) {
+  async updateFcmToken(
+    @Param('id') parentId: string,
+    @Body('token') fcmToken: string,
+  ) {
     return this.notificationsService.updateParentToken(parentId, fcmToken);
   }
 

@@ -74,7 +74,9 @@ export class BiotimeConfigService {
     return configs.map((c) => this.versionPublique(c));
   }
 
-  async obtenirPublique(organisationId: string): Promise<BiotimeConfigPublique | null> {
+  async obtenirPublique(
+    organisationId: string,
+  ): Promise<BiotimeConfigPublique | null> {
     const config = await this.configRepository.findOne({
       where: { organisationId },
       relations: { organisation: true },
@@ -114,7 +116,9 @@ export class BiotimeConfigService {
       throw new BadRequestException("Le nom d'utilisateur BioTime est requis.");
     }
 
-    let config = await this.configRepository.findOne({ where: { organisationId } });
+    let config = await this.configRepository.findOne({
+      where: { organisationId },
+    });
 
     if (!config) {
       if (!dto.password) {
@@ -142,16 +146,23 @@ export class BiotimeConfigService {
     config.lastErrorAt = null;
 
     const enregistre = await this.configRepository.save(config);
-    this.logger.log(`Configuration BioTime enregistrée pour l'école ${organisation.name}`);
+    this.logger.log(
+      `Configuration BioTime enregistrée pour l'école ${organisation.name}`,
+    );
 
-    return this.versionPublique({ ...enregistre, organisation } as BiotimeConfig);
+    return this.versionPublique({
+      ...enregistre,
+      organisation,
+    } as BiotimeConfig);
   }
 
   /** Identifiants déchiffrés, à usage interne du service de synchronisation. */
   async obtenirIdentifiants(
     organisationId: string,
   ): Promise<{ url: string; username: string; password: string }> {
-    const config = await this.configRepository.findOne({ where: { organisationId } });
+    const config = await this.configRepository.findOne({
+      where: { organisationId },
+    });
     if (!config) {
       throw new NotFoundException(
         `Aucun serveur BioTime configuré pour l'école ${organisationId}.`,
@@ -170,7 +181,9 @@ export class BiotimeConfigService {
 
   async supprimer(organisationId: string): Promise<void> {
     await this.configRepository.delete({ organisationId });
-    this.logger.log(`Configuration BioTime supprimée pour l'école ${organisationId}`);
+    this.logger.log(
+      `Configuration BioTime supprimée pour l'école ${organisationId}`,
+    );
   }
 
   // ── État de synchronisation ──────────────────────────────────────────────
@@ -192,7 +205,10 @@ export class BiotimeConfigService {
     );
   }
 
-  async enregistrerEchec(organisationId: string, message: string): Promise<void> {
+  async enregistrerEchec(
+    organisationId: string,
+    message: string,
+  ): Promise<void> {
     await this.configRepository.update(
       { organisationId },
       { lastError: message.slice(0, 1000), lastErrorAt: new Date() },

@@ -7,19 +7,27 @@ import { Repository } from 'typeorm';
 
 async function bootstrap() {
   console.log('--- Initialisation du contexte NestJS ---');
-  const app = await NestFactory.createApplicationContext(SuperAppModule, { logger: ['error', 'warn', 'log'] });
+  const app = await NestFactory.createApplicationContext(SuperAppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
   console.log('✅ Contexte NestJS initialisé avec succès.');
 
   const provisioningService = app.get(ProvisioningService);
-  const organisationRepository = app.get<Repository<Organisation>>(getRepositoryToken(Organisation));
+  const organisationRepository = app.get<Repository<Organisation>>(
+    getRepositoryToken(Organisation),
+  );
 
   const testCode = 'test_sch_prov';
   const dbName = `smartbus_school_${testCode}`;
 
   // 1. Nettoyer l'ancienne base et organisation de test si elles existent
-  const existingOrg = await organisationRepository.findOne({ where: { code: testCode } });
+  const existingOrg = await organisationRepository.findOne({
+    where: { code: testCode },
+  });
   if (existingOrg) {
-    console.log(`⚠️ L'organisation de test existe déjà. Nettoyage de l'ancienne base...`);
+    console.log(
+      `⚠️ L'organisation de test existe déjà. Nettoyage de l'ancienne base...`,
+    );
     await provisioningService.dropOrganisationDatabase(dbName);
     await organisationRepository.remove(existingOrg);
     console.log('✅ Nettoyage terminé.');
@@ -44,7 +52,9 @@ async function bootstrap() {
   if (result.status === 'success') {
     console.log('🎉 SUCCÈS : La base de données et le schéma ont été créés.');
   } else {
-    console.error('❌ ÉCHEC : Erreur lors de la création de la base de données.');
+    console.error(
+      '❌ ÉCHEC : Erreur lors de la création de la base de données.',
+    );
   }
 
   // 4. Nettoyage final pour laisser l'environnement propre
@@ -57,6 +67,6 @@ async function bootstrap() {
 }
 
 bootstrap().catch((err) => {
-  console.error('❌ Erreur lors de l\'exécution du script :', err);
+  console.error("❌ Erreur lors de l'exécution du script :", err);
   process.exit(1);
 });

@@ -53,7 +53,10 @@ async function rafraichirJeton(): Promise<string> {
   }
 
   // `axios` brut, pas `api` : éviter de redéclencher cet intercepteur en boucle.
-  const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { userId, refreshToken });
+  const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+    userId,
+    refreshToken,
+  });
   localStorage.setItem('accessToken', response.data.accessToken);
   localStorage.setItem('refreshToken', response.data.refreshToken);
   return response.data.accessToken;
@@ -86,7 +89,9 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError<{ code?: string; message?: string }>) => {
     const status = error.response?.status;
-    const requeteOriginale = error.config as (typeof error.config & { _dejaRejouee?: boolean }) | undefined;
+    const requeteOriginale = error.config as
+      | (typeof error.config & { _dejaRejouee?: boolean })
+      | undefined;
 
     const rafraichissable =
       status === 401 &&
@@ -97,7 +102,9 @@ api.interceptors.response.use(
     if (rafraichissable) {
       requeteOriginale._dejaRejouee = true;
       try {
-        refreshingPromise ??= rafraichirAvecVerrouInterOnglets().finally(() => { refreshingPromise = null; });
+        refreshingPromise ??= rafraichirAvecVerrouInterOnglets().finally(() => {
+          refreshingPromise = null;
+        });
         const nouveauAccessToken = await refreshingPromise;
         if (requeteOriginale.headers) {
           requeteOriginale.headers.Authorization = `Bearer ${nouveauAccessToken}`;
@@ -117,7 +124,10 @@ api.interceptors.response.use(
 );
 
 /** Message affichable, en privilégiant les codes stables de la gateway. */
-export function messageFromError(error: unknown, fallback = 'Une erreur est survenue.'): string {
+export function messageFromError(
+  error: unknown,
+  fallback = 'Une erreur est survenue.',
+): string {
   const err = error as AxiosError<{ code?: string; message?: string }>;
   const data = err?.response?.data;
 
@@ -130,10 +140,13 @@ export function messageFromError(error: unknown, fallback = 'Une erreur est surv
     case 'ROUTE_NOT_FOUND':
       return "Cette fonctionnalité n'est pas disponible sur le serveur.";
     case 'APP_UPDATE_REQUIRED':
-      return "Console obsolète : rechargez la page pour récupérer la dernière version.";
+      return 'Console obsolète : rechargez la page pour récupérer la dernière version.';
   }
   if (err.response.status === 403) {
-    return data?.message || "Accès refusé : cette action requiert le rôle super admin.";
+    return (
+      data?.message ||
+      'Accès refusé : cette action requiert le rôle super admin.'
+    );
   }
   return data?.message || err.message || fallback;
 }

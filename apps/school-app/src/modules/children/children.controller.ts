@@ -1,8 +1,26 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpException, HttpStatus, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  HttpException,
+  HttpStatus,
+  Req,
+} from '@nestjs/common';
 import { ChildrenService } from './children.service';
 import { CreateChildDto, UpdateChildDto } from './dto/children.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
+import {
+  JwtAuthGuard,
+  RolesGuard,
+  Roles,
+  FeaturesGuard,
+  RequireFeature,
+} from '@app/common';
 import { UserRole } from '@app/database';
 
 @ApiTags('Children')
@@ -19,15 +37,20 @@ export class ChildrenController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Créer un élève (synchronisé automatiquement vers BioTime)' })
+  @ApiOperation({
+    summary: 'Créer un élève (synchronisé automatiquement vers BioTime)',
+  })
   async create(@Body() createChildDto: CreateChildDto, @Req() req: any) {
     try {
       return await this.childrenService.create(createChildDto, this.jeton(req));
     } catch (e: any) {
-      throw new HttpException({
-        message: e.message,
-        stack: e.stack
-      }, HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        {
+          message: e.message,
+          stack: e.stack,
+        },
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -48,7 +71,9 @@ export class ChildrenController {
   }
 
   @Post('resync-photos')
-  @ApiOperation({ summary: 'Resynchroniser les photos BioTime des enfants en base' })
+  @ApiOperation({
+    summary: 'Resynchroniser les photos BioTime des enfants en base',
+  })
   async resyncPhotos(@Req() req: any) {
     return this.childrenService.resyncPhotos(this.jeton(req));
   }
@@ -60,7 +85,9 @@ export class ChildrenController {
   }
 
   @Post('sync-classes')
-  @ApiOperation({ summary: 'Synchroniser les classes locales vers les départements BioTime' })
+  @ApiOperation({
+    summary: 'Synchroniser les classes locales vers les départements BioTime',
+  })
   // Déclenché depuis Settings.tsx (onglet BioTime), sous la fonctionnalité `settings`.
   @RequireFeature('children', 'settings')
   async syncClasses(@Req() req: any) {
@@ -68,7 +95,9 @@ export class ChildrenController {
   }
 
   @Post('retry-sync')
-  @ApiOperation({ summary: 'Resynchroniser vers BioTime les élèves en échec ou en attente' })
+  @ApiOperation({
+    summary: 'Resynchroniser vers BioTime les élèves en échec ou en attente',
+  })
   // Déclenché depuis Settings.tsx (onglet BioTime), sous la fonctionnalité `settings`.
   @RequireFeature('children', 'settings')
   async retrySync(@Req() req: any) {
@@ -82,8 +111,15 @@ export class ChildrenController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Mettre à jour un élève (synchronisé automatiquement vers BioTime)' })
-  update(@Param('id') id: string, @Body() updateChildDto: UpdateChildDto, @Req() req: any) {
+  @ApiOperation({
+    summary:
+      'Mettre à jour un élève (synchronisé automatiquement vers BioTime)',
+  })
+  update(
+    @Param('id') id: string,
+    @Body() updateChildDto: UpdateChildDto,
+    @Req() req: any,
+  ) {
     return this.childrenService.update(id, updateChildDto, this.jeton(req));
   }
 
@@ -94,7 +130,7 @@ export class ChildrenController {
   }
 
   @Get(':id/punches')
-  @ApiOperation({ summary: 'Récupérer l\'historique des pointages d\'un élève' })
+  @ApiOperation({ summary: "Récupérer l'historique des pointages d'un élève" })
   async getPunches(@Param('id') id: string, @Req() req: any) {
     return this.childrenService.getPunches(id, this.jeton(req));
   }

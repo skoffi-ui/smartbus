@@ -2,7 +2,13 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HttpModule } from '@nestjs/axios';
 import { BullModule } from '@nestjs/bullmq';
-import { SuperAppChild, SuperAppPunch, BiotimeConfig, Organisation, BiotimeTerminal } from '@app/database';
+import {
+  SuperAppChild,
+  SuperAppPunch,
+  BiotimeConfig,
+  Organisation,
+  BiotimeTerminal,
+} from '@app/database';
 import { BiotimeService } from './biotime.service';
 import { BiotimeConfigService } from './biotime-config.service';
 import { BiotimeCentralService } from './biotime-central.service';
@@ -36,6 +42,11 @@ import { BiotimeProcessor } from './biotime.processor';
     AlertsService,
     BiotimeProcessor,
   ],
-  exports: [BiotimeService, BiotimeConfigService, BiotimeCentralService, BullModule],
+  exports: [
+    BiotimeService,
+    BiotimeConfigService,
+    BiotimeCentralService,
+    BullModule,
+  ],
 })
 export class BiotimeModule {}
