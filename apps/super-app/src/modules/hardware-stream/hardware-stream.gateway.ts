@@ -151,8 +151,12 @@ export class HardwareStreamGateway
           payload.sub,
         );
         client.data.allowedCourseIds = courseIds;
-        courseIds.forEach((courseId) =>
-          client.join(courseRoom(organisationId, courseId)),
+        // join est typé Promise<void> | void : Promise.resolve adopte la
+        // promesse réelle et n'attend rien quand l'appel est synchrone.
+        await Promise.all(
+          courseIds.map((courseId) =>
+            Promise.resolve(client.join(courseRoom(organisationId, courseId))),
+          ),
         );
         this.logger.log(
           `Client parent connecté : ${client.id} (école ${organisationId}, ${courseIds.length} course(s))`,
