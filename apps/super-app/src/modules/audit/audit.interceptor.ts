@@ -1,4 +1,10 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+  Logger,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -34,7 +40,7 @@ export class AuditInterceptor implements NestInterceptor {
   private async logAction(req: any) {
     try {
       const user = req.user;
-      
+
       const auditLog = this.auditLogRepository.create({
         userId: user ? user.sub || user.id : 'anonymous',
         action: req.method,
@@ -45,7 +51,9 @@ export class AuditInterceptor implements NestInterceptor {
       });
 
       await this.auditLogRepository.save(auditLog);
-      this.logger.debug(`[AUDIT] ${req.method} ${req.originalUrl} par ${auditLog.userId}`);
+      this.logger.debug(
+        `[AUDIT] ${req.method} ${req.originalUrl} par ${auditLog.userId}`,
+      );
     } catch (err) {
       this.logger.error(`Erreur lors de la journalisation d'audit :`, err);
     }

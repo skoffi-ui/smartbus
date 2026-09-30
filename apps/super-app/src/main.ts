@@ -62,7 +62,9 @@ async function bootstrap() {
   await app.listen(port, host);
 
   console.log(`\n🚌 SMARTBUS Super App running on: http://localhost:${port}`);
-  console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs\n`);
+  console.log(
+    `📚 Swagger docs available at: http://localhost:${port}/api/docs\n`,
+  );
 }
 
 bootstrap();

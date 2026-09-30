@@ -4,7 +4,9 @@
 // aucune position n'arrive sur la carte de suivi.
 const path = require('path');
 const R = path.resolve(__dirname, '../..');
-require(path.join(R, 'node_modules/dotenv')).config({ path: path.join(R, '.env') });
+require(path.join(R, 'node_modules/dotenv')).config({
+  path: path.join(R, '.env'),
+});
 const { Client } = require(path.join(R, 'node_modules/pg'));
 
 const b = {
@@ -16,7 +18,10 @@ const b = {
 
 /** Nom de la base de l'école ciblée, lu dans la base centrale. */
 async function baseEcole(base) {
-  const central = new Client({ ...base, database: process.env.SUPER_DB_NAME || 'smartbus_super' });
+  const central = new Client({
+    ...base,
+    database: process.env.SUPER_DB_NAME || 'smartbus_super',
+  });
   await central.connect();
   const cible = process.env.DEMO_ORG_CODE;
   const r = await central.query(
@@ -26,7 +31,10 @@ async function baseEcole(base) {
     cible ? [cible] : [],
   );
   await central.end();
-  if (!r.rows.length) throw new Error(cible ? `Aucune école de code ${cible}` : 'Aucune école en base centrale');
+  if (!r.rows.length)
+    throw new Error(
+      cible ? `Aucune école de code ${cible}` : 'Aucune école en base centrale',
+    );
   return r.rows[0].db_name;
 }
 
@@ -40,14 +48,21 @@ async function baseEcole(base) {
   ).rows;
   await ecole.end();
 
-  const c = new Client({ ...b, database: process.env.SUPER_DB_NAME || 'smartbus_super' });
+  const c = new Client({
+    ...b,
+    database: process.env.SUPER_DB_NAME || 'smartbus_super',
+  });
   await c.connect();
-  const org = (await c.query('select id, name from organisations limit 1')).rows[0];
+  const org = (await c.query('select id, name from organisations limit 1'))
+    .rows[0];
 
   for (const car of cars) {
     const serie = car.gps_device_id;
     let dev = (
-      await c.query('select id from devices where serial_number = $1 and deleted_at is null', [serie])
+      await c.query(
+        'select id from devices where serial_number = $1 and deleted_at is null',
+        [serie],
+      )
     ).rows[0];
 
     if (!dev) {
@@ -75,9 +90,14 @@ async function baseEcole(base) {
         'insert into organisation_devices (organisation_id, device_id) values ($1, $2)',
         [org.id, dev.id],
       );
-      console.log(`  ${car.plate_number} → balise ${serie} rattachée à ${org.name}`);
+      console.log(
+        `  ${car.plate_number} → balise ${serie} rattachée à ${org.name}`,
+      );
     }
   }
 
   await c.end();
-})().catch((e) => { console.error('ECHEC:', e.message); process.exit(1); });
+})().catch((e) => {
+  console.error('ECHEC:', e.message);
+  process.exit(1);
+});

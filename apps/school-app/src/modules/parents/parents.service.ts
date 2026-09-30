@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Parent } from '@app/database/tenant-entities/parent.entity';
 import { CreateParentDto, UpdateParentDto } from './dto/parents.dto';
@@ -20,7 +24,10 @@ export class ParentsService {
 
   async findOne(id: string): Promise<Parent> {
     const repo = await this.getRepo();
-    const parent = await repo.findOne({ where: { id }, relations: { children: true } });
+    const parent = await repo.findOne({
+      where: { id },
+      relations: { children: true },
+    });
     if (!parent) {
       throw new NotFoundException(`Parent ${id} introuvable.`);
     }
@@ -38,9 +45,13 @@ export class ParentsService {
 
   async create(createParentDto: CreateParentDto): Promise<Parent> {
     const repo = await this.getRepo();
-    const existing = await repo.findOne({ where: { phone: createParentDto.phone } });
+    const existing = await repo.findOne({
+      where: { phone: createParentDto.phone },
+    });
     if (existing) {
-      throw new ConflictException(`Un parent avec ce numéro de téléphone existe déjà.`);
+      throw new ConflictException(
+        `Un parent avec ce numéro de téléphone existe déjà.`,
+      );
     }
     const parent = repo.create({
       ...createParentDto,
@@ -65,9 +76,11 @@ export class ParentsService {
   async update(id: string, updateParentDto: UpdateParentDto): Promise<Parent> {
     const repo = await this.getRepo();
     const parent = await this.findOne(id);
-    
+
     if (updateParentDto.phone && updateParentDto.phone !== parent.phone) {
-      const existing = await repo.findOne({ where: { phone: updateParentDto.phone } });
+      const existing = await repo.findOne({
+        where: { phone: updateParentDto.phone },
+      });
       if (existing) {
         throw new ConflictException(`Ce numéro de téléphone est déjà utilisé.`);
       }

@@ -49,11 +49,15 @@ export class StatsService {
   private readonly logger = new Logger(StatsService.name);
 
   constructor(
-    @InjectRepository(Organisation) private readonly organisationRepo: Repository<Organisation>,
+    @InjectRepository(Organisation)
+    private readonly organisationRepo: Repository<Organisation>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
-    @InjectRepository(Subscription) private readonly subscriptionRepo: Repository<Subscription>,
-    @InjectRepository(PlanTarif) private readonly planTarifRepo: Repository<PlanTarif>,
-    @InjectRepository(BiotimeTerminal) private readonly terminalRepo: Repository<BiotimeTerminal>,
+    @InjectRepository(Subscription)
+    private readonly subscriptionRepo: Repository<Subscription>,
+    @InjectRepository(PlanTarif)
+    private readonly planTarifRepo: Repository<PlanTarif>,
+    @InjectRepository(BiotimeTerminal)
+    private readonly terminalRepo: Repository<BiotimeTerminal>,
     private readonly moduleRef: ModuleRef,
   ) {}
 
@@ -65,7 +69,11 @@ export class StatsService {
   private async connexionEcole(organisationId: string) {
     const contextId = ContextIdFactory.create();
     this.moduleRef.registerRequestByContextId({}, contextId);
-    const service = await this.moduleRef.resolve(TenantConnectionService, contextId, { strict: false });
+    const service = await this.moduleRef.resolve(
+      TenantConnectionService,
+      contextId,
+      { strict: false },
+    );
     return service.getTenantConnection(organisationId);
   }
 
@@ -73,21 +81,30 @@ export class StatsService {
     const organisations = await this.organisationRepo.find();
     const ecolesProvisionnees = organisations.filter((o) => o.dbProvisioned);
 
-    const [utilisateurs, abonnements, planTarifs, biotime, parEcole] = await Promise.all([
-      this.statsUtilisateurs(),
-      this.statsAbonnements(),
-      this.planTarifRepo.find({ order: { plan: 'ASC' } }),
-      this.statsBiotime(organisations),
-      this.statsParEcole(ecolesProvisionnees),
-    ]);
+    const [utilisateurs, abonnements, planTarifs, biotime, parEcole] =
+      await Promise.all([
+        this.statsUtilisateurs(),
+        this.statsAbonnements(),
+        this.planTarifRepo.find({ order: { plan: 'ASC' } }),
+        this.statsBiotime(organisations),
+        this.statsParEcole(ecolesProvisionnees),
+      ]);
 
     return {
       ecoles: {
         total: organisations.length,
-        actives: organisations.filter((o) => o.status === OrganisationStatus.ACTIVE).length,
-        suspendues: organisations.filter((o) => o.status === OrganisationStatus.SUSPENDED).length,
-        trial: organisations.filter((o) => o.status === OrganisationStatus.TRIAL).length,
-        pending: organisations.filter((o) => o.status === OrganisationStatus.PENDING).length,
+        actives: organisations.filter(
+          (o) => o.status === OrganisationStatus.ACTIVE,
+        ).length,
+        suspendues: organisations.filter(
+          (o) => o.status === OrganisationStatus.SUSPENDED,
+        ).length,
+        trial: organisations.filter(
+          (o) => o.status === OrganisationStatus.TRIAL,
+        ).length,
+        pending: organisations.filter(
+          (o) => o.status === OrganisationStatus.PENDING,
+        ).length,
       },
       utilisateurs,
       abonnements,
@@ -132,7 +149,8 @@ export class StatsService {
       this.terminalRepo.count({ where: { organisationId: Not(IsNull()) } }),
     ]);
     return {
-      departements: organisations.filter((o) => o.biotimeDepartmentId != null).length,
+      departements: organisations.filter((o) => o.biotimeDepartmentId != null)
+        .length,
       terminaux,
       terminauxAssignes,
       terminauxLibres: terminaux - terminauxAssignes,
@@ -184,11 +202,16 @@ export class StatsService {
         }
         alertesCritiques += Number(row?.alertesCritiques ?? 0);
       } catch (err: any) {
-        this.logger.warn(`Statistiques indisponibles pour l'école ${ecole.name} : ${err.message}`);
+        this.logger.warn(
+          `Statistiques indisponibles pour l'école ${ecole.name} : ${err.message}`,
+        );
       }
     }
 
-    const resultat: Record<string, { total: number; parEcole: StatEcole[]; critiques?: number }> = {};
+    const resultat: Record<
+      string,
+      { total: number; parEcole: StatEcole[]; critiques?: number }
+    > = {};
     for (const domaine of DOMAINES_TENANT) {
       resultat[domaine] = {
         total: parEcole[domaine].reduce((somme, e) => somme + e.valeur, 0),

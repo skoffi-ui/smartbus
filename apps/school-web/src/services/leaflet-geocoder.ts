@@ -17,12 +17,14 @@ export async function chargerLeafletGeocoder(): Promise<void> {
     // Charger le CSS
     const linkCss = document.createElement('link');
     linkCss.rel = 'stylesheet';
-    linkCss.href = 'https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css';
+    linkCss.href =
+      'https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css';
     document.head.appendChild(linkCss);
 
     // Charger le JS
     const script = document.createElement('script');
-    script.src = 'https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js';
+    script.src =
+      'https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js';
     script.async = true;
     script.onload = () => {
       console.log('✅ Leaflet Control Geocoder chargé');

@@ -10,11 +10,16 @@
 const path = require('path');
 const http = require('http');
 const R = path.resolve(__dirname, '../..');
-require(path.join(R, 'node_modules/dotenv')).config({ path: path.join(R, '.env') });
+require(path.join(R, 'node_modules/dotenv')).config({
+  path: path.join(R, '.env'),
+});
 const { Client } = require(path.join(R, 'node_modules/pg'));
 
 const INTERVALLE = Number(process.argv[2] || 4) * 1000;
-const SUPER_APP = { host: 'localhost', port: Number(process.env.SUPER_APP_PORT || 3000) };
+const SUPER_APP = {
+  host: 'localhost',
+  port: Number(process.env.SUPER_APP_PORT || 3000),
+};
 
 const poster = (corps) =>
   new Promise((res) => {
@@ -24,7 +29,10 @@ const poster = (corps) =>
         ...SUPER_APP,
         path: '/api/v1/hardware/traccar',
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(donnees) },
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(donnees),
+        },
       },
       (r) => {
         let b = '';
@@ -59,7 +67,10 @@ const base = {
 
 /** Nom de la base de l'école ciblée, lu dans la base centrale. */
 async function baseEcole(base) {
-  const central = new Client({ ...base, database: process.env.SUPER_DB_NAME || 'smartbus_super' });
+  const central = new Client({
+    ...base,
+    database: process.env.SUPER_DB_NAME || 'smartbus_super',
+  });
   await central.connect();
   const cible = process.env.DEMO_ORG_CODE;
   const r = await central.query(
@@ -69,7 +80,10 @@ async function baseEcole(base) {
     cible ? [cible] : [],
   );
   await central.end();
-  if (!r.rows.length) throw new Error(cible ? `Aucune école de code ${cible}` : 'Aucune école en base centrale');
+  if (!r.rows.length)
+    throw new Error(
+      cible ? `Aucune école de code ${cible}` : 'Aucune école en base centrale',
+    );
   return r.rows[0].db_name;
 }
 
@@ -83,7 +97,11 @@ async function baseEcole(base) {
     )
   ).rows;
 
-  const trajets = (await cl.query('select id, nom from trajets where deleted_at is null order by created_at')).rows;
+  const trajets = (
+    await cl.query(
+      'select id, nom from trajets where deleted_at is null order by created_at',
+    )
+  ).rows;
   const parcours = [];
   for (const t of trajets) {
     const pts = (
@@ -97,7 +115,7 @@ async function baseEcole(base) {
   await cl.end();
 
   if (!parcours.length) {
-    console.error("Aucun trajet avec au moins 2 points : rien à simuler.");
+    console.error('Aucun trajet avec au moins 2 points : rien à simuler.');
     process.exit(1);
   }
 
@@ -109,9 +127,13 @@ async function baseEcole(base) {
     sens: 1,
   }));
 
-  console.log(`\nSimulation de ${flotte.length} véhicule(s), une position toutes les ${INTERVALLE / 1000} s.`);
+  console.log(
+    `\nSimulation de ${flotte.length} véhicule(s), une position toutes les ${INTERVALLE / 1000} s.`,
+  );
   for (const b of flotte) {
-    console.log(`  ${b.car.plate_number} (balise ${b.car.gps_device_id}) sur « ${b.parcours.nom} »`);
+    console.log(
+      `  ${b.car.plate_number} (balise ${b.car.gps_device_id}) sur « ${b.parcours.nom} »`,
+    );
   }
   console.log('\nCtrl+C pour arrêter.\n');
 
@@ -122,8 +144,14 @@ async function baseEcole(base) {
     for (const b of flotte) {
       // Avance d'environ 4 % du trajet par envoi, puis repart dans l'autre sens
       b.t += 0.04 * b.sens;
-      if (b.t >= 1) { b.t = 1; b.sens = -1; }
-      if (b.t <= 0) { b.t = 0; b.sens = 1; }
+      if (b.t >= 1) {
+        b.t = 1;
+        b.sens = -1;
+      }
+      if (b.t <= 0) {
+        b.t = 0;
+        b.sens = 1;
+      }
 
       const p = surLaRoute(b.parcours.pts, b.t);
       const r = await poster({
@@ -133,7 +161,12 @@ async function baseEcole(base) {
         speed: Math.round(18 + Math.random() * 22),
         timestamp: new Date().toISOString(),
       });
-      const etat = r.code === 200 ? (/pending/.test(r.corps) ? 'EN ATTENTE' : 'ok') : `HTTP ${r.code}`;
+      const etat =
+        r.code === 200
+          ? /pending/.test(r.corps)
+            ? 'EN ATTENTE'
+            : 'ok'
+          : `HTTP ${r.code}`;
       lignes.push(`${b.car.plate_number}:${etat}`);
     }
     console.log(`envoi #${tour} — ${lignes.join('  ')}`);
@@ -141,4 +174,7 @@ async function baseEcole(base) {
 
   await tic();
   setInterval(tic, INTERVALLE);
-})().catch((e) => { console.error('ECHEC:', e.message); process.exit(1); });
+})().catch((e) => {
+  console.error('ECHEC:', e.message);
+  process.exit(1);
+});

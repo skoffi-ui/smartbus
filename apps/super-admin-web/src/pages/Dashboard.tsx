@@ -48,11 +48,34 @@ interface StatDomaine {
 }
 
 interface DashboardStats {
-  ecoles: { total: number; actives: number; suspendues: number; trial: number; pending: number };
+  ecoles: {
+    total: number;
+    actives: number;
+    suspendues: number;
+    trial: number;
+    pending: number;
+  };
   utilisateurs: { administrateurs: number; directeurs: number };
-  abonnements: { total: number; actifs: number; parStatut: Record<string, number>; parPlan: Record<string, number> };
-  planTarifs: { id: string; plan: string; label: string; pricePerMonth: number; maxCars: number; maxChildren: number | null }[];
-  biotime: { departements: number; terminaux: number; terminauxAssignes: number; terminauxLibres: number };
+  abonnements: {
+    total: number;
+    actifs: number;
+    parStatut: Record<string, number>;
+    parPlan: Record<string, number>;
+  };
+  planTarifs: {
+    id: string;
+    plan: string;
+    label: string;
+    pricePerMonth: number;
+    maxCars: number;
+    maxChildren: number | null;
+  }[];
+  biotime: {
+    departements: number;
+    terminaux: number;
+    terminauxAssignes: number;
+    terminauxLibres: number;
+  };
   vehicules: StatDomaine;
   chauffeurs: StatDomaine;
   parents: StatDomaine;
@@ -82,7 +105,11 @@ const STYLE_TOOLTIP = {
     color: 'var(--text-primary)',
     fontSize: 12,
   },
-  labelStyle: { color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 },
+  labelStyle: {
+    color: 'var(--text-primary)',
+    fontWeight: 600,
+    marginBottom: 4,
+  },
   itemStyle: { color: 'var(--text-secondary)' },
   cursor: { fill: 'var(--glass-border)', opacity: 0.15 },
 };
@@ -93,17 +120,39 @@ const STYLE_AXE = { fill: 'var(--text-secondary)', fontSize: 11 };
  * couleur du domaine) : la couleur suit ici le domaine affiché, pas le rang
  * de chaque école, donc aucune teinte différente par barre.
  */
-function GraphiqueParEcole({ data, couleur, unite }: { data: StatEcole[]; couleur: string; unite: string }) {
+function GraphiqueParEcole({
+  data,
+  couleur,
+  unite,
+}: {
+  data: StatEcole[];
+  couleur: string;
+  unite: string;
+}) {
   const hauteurLigne = 30;
   const hauteur = Math.max(data.length * hauteurLigne, 40);
 
   return (
-    <div style={{ maxHeight: 220, overflowY: hauteur > 220 ? 'auto' : 'visible' }} className="pr-1 custom-scrollbar">
+    <div
+      style={{ maxHeight: 220, overflowY: hauteur > 220 ? 'auto' : 'visible' }}
+      className="pr-1 custom-scrollbar"
+    >
       <div style={{ height: hauteur, width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ top: 0, right: 12, bottom: 0, left: 0 }} barSize={14}>
+          <BarChart
+            data={data}
+            layout="vertical"
+            margin={{ top: 0, right: 12, bottom: 0, left: 0 }}
+            barSize={14}
+          >
             <CartesianGrid horizontal={false} stroke="var(--glass-border)" />
-            <XAxis type="number" allowDecimals={false} tick={STYLE_AXE} axisLine={false} tickLine={false} />
+            <XAxis
+              type="number"
+              allowDecimals={false}
+              tick={STYLE_AXE}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis
               type="category"
               dataKey="nom"
@@ -111,7 +160,9 @@ function GraphiqueParEcole({ data, couleur, unite }: { data: StatEcole[]; couleu
               tick={STYLE_AXE}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(v: string) => (v.length > 16 ? `${v.slice(0, 15)}…` : v)}
+              tickFormatter={(v: string) =>
+                v.length > 16 ? `${v.slice(0, 15)}…` : v
+              }
             />
             <Tooltip
               {...STYLE_TOOLTIP}
@@ -131,10 +182,18 @@ function GraphiqueParEcole({ data, couleur, unite }: { data: StatEcole[]; couleu
  * (actif/essai/suspendu...), jamais recyclées comme teintes génériques.
  * Légende toujours présente (>= 2 catégories).
  */
-function GraphiqueDonut({ data }: { data: { nom: string; valeur: number; couleur: string }[] }) {
+function GraphiqueDonut({
+  data,
+}: {
+  data: { nom: string; valeur: number; couleur: string }[];
+}) {
   const donnees = data.filter((d) => d.valeur > 0);
   if (donnees.length === 0) {
-    return <p className="text-navy-400 text-xs py-6 text-center">Aucune donnée pour l'instant.</p>;
+    return (
+      <p className="text-navy-400 text-xs py-6 text-center">
+        Aucune donnée pour l'instant.
+      </p>
+    );
   }
   return (
     <div style={{ height: 200, width: '100%' }}>
@@ -154,14 +213,21 @@ function GraphiqueDonut({ data }: { data: { nom: string; valeur: number; couleur
               <Cell key={d.nom} fill={d.couleur} />
             ))}
           </Pie>
-          <Tooltip {...STYLE_TOOLTIP} formatter={(value: number, nom: string) => [value, nom]} />
+          <Tooltip
+            {...STYLE_TOOLTIP}
+            formatter={(value: number, nom: string) => [value, nom]}
+          />
           <Legend
             layout="vertical"
             align="right"
             verticalAlign="middle"
             iconType="circle"
             iconSize={8}
-            formatter={(value: string) => <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>{value}</span>}
+            formatter={(value: string) => (
+              <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+                {value}
+              </span>
+            )}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -190,8 +256,12 @@ function TuileKpi({
         <Icone size={22} />
       </div>
       <div className="min-w-0">
-        <div className="text-2xl font-extrabold text-white leading-tight">{valeur}</div>
-        <div className="text-xs text-navy-300 font-medium truncate">{label}</div>
+        <div className="text-2xl font-extrabold text-white leading-tight">
+          {valeur}
+        </div>
+        <div className="text-xs text-navy-300 font-medium truncate">
+          {label}
+        </div>
       </div>
     </div>
   );
@@ -226,18 +296,25 @@ function CarteDomaine({
     <div className="glass-panel p-5 flex flex-col">
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-lg shrink-0" style={{ background: `${couleur}22`, color: couleur }}>
+          <div
+            className="p-2 rounded-lg shrink-0"
+            style={{ background: `${couleur}22`, color: couleur }}
+          >
             <Icone size={17} />
           </div>
           <h3 className="font-bold text-white text-[15px]">{titre}</h3>
         </div>
         <span className="text-2xl font-extrabold text-white">{stat.total}</span>
       </div>
-      {sousLigne && <div className="text-xs text-navy-400 mb-3 ml-[42px]">{sousLigne}</div>}
+      {sousLigne && (
+        <div className="text-xs text-navy-400 mb-3 ml-[42px]">{sousLigne}</div>
+      )}
 
       <div className={sousLigne ? '' : 'mt-3'}>
         {triees.length === 0 ? (
-          <p className="text-navy-400 text-xs py-2">Aucune école provisionnée pour l'instant.</p>
+          <p className="text-navy-400 text-xs py-2">
+            Aucune école provisionnée pour l'instant.
+          </p>
         ) : (
           <GraphiqueParEcole data={triees} couleur={couleur} unite={unite} />
         )}
@@ -284,7 +361,9 @@ export default function Dashboard() {
       setStats(response.data);
       setError('');
     } catch (err) {
-      setError(messageFromError(err, 'Erreur lors du chargement des statistiques.'));
+      setError(
+        messageFromError(err, 'Erreur lors du chargement des statistiques.'),
+      );
     } finally {
       setLoading(false);
     }
@@ -320,25 +399,57 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-1">
         <div>
           <h1 className="text-2xl font-bold text-white">Tableau de bord</h1>
-          <p className="text-sm text-navy-300 mt-0.5">Vue d'ensemble de la plateforme SMARTBUS, en direct.</p>
+          <p className="text-sm text-navy-300 mt-0.5">
+            Vue d'ensemble de la plateforme SMARTBUS, en direct.
+          </p>
         </div>
-        <Link to="/ecoles" className="btn-secondary text-sm flex items-center gap-2">
+        <Link
+          to="/ecoles"
+          className="btn-secondary text-sm flex items-center gap-2"
+        >
           Gérer les écoles clientes <ArrowRight size={15} />
         </Link>
       </div>
 
       {/* ── KPI de tête ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mt-6">
-        <TuileKpi icone={Building2} label="Écoles clientes" valeur={stats.ecoles.total} couleur={COULEUR.brand} />
-        <TuileKpi icone={Bus} label="Véhicules (flotte totale)" valeur={stats.vehicules.total} couleur={COULEUR.bleu} />
-        <TuileKpi icone={UserCog} label="Chauffeurs" valeur={stats.chauffeurs.total} couleur={COULEUR.violet} />
-        <TuileKpi icone={GraduationCap} label="Élèves" valeur={stats.eleves.total} couleur={COULEUR.cyan} />
-        <TuileKpi icone={UsersRound} label="Parents" valeur={stats.parents.total} couleur={COULEUR.jaune} />
+        <TuileKpi
+          icone={Building2}
+          label="Écoles clientes"
+          valeur={stats.ecoles.total}
+          couleur={COULEUR.brand}
+        />
+        <TuileKpi
+          icone={Bus}
+          label="Véhicules (flotte totale)"
+          valeur={stats.vehicules.total}
+          couleur={COULEUR.bleu}
+        />
+        <TuileKpi
+          icone={UserCog}
+          label="Chauffeurs"
+          valeur={stats.chauffeurs.total}
+          couleur={COULEUR.violet}
+        />
+        <TuileKpi
+          icone={GraduationCap}
+          label="Élèves"
+          valeur={stats.eleves.total}
+          couleur={COULEUR.cyan}
+        />
+        <TuileKpi
+          icone={UsersRound}
+          label="Parents"
+          valeur={stats.parents.total}
+          couleur={COULEUR.jaune}
+        />
         <TuileKpi
           icone={Bell}
           label="Alertes critiques"
           valeur={stats.alertes.critiques ?? 0}
-          couleur={(stats.alertes.critiques ?? 0) > 0 ? COULEUR.rouge : COULEUR.vert}
+          couleur={
+            (stats.alertes.critiques ?? 0) > 0 ? COULEUR.rouge : COULEUR.vert
+          }
         />
       </div>
 
@@ -346,19 +457,57 @@ export default function Dashboard() {
       <TitreSection>Écoles clientes</TitreSection>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="grid grid-cols-2 gap-4 xl:col-span-2">
-          <TuileKpi icone={ShieldCheck} label="Actives" valeur={stats.ecoles.actives} couleur={COULEUR.vert} />
-          <TuileKpi icone={ShieldCheck} label="En essai" valeur={stats.ecoles.trial} couleur={COULEUR.jaune} />
-          <TuileKpi icone={ShieldCheck} label="Suspendues" valeur={stats.ecoles.suspendues} couleur={COULEUR.rouge} />
-          <TuileKpi icone={ShieldCheck} label="En attente" valeur={stats.ecoles.pending} couleur={COULEUR.brand} />
+          <TuileKpi
+            icone={ShieldCheck}
+            label="Actives"
+            valeur={stats.ecoles.actives}
+            couleur={COULEUR.vert}
+          />
+          <TuileKpi
+            icone={ShieldCheck}
+            label="En essai"
+            valeur={stats.ecoles.trial}
+            couleur={COULEUR.jaune}
+          />
+          <TuileKpi
+            icone={ShieldCheck}
+            label="Suspendues"
+            valeur={stats.ecoles.suspendues}
+            couleur={COULEUR.rouge}
+          />
+          <TuileKpi
+            icone={ShieldCheck}
+            label="En attente"
+            valeur={stats.ecoles.pending}
+            couleur={COULEUR.brand}
+          />
         </div>
         <div className="glass-panel p-5">
-          <h3 className="font-bold text-white text-[15px] mb-1">Répartition par statut</h3>
+          <h3 className="font-bold text-white text-[15px] mb-1">
+            Répartition par statut
+          </h3>
           <GraphiqueDonut
             data={[
-              { nom: 'Actives', valeur: stats.ecoles.actives, couleur: COULEUR.vert },
-              { nom: 'En essai', valeur: stats.ecoles.trial, couleur: COULEUR.jaune },
-              { nom: 'Suspendues', valeur: stats.ecoles.suspendues, couleur: COULEUR.rouge },
-              { nom: 'En attente', valeur: stats.ecoles.pending, couleur: COULEUR.brand },
+              {
+                nom: 'Actives',
+                valeur: stats.ecoles.actives,
+                couleur: COULEUR.vert,
+              },
+              {
+                nom: 'En essai',
+                valeur: stats.ecoles.trial,
+                couleur: COULEUR.jaune,
+              },
+              {
+                nom: 'Suspendues',
+                valeur: stats.ecoles.suspendues,
+                couleur: COULEUR.rouge,
+              },
+              {
+                nom: 'En attente',
+                valeur: stats.ecoles.pending,
+                couleur: COULEUR.brand,
+              },
             ]}
           />
         </div>
@@ -367,25 +516,79 @@ export default function Dashboard() {
       {/* ── Comptes ── */}
       <TitreSection>Comptes</TitreSection>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <TuileKpi icone={ShieldCheck} label="Administrateurs" valeur={stats.utilisateurs.administrateurs} couleur={COULEUR.brand} />
-        <TuileKpi icone={UserCheck} label="Directeurs d'écoles" valeur={stats.utilisateurs.directeurs} couleur={COULEUR.bleu} />
+        <TuileKpi
+          icone={ShieldCheck}
+          label="Administrateurs"
+          valeur={stats.utilisateurs.administrateurs}
+          couleur={COULEUR.brand}
+        />
+        <TuileKpi
+          icone={UserCheck}
+          label="Directeurs d'écoles"
+          valeur={stats.utilisateurs.directeurs}
+          couleur={COULEUR.bleu}
+        />
       </div>
 
       {/* ── Flotte, équipe, familles, élèves — regroupé et par école ── */}
-      <TitreSection>Flotte, équipe &amp; familles — regroupé et par école</TitreSection>
+      <TitreSection>
+        Flotte, équipe &amp; familles — regroupé et par école
+      </TitreSection>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <CarteDomaine icone={Bus} titre="Flotte de véhicules" couleur={COULEUR.bleu} stat={stats.vehicules} unite="véhicule(s)" />
-        <CarteDomaine icone={UserCog} titre="Équipe de chauffeurs" couleur={COULEUR.violet} stat={stats.chauffeurs} unite="chauffeur(s)" />
-        <CarteDomaine icone={GraduationCap} titre="Élèves" couleur={COULEUR.cyan} stat={stats.eleves} unite="élève(s)" />
-        <CarteDomaine icone={UsersRound} titre="Parents" couleur={COULEUR.jaune} stat={stats.parents} unite="parent(s)" />
+        <CarteDomaine
+          icone={Bus}
+          titre="Flotte de véhicules"
+          couleur={COULEUR.bleu}
+          stat={stats.vehicules}
+          unite="véhicule(s)"
+        />
+        <CarteDomaine
+          icone={UserCog}
+          titre="Équipe de chauffeurs"
+          couleur={COULEUR.violet}
+          stat={stats.chauffeurs}
+          unite="chauffeur(s)"
+        />
+        <CarteDomaine
+          icone={GraduationCap}
+          titre="Élèves"
+          couleur={COULEUR.cyan}
+          stat={stats.eleves}
+          unite="élève(s)"
+        />
+        <CarteDomaine
+          icone={UsersRound}
+          titre="Parents"
+          couleur={COULEUR.jaune}
+          stat={stats.parents}
+          unite="parent(s)"
+        />
       </div>
 
       {/* ── Transport — regroupé et par école ── */}
       <TitreSection>Transport — regroupé et par école</TitreSection>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <CarteDomaine icone={Route} titre="Trajets" couleur={COULEUR.brand} stat={stats.trajets} unite="trajet(s)" />
-        <CarteDomaine icone={MapPinned} titre="Courses" couleur={COULEUR.bleu} stat={stats.courses} unite="course(s)" />
-        <CarteDomaine icone={ClipboardList} titre="Affectations des élèves" couleur={COULEUR.vert} stat={stats.affectations} unite="affectation(s)" />
+        <CarteDomaine
+          icone={Route}
+          titre="Trajets"
+          couleur={COULEUR.brand}
+          stat={stats.trajets}
+          unite="trajet(s)"
+        />
+        <CarteDomaine
+          icone={MapPinned}
+          titre="Courses"
+          couleur={COULEUR.bleu}
+          stat={stats.courses}
+          unite="course(s)"
+        />
+        <CarteDomaine
+          icone={ClipboardList}
+          titre="Affectations des élèves"
+          couleur={COULEUR.vert}
+          stat={stats.affectations}
+          unite="affectation(s)"
+        />
         <CarteDomaine
           icone={Bell}
           titre="Alertes"
@@ -401,26 +604,38 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="glass-panel p-5">
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="p-2 rounded-lg" style={{ background: `${COULEUR.brand}22`, color: COULEUR.brand }}>
+            <div
+              className="p-2 rounded-lg"
+              style={{ background: `${COULEUR.brand}22`, color: COULEUR.brand }}
+            >
               <CreditCard size={17} />
             </div>
-            <h3 className="font-bold text-white text-[15px]">Abonnements ({stats.abonnements.total})</h3>
+            <h3 className="font-bold text-white text-[15px]">
+              Abonnements ({stats.abonnements.total})
+            </h3>
           </div>
           <GraphiqueDonut
-            data={Object.entries(stats.abonnements.parStatut).map(([statut, nb]) => ({
-              nom: LABEL_STATUT_ABONNEMENT[statut] ?? statut,
-              valeur: nb,
-              couleur: COULEUR_STATUT_ABONNEMENT[statut] ?? COULEUR.brand,
-            }))}
+            data={Object.entries(stats.abonnements.parStatut).map(
+              ([statut, nb]) => ({
+                nom: LABEL_STATUT_ABONNEMENT[statut] ?? statut,
+                valeur: nb,
+                couleur: COULEUR_STATUT_ABONNEMENT[statut] ?? COULEUR.brand,
+              }),
+            )}
           />
         </div>
 
         <div className="glass-panel p-5 xl:col-span-2">
           <div className="flex items-center gap-2.5 mb-4">
-            <div className="p-2 rounded-lg" style={{ background: `${COULEUR.vert}22`, color: COULEUR.vert }}>
+            <div
+              className="p-2 rounded-lg"
+              style={{ background: `${COULEUR.vert}22`, color: COULEUR.vert }}
+            >
               <Wallet size={17} />
             </div>
-            <h3 className="font-bold text-white text-[15px]">Grille tarifaire</h3>
+            <h3 className="font-bold text-white text-[15px]">
+              Grille tarifaire
+            </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
@@ -435,10 +650,16 @@ export default function Dashboard() {
               <tbody className="divide-y divide-white/5">
                 {stats.planTarifs.map((p) => (
                   <tr key={p.id}>
-                    <td className="py-2 pr-4 font-bold text-white">{p.label}</td>
-                    <td className="py-2 pr-4 text-navy-300">{p.pricePerMonth.toLocaleString('fr-FR')} F CFA</td>
+                    <td className="py-2 pr-4 font-bold text-white">
+                      {p.label}
+                    </td>
+                    <td className="py-2 pr-4 text-navy-300">
+                      {p.pricePerMonth.toLocaleString('fr-FR')} F CFA
+                    </td>
                     <td className="py-2 pr-4 text-navy-300">{p.maxCars}</td>
-                    <td className="py-2 text-navy-300">{p.maxChildren ?? 'Illimité'}</td>
+                    <td className="py-2 text-navy-300">
+                      {p.maxChildren ?? 'Illimité'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -450,10 +671,30 @@ export default function Dashboard() {
       {/* ── BioTime centralisée ── */}
       <TitreSection>BioTime centralisée</TitreSection>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <TuileKpi icone={Network} label="Départements" valeur={stats.biotime.departements} couleur={COULEUR.brand} />
-        <TuileKpi icone={Fingerprint} label="Terminaux (total)" valeur={stats.biotime.terminaux} couleur={COULEUR.bleu} />
-        <TuileKpi icone={Fingerprint} label="Terminaux assignés" valeur={stats.biotime.terminauxAssignes} couleur={COULEUR.vert} />
-        <TuileKpi icone={Fingerprint} label="Terminaux libres" valeur={stats.biotime.terminauxLibres} couleur={COULEUR.jaune} />
+        <TuileKpi
+          icone={Network}
+          label="Départements"
+          valeur={stats.biotime.departements}
+          couleur={COULEUR.brand}
+        />
+        <TuileKpi
+          icone={Fingerprint}
+          label="Terminaux (total)"
+          valeur={stats.biotime.terminaux}
+          couleur={COULEUR.bleu}
+        />
+        <TuileKpi
+          icone={Fingerprint}
+          label="Terminaux assignés"
+          valeur={stats.biotime.terminauxAssignes}
+          couleur={COULEUR.vert}
+        />
+        <TuileKpi
+          icone={Fingerprint}
+          label="Terminaux libres"
+          valeur={stats.biotime.terminauxLibres}
+          couleur={COULEUR.jaune}
+        />
       </div>
     </div>
   );

@@ -27,7 +27,11 @@ export class TenantSchemaVersion extends BaseEntityModel {
   @Column({ length: 255 })
   checksum: string;
 
-  @Column({ type: 'enum', enum: MigrationStatus, default: MigrationStatus.PENDING })
+  @Column({
+    type: 'enum',
+    enum: MigrationStatus,
+    default: MigrationStatus.PENDING,
+  })
   status: MigrationStatus;
 
   @Column({ name: 'started_at', type: 'timestamptz' })

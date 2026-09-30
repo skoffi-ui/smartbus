@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { jwtSecretRequis } from '@app/common';
@@ -21,10 +26,12 @@ export class ParentJwtAuthGuard implements CanActivate {
     try {
       const secret = jwtSecretRequis(this.configService);
       const payload = await this.jwtService.verifyAsync(token, { secret });
-      
+
       // Validation du rôle de parent d'élève
       if (payload.role !== 'PARENT') {
-        throw new UnauthorizedException("Accès refusé. Cette section est réservée aux parents d'élèves.");
+        throw new UnauthorizedException(
+          "Accès refusé. Cette section est réservée aux parents d'élèves.",
+        );
       }
 
       // Injection de l'identité parent et du tenant ID dans la requête

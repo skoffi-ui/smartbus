@@ -14,7 +14,10 @@ import { IsOptional, IsUUID } from 'class-validator';
  * déjà connue du serveur via son jeton (voir UsersService.createDirector).
  */
 export class CreateDirectorDto {
-  @ApiPropertyOptional({ description: "UUID de l'école (Super Admin uniquement — ignoré pour un directeur)" })
+  @ApiPropertyOptional({
+    description:
+      "UUID de l'école (Super Admin uniquement — ignoré pour un directeur)",
+  })
   @IsOptional()
   @IsUUID()
   organisationId?: string;

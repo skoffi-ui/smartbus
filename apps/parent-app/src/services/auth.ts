@@ -4,7 +4,9 @@ import type { ParentLoginPayload, ParentSession } from '../types';
 
 const SESSION_KEY = 'smartbus_parent_session';
 
-export async function login(payload: ParentLoginPayload): Promise<ParentSession> {
+export async function login(
+  payload: ParentLoginPayload,
+): Promise<ParentSession> {
   const { data } = await api.post('/auth/parent/login', payload);
   const session: ParentSession = {
     token: data.token,
@@ -39,6 +41,8 @@ export async function sessionEnCours(): Promise<ParentSession | null> {
  * notification changées depuis l'écran Profil) — sans ça, un rechargement
  * de l'app relirait les anciennes valeurs depuis le stockage local.
  */
-export async function mettreAJourSession(session: ParentSession): Promise<void> {
+export async function mettreAJourSession(
+  session: ParentSession,
+): Promise<void> {
   await stockage.ecrire(SESSION_KEY, JSON.stringify(session));
 }

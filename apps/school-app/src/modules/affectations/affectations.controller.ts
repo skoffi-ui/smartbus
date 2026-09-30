@@ -1,8 +1,22 @@
 import {
-  Controller, Get, Post, Delete,
-  Param, Body, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus, Query,
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
+  Query,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
 import { AffectationsService } from './affectations.service';
 import { CreateAffectationDto } from './dto/create-affectation.dto';
@@ -23,14 +37,17 @@ export class AffectationsController {
 
   @Get('by-child/:childId')
   @ApiOperation({
-    summary: "Liste les affectations d'un enfant (une par course : matin, retour midi, remontée 14h...)",
+    summary:
+      "Liste les affectations d'un enfant (une par course : matin, retour midi, remontée 14h...)",
   })
   findByChild(@Param('childId', ParseUUIDPipe) childId: string) {
     return this.affectationsService.findByChild(childId);
   }
 
   @Get('by-point/:pointId')
-  @ApiOperation({ summary: 'Liste tous les enfants affectés à un point de récupération' })
+  @ApiOperation({
+    summary: 'Liste tous les enfants affectés à un point de récupération',
+  })
   findByPoint(@Param('pointId', ParseUUIDPipe) pointId: string) {
     return this.affectationsService.findByPoint(pointId);
   }
@@ -50,7 +67,9 @@ export class AffectationsController {
 
   @Delete('by-child/:childId')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Supprime l\'affectation d\'un enfant (pour le réaffecter ensuite)' })
+  @ApiOperation({
+    summary: "Supprime l'affectation d'un enfant (pour le réaffecter ensuite)",
+  })
   deleteByChild(@Param('childId', ParseUUIDPipe) childId: string) {
     return this.affectationsService.deleteByChild(childId);
   }

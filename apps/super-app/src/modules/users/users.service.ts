@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
@@ -21,15 +27,26 @@ export class UsersService {
 
   /** Construit le lien qu'un directeur utilise pour poser un mot de passe (réinitialisation). */
   private lienActivation(rawToken: string): string {
-    const webUrl = this.configService.get<string>('SCHOOL_WEB_URL', 'http://localhost:5174');
+    const webUrl = this.configService.get<string>(
+      'SCHOOL_WEB_URL',
+      'http://localhost:5174',
+    );
     return `${webUrl}/definir-mot-de-passe?token=${rawToken}`;
   }
 
   async findAll() {
     return this.userRepository.find({
       select: {
-        id: true, email: true, firstName: true, lastName: true, role: true, status: true,
-        lastLoginAt: true, createdAt: true, activatedAt: true, organisationId: true,
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        status: true,
+        lastLoginAt: true,
+        createdAt: true,
+        activatedAt: true,
+        organisationId: true,
         organisation: { id: true, name: true, code: true },
       },
       relations: { organisation: true },
@@ -51,10 +68,19 @@ export class UsersService {
   async findMyTeam(appelant: User) {
     if (!appelant.organisationId) return [];
     return this.userRepository.find({
-      where: { organisationId: appelant.organisationId, role: UserRole.SCHOOL_ADMIN },
+      where: {
+        organisationId: appelant.organisationId,
+        role: UserRole.SCHOOL_ADMIN,
+      },
       select: {
-        id: true, email: true, firstName: true, lastName: true, status: true,
-        lastLoginAt: true, createdAt: true, activatedAt: true,
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        lastLoginAt: true,
+        createdAt: true,
+        activatedAt: true,
       },
       order: { createdAt: 'ASC' },
     });
@@ -65,7 +91,9 @@ export class UsersService {
    * le commentaire sur CreateUserDto.
    */
   async create(data: CreateUserDto, createdBy: string) {
-    const existing = await this.userRepository.findOne({ where: { email: data.email } });
+    const existing = await this.userRepository.findOne({
+      where: { email: data.email },
+    });
     if (existing) throw new ConflictException('Cet email est déjà utilisé');
 
     const hashedPassword = await bcrypt.hash(data.password, 12);
@@ -106,7 +134,9 @@ export class UsersService {
       if (!appelant.organisationId) {
         throw new ForbiddenException("Vous n'avez pas encore d'école.");
       }
-      const organisation = await this.organisationsService.findOne(appelant.organisationId);
+      const organisation = await this.organisationsService.findOne(
+        appelant.organisationId,
+      );
       if (!organisation.allowAdditionalDirectors) {
         throw new ForbiddenException(
           "Vous n'êtes pas autorisé à créer d'autres comptes directeur. Contactez le Super Admin.",
@@ -115,8 +145,11 @@ export class UsersService {
       organisationId = appelant.organisationId;
     }
 
-    const invitationToken = await this.directorInvitationService.signer(organisationId);
-    return { invitationUrl: `${this.configService.get<string>('SCHOOL_WEB_URL', 'http://localhost:5174')}/rejoindre-ecole?token=${invitationToken}` };
+    const invitationToken =
+      await this.directorInvitationService.signer(organisationId);
+    return {
+      invitationUrl: `${this.configService.get<string>('SCHOOL_WEB_URL', 'http://localhost:5174')}/rejoindre-ecole?token=${invitationToken}`,
+    };
   }
 
   /**
@@ -142,7 +175,9 @@ export class UsersService {
   async remove(id: string): Promise<void> {
     const user = await this.findOne(id);
     if (user.role !== UserRole.SCHOOL_ADMIN) {
-      throw new ForbiddenException('Cette action ne supprime que des comptes directeur.');
+      throw new ForbiddenException(
+        'Cette action ne supprime que des comptes directeur.',
+      );
     }
     await this.userRepository.remove(user);
   }
@@ -175,8 +210,13 @@ export class UsersService {
     const user = await this.findOne(id);
 
     if (appelant.role === UserRole.SCHOOL_ADMIN) {
-      if (user.role !== UserRole.SCHOOL_ADMIN || user.organisationId !== appelant.organisationId) {
-        throw new ForbiddenException('Vous ne pouvez agir que sur les comptes directeur de votre propre école.');
+      if (
+        user.role !== UserRole.SCHOOL_ADMIN ||
+        user.organisationId !== appelant.organisationId
+      ) {
+        throw new ForbiddenException(
+          'Vous ne pouvez agir que sur les comptes directeur de votre propre école.',
+        );
       }
       const organisation = appelant.organisationId
         ? await this.organisationsService.findOne(appelant.organisationId)
@@ -192,7 +232,9 @@ export class UsersService {
 
     if (surLePointDeBloquer) {
       if (id === appelant.id) {
-        throw new BadRequestException('Vous ne pouvez pas bloquer votre propre compte.');
+        throw new BadRequestException(
+          'Vous ne pouvez pas bloquer votre propre compte.',
+        );
       }
       if (user.role === UserRole.SUPER_ADMIN) {
         const autresAdminsActifs = await this.userRepository.count({
@@ -207,7 +249,9 @@ export class UsersService {
       }
     }
 
-    user.status = surLePointDeBloquer ? UserStatus.SUSPENDED : UserStatus.ACTIVE;
+    user.status = surLePointDeBloquer
+      ? UserStatus.SUSPENDED
+      : UserStatus.ACTIVE;
     user.updatedBy = appelant.id;
     return this.userRepository.save(user);
   }

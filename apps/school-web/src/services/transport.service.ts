@@ -77,7 +77,9 @@ export const deleteTrajet = async (id: string) => {
 
 export const getPoints = async (trajetId?: string, pourAffectation = false) => {
   const response = await api.get('/points-recuperation', {
-    params: trajetId ? { trajetId, ...(pourAffectation ? { pourAffectation: 'true' } : {}) } : undefined,
+    params: trajetId
+      ? { trajetId, ...(pourAffectation ? { pourAffectation: 'true' } : {}) }
+      : undefined,
   });
   return response.data;
 };

@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
@@ -30,7 +35,11 @@ import {
   TENANT_ENTITIES,
 } from '@app/database';
 import { INTERNAL_API_KEY_HEADER } from '@app/common';
-import { obtenirCleChiffrementDepuisEnv, dechiffrerAvecCle, deballerSecret } from '@app/common/crypto/secret-crypto.util';
+import {
+  obtenirCleChiffrementDepuisEnv,
+  dechiffrerAvecCle,
+  deballerSecret,
+} from '@app/common/crypto/secret-crypto.util';
 
 /**
  * `organisations.db_password` est chiffré au repos (voir
@@ -41,7 +50,9 @@ import { obtenirCleChiffrementDepuisEnv, dechiffrerAvecCle, deballerSecret } fro
  * chiffrée (un JSON) était utilisée telle quelle comme mot de passe Postgres
  * pour ouvrir la connexion tenant — échec d'authentification systématique.
  */
-function dechiffrerMotDePasseTenant(brut: string | null | undefined): string | null | undefined {
+function dechiffrerMotDePasseTenant(
+  brut: string | null | undefined,
+): string | null | undefined {
   if (!brut) return brut;
   const secret = deballerSecret(brut);
   if (!secret) return brut; // legacy non chiffré
@@ -132,7 +143,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       retryStrategy: (attempt) => Math.min(attempt * 500, 5000),
     });
     this.redis.on('error', (err) => {
-      this.logger.warn(`[Redis] Connexion indisponible (positions GPS non persistées) : ${err.message}`);
+      this.logger.warn(
+        `[Redis] Connexion indisponible (positions GPS non persistées) : ${err.message}`,
+      );
     });
   }
 
@@ -147,7 +160,13 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       let curseur = '0';
       let recharges = 0;
       do {
-        const [suivant, cles] = await this.redis.scan(curseur, 'MATCH', 'gps:*', 'COUNT', 200);
+        const [suivant, cles] = await this.redis.scan(
+          curseur,
+          'MATCH',
+          'gps:*',
+          'COUNT',
+          200,
+        );
         curseur = suivant;
         for (const cle of cles) {
           const brut = await this.redis.get(cle);
@@ -163,10 +182,14 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       } while (curseur !== '0');
 
       if (recharges > 0) {
-        this.logger.log(`[Redis] ${recharges} position(s) GPS rechargée(s) depuis le dernier redémarrage.`);
+        this.logger.log(
+          `[Redis] ${recharges} position(s) GPS rechargée(s) depuis le dernier redémarrage.`,
+        );
       }
     } catch (err: any) {
-      this.logger.warn(`[Redis] Rechargement des positions GPS impossible : ${err.message}`);
+      this.logger.warn(
+        `[Redis] Rechargement des positions GPS impossible : ${err.message}`,
+      );
     }
   }
 
@@ -179,7 +202,7 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
    */
   private extractDeviceId(payload: any): string | null {
     if (!payload) return null;
-    
+
     // Cas ZKTeco / BioTime
     if (payload.terminal_sn) return payload.terminal_sn;
     if (payload.terminalSn) return payload.terminalSn;
@@ -205,7 +228,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
    * qu'on lui attribue une école. Ses données ne sont écrites dans aucune base
    * entre-temps — les rattacher à une école arbitraire mélangerait deux clients.
    */
-  private async resolveTenantForDevice(deviceId: string): Promise<DeviceResolution> {
+  private async resolveTenantForDevice(
+    deviceId: string,
+  ): Promise<DeviceResolution> {
     // Une erreur d'infrastructure est propagée telle quelle : l'émetteur pourra
     // réessayer, plutôt que de voir son flux classé à tort « en attente ».
     const result = await this.centralDataSource.query(
@@ -233,7 +258,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
 
   /** Déduit la nature de l'appareil à partir de la forme de son payload. */
   private inferDeviceType(payload: any): 'BADGEUSE' | 'GPS' {
-    return payload?.terminal_sn || payload?.terminalSn || payload?.sn ? 'BADGEUSE' : 'GPS';
+    return payload?.terminal_sn || payload?.terminalSn || payload?.sn
+      ? 'BADGEUSE'
+      : 'GPS';
   }
 
   /**
@@ -251,7 +278,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
    * `resolveTenantForDevice`+`ensureDeviceRegistered` pour la seule branche
    * badgeuse ; la branche GPS garde les tables génériques, inchangée.
    */
-  private async resolveEtInscrireBadgeuse(serialNumber: string): Promise<DeviceResolution> {
+  private async resolveEtInscrireBadgeuse(
+    serialNumber: string,
+  ): Promise<DeviceResolution> {
     const existant = await this.centralDataSource.query(
       `
         SELECT bt.organisation_id as "organisationId", o.name, o.db_name as "dbName",
@@ -268,13 +297,18 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     if (existant && existant.length > 0) {
       // Heartbeat, même esprit que `ensureDeviceRegistered` pour les GPS.
       this.centralDataSource
-        .query(`UPDATE biotime_terminals SET last_sync_at = now() WHERE serial_number = $1`, [serialNumber])
+        .query(
+          `UPDATE biotime_terminals SET last_sync_at = now() WHERE serial_number = $1`,
+          [serialNumber],
+        )
         .catch(() => {});
 
       if (!existant[0].organisationId) {
         return { state: 'pending' };
       }
-      existant[0].dbPassword = dechiffrerMotDePasseTenant(existant[0].dbPassword);
+      existant[0].dbPassword = dechiffrerMotDePasseTenant(
+        existant[0].dbPassword,
+      );
       return { state: 'assigned', tenant: existant[0] };
     }
 
@@ -292,7 +326,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
         `[Inventaire BioTime] Badgeuse "${serialNumber}" inconnue : mise en stock, en attente d'affectation à une école.`,
       );
     } catch (err: any) {
-      this.logger.error(`Impossible d'inscrire la badgeuse ${serialNumber} à l'inventaire BioTime : ${err.message}`);
+      this.logger.error(
+        `Impossible d'inscrire la badgeuse ${serialNumber} à l'inventaire BioTime : ${err.message}`,
+      );
     }
 
     return { state: 'pending' };
@@ -361,10 +397,16 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       this.tenantDataSources.delete(tenantId);
     }
 
-    const host = org.dbHost || this.configService.get<string>('SUPER_DB_HOST', 'localhost');
-    const port = org.dbPort || this.configService.get<number>('SUPER_DB_PORT', 5432);
-    const username = org.dbUser || this.configService.get<string>('SUPER_DB_USER', 'postgres');
-    const password = org.dbPassword || this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres');
+    const host =
+      org.dbHost ||
+      this.configService.get<string>('SUPER_DB_HOST', 'localhost');
+    const port =
+      org.dbPort || this.configService.get<number>('SUPER_DB_PORT', 5432);
+    const username =
+      org.dbUser || this.configService.get<string>('SUPER_DB_USER', 'postgres');
+    const password =
+      org.dbPassword ||
+      this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres');
 
     const ds = new DataSource({
       type: 'postgres',
@@ -381,7 +423,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
 
     await ds.initialize();
     this.tenantDataSources.set(tenantId, ds);
-    this.logger.log(`[Dynamic Conn] Nouvelle connexion ouverte vers la base isolée : ${org.dbName}`);
+    this.logger.log(
+      `[Dynamic Conn] Nouvelle connexion ouverte vers la base isolée : ${org.dbName}`,
+    );
     return ds;
   }
 
@@ -391,7 +435,10 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
   async handleStream(payload: any): Promise<any> {
     const deviceId = this.extractDeviceId(payload);
     if (!deviceId) {
-      return { success: false, message: "Identifiant de périphérique introuvable dans le payload." };
+      return {
+        success: false,
+        message: 'Identifiant de périphérique introuvable dans le payload.',
+      };
     }
 
     const typeAppareil = this.inferDeviceType(payload);
@@ -414,7 +461,10 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
 
     const tenantDetails = resolution.tenant;
     if (!tenantDetails.dbProvisioned || !tenantDetails.dbName) {
-      return { success: false, message: `La base de données du tenant ${tenantDetails.name} n'est pas provisionnée.` };
+      return {
+        success: false,
+        message: `La base de données du tenant ${tenantDetails.name} n'est pas provisionnée.`,
+      };
     }
 
     // 4. Bascule dynamique vers la base isolée du Tenant
@@ -431,8 +481,14 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
   /**
    * Traitement spécifique du flux de pointage BioTime / ZKTeco.
    */
-  private async processZktPunches(payload: any, tenantDetails: any, tenantDataSource: DataSource): Promise<any> {
-    this.logger.log(`[Stream Routing] Flux ZKTeco intercepté pour le tenant ${tenantDetails.name}`);
+  private async processZktPunches(
+    payload: any,
+    tenantDetails: any,
+    tenantDataSource: DataSource,
+  ): Promise<any> {
+    this.logger.log(
+      `[Stream Routing] Flux ZKTeco intercepté pour le tenant ${tenantDetails.name}`,
+    );
 
     const childRepo = tenantDataSource.getRepository(Child);
     const eventRepo = tenantDataSource.getRepository(BiometricEvent);
@@ -441,7 +497,8 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
 
     const empCode = payload.emp_code || payload.empCode;
     const terminalSn = payload.terminal_sn || payload.terminalSn || payload.sn;
-    const punchTime = payload.punch_time || payload.time || new Date().toISOString();
+    const punchTime =
+      payload.punch_time || payload.time || new Date().toISOString();
     const punchState = payload.punch_state ?? payload.punchState ?? '0';
     const sens = sensFromPunchState(punchState);
 
@@ -451,10 +508,14 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     // Résoudre le véhicule puis la course active AVANT de tracer l'événement :
     // l'événement porte la course quand elle est connue.
     let courseId = 'default-course';
-    const car = await carRepo.findOne({ where: { biotimeTerminalSn: terminalSn } });
+    const car = await carRepo.findOne({
+      where: { biotimeTerminalSn: terminalSn },
+    });
     let activeCourse: Course | null = null;
     if (car) {
-      activeCourse = await courseRepo.findOne({ where: { carId: car.id, statut: CourseStatus.ACTIVE } });
+      activeCourse = await courseRepo.findOne({
+        where: { carId: car.id, statut: CourseStatus.ACTIVE },
+      });
       if (activeCourse) {
         courseId = activeCourse.id;
       }
@@ -464,7 +525,10 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     const bioEvent = eventRepo.create({
       childId: child ? child.id : undefined,
       courseId: activeCourse ? activeCourse.id : undefined,
-      type: sens === SensPointage.DESCENTE ? BiometricEventType.ALIGHTING : BiometricEventType.BOARDING,
+      type:
+        sens === SensPointage.DESCENTE
+          ? BiometricEventType.ALIGHTING
+          : BiometricEventType.BOARDING,
       occurredAt: new Date(punchTime),
       notificationSent: false,
     });
@@ -473,14 +537,26 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     // Analyse des anomalies, puis consignation du pointage dans l'historique.
     if (child) {
       const verdict = await this.validatePunchAnomalies(
-        child, car, activeCourse, terminalSn, punchTime, tenantDetails, tenantDataSource,
+        child,
+        car,
+        activeCourse,
+        terminalSn,
+        punchTime,
+        tenantDetails,
+        tenantDataSource,
       );
 
       // L'historique des montées exige une course : sans car ni course active, seule
       // l'alerte critique fait foi (c'est ce que consulte le centre d'alertes).
       if (!verdict.sansCourse && activeCourse) {
         await this.saveMontee(
-          tenantDataSource, child, activeCourse, car, sens, verdict, punchTime,
+          tenantDataSource,
+          child,
+          activeCourse,
+          car,
+          sens,
+          verdict,
+          punchTime,
         );
       }
     }
@@ -492,7 +568,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       data: {
         empCode: empCode || 'N/A',
         childId: child ? child.id : null,
-        childName: child ? `${child.firstName} ${child.lastName}` : `Élève Inconnu (Matricule: ${empCode || 'N/A'})`,
+        childName: child
+          ? `${child.firstName} ${child.lastName}`
+          : `Élève Inconnu (Matricule: ${empCode || 'N/A'})`,
         punchState,
         time: punchTime,
         terminalSn,
@@ -510,27 +588,47 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       };
 
       // Port 3001 de school-app
-      const schoolWebhookUrl = this.configService.get<string>('SCHOOL_APP_WEBHOOK_URL', 'http://localhost:3001/api/v1/notifications/internal-webhook');
+      const schoolWebhookUrl = this.configService.get<string>(
+        'SCHOOL_APP_WEBHOOK_URL',
+        'http://localhost:3001/api/v1/notifications/internal-webhook',
+      );
       await firstValueFrom(
         this.httpService.post(schoolWebhookUrl, payloadToSchool, {
           headers: {
-            [INTERNAL_API_KEY_HEADER]: this.configService.get<string>('INTERNAL_API_KEY', ''),
+            [INTERNAL_API_KEY_HEADER]: this.configService.get<string>(
+              'INTERNAL_API_KEY',
+              '',
+            ),
           },
         }),
       );
-      this.logger.log(`[Stream Routing] Notification relayée à school-app avec succès.`);
+      this.logger.log(
+        `[Stream Routing] Notification relayée à school-app avec succès.`,
+      );
     } catch (err) {
-      this.logger.error(`[Stream Routing] Relais vers school-app : ${err.message}`);
+      this.logger.error(
+        `[Stream Routing] Relais vers school-app : ${err.message}`,
+      );
     }
 
-    return { success: true, message: 'Pointage ZKTeco traité et acheminé.', tenant: tenantDetails.name };
+    return {
+      success: true,
+      message: 'Pointage ZKTeco traité et acheminé.',
+      tenant: tenantDetails.name,
+    };
   }
 
   /**
    * Traitement spécifique du flux de géolocalisation Libellule (webhook push).
    */
-  private async processLibelluleGps(payload: any, tenantDetails: any, tenantDataSource: DataSource): Promise<any> {
-    this.logger.log(`[Stream Routing] Flux GPS Libellule intercepté pour le tenant ${tenantDetails.name}`);
+  private async processLibelluleGps(
+    payload: any,
+    tenantDetails: any,
+    tenantDataSource: DataSource,
+  ): Promise<any> {
+    this.logger.log(
+      `[Stream Routing] Flux GPS Libellule intercepté pour le tenant ${tenantDetails.name}`,
+    );
 
     const deviceId = payload.device_id || payload.deviceId || payload.imei;
     const lat = parseFloat(payload.latitude || payload.lat);
@@ -538,8 +636,20 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     const speed = parseFloat(payload.speed || 0);
     const time = payload.time || payload.timestamp || new Date().toISOString();
 
-    const result = await this.ingestResolvedGpsPosition(deviceId, lat, lng, speed, time, tenantDetails, tenantDataSource);
-    return { ...result, message: result.message || 'Position GPS Libellule traitée.', tenant: tenantDetails.name };
+    const result = await this.ingestResolvedGpsPosition(
+      deviceId,
+      lat,
+      lng,
+      speed,
+      time,
+      tenantDetails,
+      tenantDataSource,
+    );
+    return {
+      ...result,
+      message: result.message || 'Position GPS Libellule traitée.',
+      tenant: tenantDetails.name,
+    };
   }
 
   /**
@@ -568,7 +678,10 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     online?: string,
   ): Promise<{ success: boolean; message?: string }> {
     if (!deviceId) {
-      return { success: false, message: 'Identifiant de périphérique manquant.' };
+      return {
+        success: false,
+        message: 'Identifiant de périphérique manquant.',
+      };
     }
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return { success: false, message: 'Coordonnées GPS invalides.' };
@@ -580,8 +693,13 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (!car) {
-      this.logger.warn(`[GPS] Aucun véhicule associé au périphérique ${deviceId} dans l'école ${tenantDetails.name}.`);
-      return { success: false, message: `Aucun véhicule associé au périphérique ${deviceId}.` };
+      this.logger.warn(
+        `[GPS] Aucun véhicule associé au périphérique ${deviceId} dans l'école ${tenantDetails.name}.`,
+      );
+      return {
+        success: false,
+        message: `Aucun véhicule associé au périphérique ${deviceId}.`,
+      };
     }
 
     const position: LiveCarPosition = {
@@ -600,20 +718,44 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     // doit jamais faire échouer l'ingestion elle-même, seule la survie au
     // redémarrage serait perdue pour cette position précise.
     this.redis
-      .set(`gps:${cle}`, JSON.stringify(position), 'EX', HardwareStreamService.TTL_REDIS_SECONDES)
-      .catch((err) => this.logger.warn(`[Redis] Écriture de la position échouée (ignorée) : ${err.message}`));
-    this.logger.log(`[GPS] Position mise à jour pour le véhicule ${car.plateNumber} (école ${tenantDetails.name}).`);
+      .set(
+        `gps:${cle}`,
+        JSON.stringify(position),
+        'EX',
+        HardwareStreamService.TTL_REDIS_SECONDES,
+      )
+      .catch((err) =>
+        this.logger.warn(
+          `[Redis] Écriture de la position échouée (ignorée) : ${err.message}`,
+        ),
+      );
+    this.logger.log(
+      `[GPS] Position mise à jour pour le véhicule ${car.plateNumber} (école ${tenantDetails.name}).`,
+    );
 
     const courseRepo = tenantDataSource.getRepository(Course);
-    const activeCourse = await courseRepo.findOne({ where: { carId: car.id, statut: CourseStatus.ACTIVE } });
+    const activeCourse = await courseRepo.findOne({
+      where: { carId: car.id, statut: CourseStatus.ACTIVE },
+    });
     const courseId = activeCourse?.id || 'default-course';
 
     // Historique pour audit/rejouabilité — voir `PositionHistorique`. Une
     // ligne par position ingérée, jamais à la place du cache ci-dessus,
     // toujours en complément. `courseId` reste `'default-course'` (pas un
     // UUID) hors course active : la colonne l'accepte en `varchar`, pas en FK.
-    this.enregistrerHistoriquePosition(tenantDataSource, car.id, courseId, lat, lng, speed, time)
-      .catch((err) => this.logger.warn(`[Historique GPS] Écriture échouée (ignorée) : ${err.message}`));
+    this.enregistrerHistoriquePosition(
+      tenantDataSource,
+      car.id,
+      courseId,
+      lat,
+      lng,
+      speed,
+      time,
+    ).catch((err) =>
+      this.logger.warn(
+        `[Historique GPS] Écriture échouée (ignorée) : ${err.message}`,
+      ),
+    );
 
     // `courseId` doit être présent dans les données diffusées, pas seulement
     // servir à choisir le salon : sans lui le client ne peut pas relier une
@@ -621,11 +763,27 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     this.eventEmitter.emit('hardware.gps', {
       tenantId: tenantDetails.organisationId,
       courseId,
-      data: { carId: car.id, plateNumber: car.plateNumber, courseId, lat, lng, speed, time, online },
+      data: {
+        carId: car.id,
+        plateNumber: car.plateNumber,
+        courseId,
+        lat,
+        lng,
+        speed,
+        time,
+        online,
+      },
     });
 
     if (activeCourse) {
-      await this.checkProximityAlerts(lat, lng, courseId, car.id, tenantDetails, tenantDataSource);
+      await this.checkProximityAlerts(
+        lat,
+        lng,
+        courseId,
+        car.id,
+        tenantDetails,
+        tenantDataSource,
+      );
     }
 
     return { success: true };
@@ -646,13 +804,19 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
    * provisionnées. `ADD VALUE IF NOT EXISTS` (Postgres 12+) le rend
    * idempotent et sûr à rejouer.
    */
-  private async assurerValeurEnumProximite(tenantDataSource: DataSource): Promise<void> {
+  private async assurerValeurEnumProximite(
+    tenantDataSource: DataSource,
+  ): Promise<void> {
     const cle = (tenantDataSource.options as any).database;
     if (this.enumProximiteVerifie.has(cle)) return;
     try {
-      await tenantDataSource.query(`ALTER TYPE "alertes_type_enum" ADD VALUE IF NOT EXISTS 'proximite_arret'`);
+      await tenantDataSource.query(
+        `ALTER TYPE "alertes_type_enum" ADD VALUE IF NOT EXISTS 'proximite_arret'`,
+      );
     } catch (err: any) {
-      this.logger.warn(`[Alerte] Impossible d'ajouter 'proximite_arret' à l'enum (ignoré) : ${err.message}`);
+      this.logger.warn(
+        `[Alerte] Impossible d'ajouter 'proximite_arret' à l'enum (ignoré) : ${err.message}`,
+      );
     }
     this.enumProximiteVerifie.add(cle);
   }
@@ -732,19 +896,28 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
   }): Promise<{ success: boolean; message?: string }> {
     const { deviceId, lat, lng, speed = 0, time, online } = params;
     if (!deviceId) {
-      return { success: false, message: 'Identifiant de périphérique manquant.' };
+      return {
+        success: false,
+        message: 'Identifiant de périphérique manquant.',
+      };
     }
 
     await this.ensureDeviceRegistered(deviceId, 'GPS');
 
     const resolution = await this.resolveTenantForDevice(deviceId);
     if (resolution.state === 'pending') {
-      return { success: false, message: `Appareil "${deviceId}" pas encore assigné à une école.` };
+      return {
+        success: false,
+        message: `Appareil "${deviceId}" pas encore assigné à une école.`,
+      };
     }
 
     const tenantDetails = resolution.tenant;
     if (!tenantDetails.dbProvisioned || !tenantDetails.dbName) {
-      return { success: false, message: `La base de données du tenant ${tenantDetails.name} n'est pas provisionnée.` };
+      return {
+        success: false,
+        message: `La base de données du tenant ${tenantDetails.name} n'est pas provisionnée.`,
+      };
     }
 
     const tenantDataSource = await this.getTenantDataSource(tenantDetails);
@@ -775,7 +948,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       `;
       return await this.centralDataSource.query(query);
     } catch (err) {
-      this.logger.error(`Erreur lors de la récupération des alertes matérielles : ${err.message}`);
+      this.logger.error(
+        `Erreur lors de la récupération des alertes matérielles : ${err.message}`,
+      );
       return [];
     }
   }
@@ -783,7 +958,12 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
   /**
    * Calcul de la distance géodésique en km entre deux coordonnées GPS via la formule de Haversine.
    */
-  private calculateHaversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  private calculateHaversine(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 6371; // Rayon de la terre en km
     const dLat = ((lat2 - lat1) * Math.PI) / 180;
     const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -911,7 +1091,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
         }
       }
     } catch (err) {
-      this.logger.error(`Erreur lors du calcul de proximité GPS : ${err.message}`);
+      this.logger.error(
+        `Erreur lors du calcul de proximité GPS : ${err.message}`,
+      );
     }
   }
 
@@ -1006,7 +1188,11 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
           time: now.toISOString(),
         },
       });
-      return { statut: MonteeStatut.REFUSE, message: errorMsg, sansCourse: true };
+      return {
+        statut: MonteeStatut.REFUSE,
+        message: errorMsg,
+        sansCourse: true,
+      };
     }
 
     // 2. Si aucune course active pour ce véhicule
@@ -1040,7 +1226,11 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
           time: now.toISOString(),
         },
       });
-      return { statut: MonteeStatut.REFUSE, message: errorMsg, sansCourse: true };
+      return {
+        statut: MonteeStatut.REFUSE,
+        message: errorMsg,
+        sansCourse: true,
+      };
     }
 
     // 3. Vérifier l'affectation de l'élève à CETTE course précise.
@@ -1054,33 +1244,42 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
     // pour les affectations créées depuis TrajetEditor.tsx, qui ne renseigne
     // pas courseId : sans ce repli, tout enfant affecté uniquement par cet
     // écran serait signalé à tort comme non affecté sur sa propre course.
-    let affectationResult = await tenantDataSource.query(`
+    let affectationResult = await tenantDataSource.query(
+      `
       SELECT aff.point_id as "pointId", pr.nom as "stopName", pr.latitude as "stopLatitude", pr.longitude as "stopLongitude", pr.trajet_id as "trajetId"
       FROM affectations aff
       INNER JOIN points_recuperation pr ON pr.id = aff.point_id
       WHERE aff.child_id = $1 AND aff.course_id = $2
       LIMIT 1
-    `, [child.id, activeCourse.id]);
+    `,
+      [child.id, activeCourse.id],
+    );
 
     if (!affectationResult || affectationResult.length === 0) {
-      affectationResult = await tenantDataSource.query(`
+      affectationResult = await tenantDataSource.query(
+        `
         SELECT aff.point_id as "pointId", pr.nom as "stopName", pr.latitude as "stopLatitude", pr.longitude as "stopLongitude", pr.trajet_id as "trajetId"
         FROM affectations aff
         INNER JOIN points_recuperation pr ON pr.id = aff.point_id
         WHERE aff.child_id = $1 AND aff.course_id IS NULL AND pr.trajet_id = $2
         LIMIT 1
-      `, [child.id, activeCourse.trajetId]);
+      `,
+        [child.id, activeCourse.trajetId],
+      );
     }
 
     if (!affectationResult || affectationResult.length === 0) {
       // Élève non affecté à ce trajet/véhicule. Cherchons s'il a au moins une affectation
-      const anyAffectation = await tenantDataSource.query(`
+      const anyAffectation = await tenantDataSource.query(
+        `
         SELECT aff.point_id as "pointId", pr.nom as "stopName", pr.trajet_id as "trajetId"
         FROM affectations aff
         INNER JOIN points_recuperation pr ON pr.id = aff.point_id
         WHERE aff.child_id = $1
         LIMIT 1
-      `, [child.id]);
+      `,
+        [child.id],
+      );
 
       let typeAlerte = 'MAUVAIS_CAR';
       let errorMsg = `L'élève ${child.firstName} ${child.lastName} est monté dans le mauvais bus (${car.plateNumber}) pour la course "${activeCourse.nom}".`;
@@ -1091,9 +1290,12 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
         errorMsg = `L'élève ${child.firstName} ${child.lastName} a badgé sur la course "${activeCourse.nom}" (${car.plateNumber}) mais n'est affecté à aucun trajet.`;
       } else {
         // Trouver la course théorique attendue de l'élève
-        const expectedCourse = await tenantDataSource.query(`
+        const expectedCourse = await tenantDataSource.query(
+          `
           SELECT id, nom FROM courses WHERE trajet_id = $1 AND deleted_at IS NULL LIMIT 1
-        `, [anyAffectation[0].trajetId]);
+        `,
+          [anyAffectation[0].trajetId],
+        );
         if (expectedCourse && expectedCourse.length > 0) {
           expectedCourseId = expectedCourse[0].id;
           errorMsg = `L'élève ${child.firstName} ${child.lastName} est monté dans le mauvais bus (${car.plateNumber}, course "${activeCourse.nom}"). Il était attendu sur la course "${expectedCourse[0].nom}".`;
@@ -1138,7 +1340,9 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
 
     // 4. L'élève est sur la bonne course. Vérifions s'il s'agit du bon arrêt !
     const expectedStop = affectationResult[0];
-    const carGps = this.latestCarGps.get(this.gpsKey(tenantDetails.organisationId, car.id));
+    const carGps = this.latestCarGps.get(
+      this.gpsKey(tenantDetails.organisationId, car.id),
+    );
     let distanceMetres: number | undefined;
 
     if (carGps) {
@@ -1146,13 +1350,18 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       const stopLng = parseFloat(expectedStop.stopLongitude);
 
       if (!isNaN(stopLat) && !isNaN(stopLng)) {
-        const distance = this.calculateHaversine(carGps.lat, carGps.lng, stopLat, stopLng);
+        const distance = this.calculateHaversine(
+          carGps.lat,
+          carGps.lng,
+          stopLat,
+          stopLng,
+        );
         distanceMetres = Math.round(distance * 1000);
 
         // Si le bus est à plus de 500 mètres de l'arrêt théorique de l'élève
         if (distance > 0.5) {
           const errorMsg = `L'élève ${child.firstName} ${child.lastName} a badgé sur le bus ${car.plateNumber} à ${distance.toFixed(2)} km de son arrêt théorique "${expectedStop.stopName}".`;
-          
+
           const critAlerte = alerteCritiqueRepo.create({
             type: 'MAUVAIS_ARRET',
             severity: 'HIGH',
@@ -1207,30 +1416,39 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
   }
 
   // --- TRACCAR INTEGRATION ---
-  
+
   public async handleTraccarStream(payload: any) {
-    this.logger.debug("Received Traccar Payload: " + JSON.stringify(payload));
+    this.logger.debug('Received Traccar Payload: ' + JSON.stringify(payload));
     let deviceId;
     let lat, lng, speed, time;
 
     // Traccar Webhook structure depends on the event (positions vs events)
     // Often it sends position wrapped in a 'position' object.
     if (payload.position) {
-       deviceId = payload.device?.uniqueId || payload.position.deviceId;
-       lat = payload.position.latitude;
-       lng = payload.position.longitude;
-       speed = payload.position.speed;
-       time = payload.position.deviceTime || payload.position.fixTime || new Date().toISOString();
-    } else if (payload.uniqueId) { // Forward payload style
-       deviceId = payload.uniqueId;
-       lat = payload.latitude;
-       lng = payload.longitude;
-       speed = payload.speed;
-       time = payload.deviceTime || new Date().toISOString();
+      deviceId = payload.device?.uniqueId || payload.position.deviceId;
+      lat = payload.position.latitude;
+      lng = payload.position.longitude;
+      speed = payload.position.speed;
+      time =
+        payload.position.deviceTime ||
+        payload.position.fixTime ||
+        new Date().toISOString();
+    } else if (payload.uniqueId) {
+      // Forward payload style
+      deviceId = payload.uniqueId;
+      lat = payload.latitude;
+      lng = payload.longitude;
+      speed = payload.speed;
+      time = payload.deviceTime || new Date().toISOString();
     }
 
-    if (!deviceId) return { success: false, message: 'No device ID found in Traccar payload' };
-    if (!lat || !lng) return { success: false, message: 'No coordinates in payload' };
+    if (!deviceId)
+      return {
+        success: false,
+        message: 'No device ID found in Traccar payload',
+      };
+    if (!lat || !lng)
+      return { success: false, message: 'No coordinates in payload' };
 
     try {
       await this.ensureDeviceRegistered(deviceId, 'GPS');
@@ -1242,10 +1460,21 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
 
       const org = resolution.tenant;
       const ds = await this.getTenantDataSource(org);
-      const result = await this.ingestResolvedGpsPosition(deviceId, lat, lng, speed, time, org, ds);
-      return { success: result.success, error: result.success ? undefined : result.message };
+      const result = await this.ingestResolvedGpsPosition(
+        deviceId,
+        lat,
+        lng,
+        speed,
+        time,
+        org,
+        ds,
+      );
+      return {
+        success: result.success,
+        error: result.success ? undefined : result.message,
+      };
     } catch (e) {
-      this.logger.error("Error processing Traccar stream: " + e.message);
+      this.logger.error('Error processing Traccar stream: ' + e.message);
       return { success: false, error: e.message };
     }
   }
@@ -1262,5 +1491,4 @@ export class HardwareStreamService implements OnModuleInit, OnModuleDestroy {
       (position) => position.organisationId === organisationId,
     );
   }
-
 }

@@ -1,6 +1,16 @@
-import { Injectable, NotFoundException, ConflictException, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
-import { Child, BiotimeSyncStatus } from '@app/database/tenant-entities/child.entity';
+import {
+  Child,
+  BiotimeSyncStatus,
+} from '@app/database/tenant-entities/child.entity';
 import { CreateChildDto, UpdateChildDto } from './dto/children.dto';
 import { TenantService } from '../tenant/tenant.service';
 import { Parent } from '@app/database/tenant-entities/parent.entity';
@@ -19,12 +29,17 @@ export class ChildrenService {
   ) {}
 
   private urlSuperApp(chemin: string): string {
-    const base = this.configService.get<string>('SUPER_APP_URL', 'http://localhost:3000');
+    const base = this.configService.get<string>(
+      'SUPER_APP_URL',
+      'http://localhost:3000',
+    );
     return `${base}/api/v1/biotime/mon-ecole${chemin}`;
   }
 
   private enTetes(accessToken?: string): { headers: Record<string, string> } {
-    return { headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {} };
+    return {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    };
   }
 
   private async getRepo(): Promise<Repository<Child>> {
@@ -39,12 +54,18 @@ export class ChildrenService {
 
   async findAll(): Promise<Child[]> {
     const repo = await this.getRepo();
-    return repo.find({ relations: { parent: true }, order: { createdAt: 'DESC' } });
+    return repo.find({
+      relations: { parent: true },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findOne(id: string, accessToken?: string): Promise<Child> {
     const repo = await this.getRepo();
-    const child = await repo.findOne({ where: { id }, relations: { parent: true } });
+    const child = await repo.findOne({
+      where: { id },
+      relations: { parent: true },
+    });
     if (!child) {
       throw new NotFoundException(`Élève ${id} introuvable.`);
     }
@@ -76,13 +97,20 @@ export class ChildrenService {
     return child;
   }
 
-  async create(createChildDto: CreateChildDto, accessToken?: string): Promise<Child> {
+  async create(
+    createChildDto: CreateChildDto,
+    accessToken?: string,
+  ): Promise<Child> {
     const repo = await this.getRepo();
 
     if (createChildDto.empCode) {
-      const existing = await repo.findOne({ where: { empCode: createChildDto.empCode } });
+      const existing = await repo.findOne({
+        where: { empCode: createChildDto.empCode },
+      });
       if (existing) {
-        throw new ConflictException(`Le matricule BioTime ${createChildDto.empCode} est déjà assigné à un autre élève.`);
+        throw new ConflictException(
+          `Le matricule BioTime ${createChildDto.empCode} est déjà assigné à un autre élève.`,
+        );
       }
     }
 
@@ -97,7 +125,9 @@ export class ChildrenService {
 
     if (createChildDto.parentId) {
       const parentRepo = await this.getParentRepo();
-      const parent = await parentRepo.findOne({ where: { id: createChildDto.parentId } });
+      const parent = await parentRepo.findOne({
+        where: { id: createChildDto.parentId },
+      });
       if (!parent) {
         throw new NotFoundException(`Parent introuvable.`);
       }
@@ -111,20 +141,30 @@ export class ChildrenService {
     return saved;
   }
 
-  async update(id: string, updateChildDto: UpdateChildDto, accessToken?: string): Promise<Child> {
+  async update(
+    id: string,
+    updateChildDto: UpdateChildDto,
+    accessToken?: string,
+  ): Promise<Child> {
     const repo = await this.getRepo();
     const child = await this.findOne(id);
 
     if (updateChildDto.empCode && updateChildDto.empCode !== child.empCode) {
-      const existing = await repo.findOne({ where: { empCode: updateChildDto.empCode } });
+      const existing = await repo.findOne({
+        where: { empCode: updateChildDto.empCode },
+      });
       if (existing) {
-        throw new ConflictException(`Le matricule BioTime ${updateChildDto.empCode} est déjà assigné.`);
+        throw new ConflictException(
+          `Le matricule BioTime ${updateChildDto.empCode} est déjà assigné.`,
+        );
       }
     }
 
     if (updateChildDto.parentId && updateChildDto.parentId !== child.parentId) {
       const parentRepo = await this.getParentRepo();
-      const parent = await parentRepo.findOne({ where: { id: updateChildDto.parentId } });
+      const parent = await parentRepo.findOne({
+        where: { id: updateChildDto.parentId },
+      });
       if (!parent) {
         throw new NotFoundException(`Parent introuvable.`);
       }
@@ -142,11 +182,17 @@ export class ChildrenService {
     const saved = await repo.save(child);
 
     const champsBiotime = ['firstName', 'lastName', 'className', 'empCode'];
-    const aChange = champsBiotime.some((k) => updateChildDto[k as keyof UpdateChildDto] !== undefined);
-    const classeChangee = updateChildDto.className !== undefined && updateChildDto.className !== ancienneClasse;
+    const aChange = champsBiotime.some(
+      (k) => updateChildDto[k as keyof UpdateChildDto] !== undefined,
+    );
+    const classeChangee =
+      updateChildDto.className !== undefined &&
+      updateChildDto.className !== ancienneClasse;
 
     if (aChange || classeChangee) {
-      await repo.update(saved.id, { biotimeSyncStatus: BiotimeSyncStatus.PENDING });
+      await repo.update(saved.id, {
+        biotimeSyncStatus: BiotimeSyncStatus.PENDING,
+      });
       saved.biotimeSyncStatus = BiotimeSyncStatus.PENDING;
       this.pushSingleToBiotime(repo, saved, accessToken);
     }
@@ -166,7 +212,11 @@ export class ChildrenService {
    * Push unitaire fire-and-forget vers BioTime via la super-app.
    * Met à jour le biotimeId et le statut de sync après réponse.
    */
-  private pushSingleToBiotime(repo: Repository<Child>, child: Child, accessToken?: string): void {
+  private pushSingleToBiotime(
+    repo: Repository<Child>,
+    child: Child,
+    accessToken?: string,
+  ): void {
     if (!accessToken) return;
 
     firstValueFrom(
@@ -183,7 +233,8 @@ export class ChildrenService {
       ),
     )
       .then(async (response) => {
-        const { biotimeId, action, error, biotimeDepartmentId } = response.data ?? {};
+        const { biotimeId, action, error, biotimeDepartmentId } =
+          response.data ?? {};
         if (action === 'skipped' && error) {
           await repo.update(child.id, {
             biotimeSyncStatus: BiotimeSyncStatus.FAILED,
@@ -202,11 +253,15 @@ export class ChildrenService {
         );
       })
       .catch(async (err) => {
-        await repo.update(child.id, {
-          biotimeSyncStatus: BiotimeSyncStatus.FAILED,
-          biotimeSyncError: err.message?.slice(0, 255),
-        }).catch(() => {});
-        this.logger.warn(`[BioTime→] Push échoué pour ${child.id} : ${err.message}`);
+        await repo
+          .update(child.id, {
+            biotimeSyncStatus: BiotimeSyncStatus.FAILED,
+            biotimeSyncError: err.message?.slice(0, 255),
+          })
+          .catch(() => {});
+        this.logger.warn(
+          `[BioTime→] Push échoué pour ${child.id} : ${err.message}`,
+        );
       });
   }
 
@@ -244,7 +299,9 @@ export class ChildrenService {
           this.enTetes(accessToken),
         ),
       );
-      this.logger.log(`[BioTime→] Batch retry de ${enfants.length} enfant(s) mis en file.`);
+      this.logger.log(
+        `[BioTime→] Batch retry de ${enfants.length} enfant(s) mis en file.`,
+      );
       return { enqueued: enfants.length };
     } catch (err: any) {
       this.logger.warn(`[BioTime→] Batch retry échoué : ${err.message}`);
@@ -269,7 +326,10 @@ export class ChildrenService {
       );
       return response.data;
     } catch (error) {
-      console.error(`Erreur lors de la récupération des pointages pour l'enfant ${id}`, error);
+      console.error(
+        `Erreur lors de la récupération des pointages pour l'enfant ${id}`,
+        error,
+      );
       return [];
     }
   }
@@ -277,12 +337,21 @@ export class ChildrenService {
   async getBiotimeDirectory(accessToken?: string): Promise<any[]> {
     try {
       const response = await firstValueFrom(
-        this.httpService.get(this.urlSuperApp('/directory'), this.enTetes(accessToken)),
+        this.httpService.get(
+          this.urlSuperApp('/directory'),
+          this.enTetes(accessToken),
+        ),
       );
       return response.data || [];
     } catch (error) {
-      console.error(`Erreur lors de la récupération du répertoire BioTime`, error);
-      throw new HttpException('Erreur de communication avec le serveur central', HttpStatus.INTERNAL_SERVER_ERROR);
+      console.error(
+        `Erreur lors de la récupération du répertoire BioTime`,
+        error,
+      );
+      throw new HttpException(
+        'Erreur de communication avec le serveur central',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -305,7 +374,9 @@ export class ChildrenService {
       let importedCount = 0;
 
       for (const emp of employees) {
-        const existing = await repo.findOne({ where: { empCode: emp.empCode } });
+        const existing = await repo.findOne({
+          where: { empCode: emp.empCode },
+        });
         if (!existing) {
           const child = repo.create({
             firstName: emp.firstName,
@@ -336,7 +407,10 @@ export class ChildrenService {
       return { message: 'Importation réussie', count: importedCount };
     } catch (error) {
       console.error(`Erreur lors de l'importation en masse`, error);
-      throw new HttpException('Erreur lors de l\'importation en masse', HttpStatus.INTERNAL_SERVER_ERROR);
+      throw new HttpException(
+        "Erreur lors de l'importation en masse",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -348,8 +422,15 @@ export class ChildrenService {
     for (const child of allChildren) {
       let needsUpdate = false;
 
-      if (child.photoUrl && child.photoUrl.includes('160.120.143.20') && !child.photoUrl.includes(':8080')) {
-        child.photoUrl = child.photoUrl.replace('http://160.120.143.20', 'http://160.120.143.20:8080');
+      if (
+        child.photoUrl &&
+        child.photoUrl.includes('160.120.143.20') &&
+        !child.photoUrl.includes(':8080')
+      ) {
+        child.photoUrl = child.photoUrl.replace(
+          'http://160.120.143.20',
+          'http://160.120.143.20:8080',
+        );
         needsUpdate = true;
       }
 
@@ -394,10 +475,16 @@ export class ChildrenService {
 
     const repo = await this.getRepo();
     const children = await repo.find({ select: { className: true } });
-    const classNames = [...new Set(children.map((c) => c.className).filter(Boolean))];
+    const classNames = [
+      ...new Set(children.map((c) => c.className).filter(Boolean)),
+    ];
 
     if (classNames.length === 0) {
-      return { message: 'Aucune classe à synchroniser', created: [], existing: [] };
+      return {
+        message: 'Aucune classe à synchroniser',
+        created: [],
+        existing: [],
+      };
     }
 
     try {

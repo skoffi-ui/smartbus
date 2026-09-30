@@ -27,7 +27,10 @@ export class PointsRecuperationService {
    * le trajet est `mixte` (le point reste par ailleurs visible/éditable
    * normalement partout ailleurs).
    */
-  async findByTrajet(trajetId?: string, pourAffectation = false): Promise<PointRecuperation[]> {
+  async findByTrajet(
+    trajetId?: string,
+    pourAffectation = false,
+  ): Promise<PointRecuperation[]> {
     const repo = await this.getRepo();
     const points = await repo.find({
       where: trajetId ? { trajetId } : {},
@@ -37,7 +40,9 @@ export class PointsRecuperationService {
     if (!pourAffectation || !trajetId) return points;
 
     const ds = await this.tenantService.getDataSource();
-    const trajet = await ds.getRepository(Trajet).findOne({ where: { id: trajetId } });
+    const trajet = await ds
+      .getRepository(Trajet)
+      .findOne({ where: { id: trajetId } });
     if (trajet?.sens === TrajetSens.MIXTE) return points;
 
     return points.filter((p) => p.type !== 'arrivee');
@@ -46,7 +51,8 @@ export class PointsRecuperationService {
   async findById(id: string): Promise<PointRecuperation> {
     const repo = await this.getRepo();
     const point = await repo.findOne({ where: { id } });
-    if (!point) throw new NotFoundException(`Point de récupération ${id} introuvable`);
+    if (!point)
+      throw new NotFoundException(`Point de récupération ${id} introuvable`);
     return point;
   }
 
@@ -57,11 +63,16 @@ export class PointsRecuperationService {
       rayonDetection: dto.rayonDetection ?? 100, // 100 m : marge réaliste pour un GPS embarqué
     } as Partial<PointRecuperation>);
     const saved = await repo.save(point);
-    this.logger.log(`Point créé : ${saved.id} - ${saved.nom} (trajet: ${dto.trajetId})`);
+    this.logger.log(
+      `Point créé : ${saved.id} - ${saved.nom} (trajet: ${dto.trajetId})`,
+    );
     return saved as PointRecuperation;
   }
 
-  async update(id: string, dto: Partial<CreatePointDto>): Promise<PointRecuperation> {
+  async update(
+    id: string,
+    dto: Partial<CreatePointDto>,
+  ): Promise<PointRecuperation> {
     const repo = await this.getRepo();
     const point = await this.findById(id);
     Object.assign(point, dto);

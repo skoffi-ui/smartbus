@@ -51,9 +51,13 @@ export class HardwareStreamGateway
   private async connexionEcole(organisationId: string) {
     const contextId = ContextIdFactory.create();
     this.moduleRef.registerRequestByContextId({}, contextId);
-    const service = await this.moduleRef.resolve(TenantConnectionService, contextId, {
-      strict: false,
-    });
+    const service = await this.moduleRef.resolve(
+      TenantConnectionService,
+      contextId,
+      {
+        strict: false,
+      },
+    );
     return service.getTenantConnection(organisationId);
   }
 
@@ -65,7 +69,10 @@ export class HardwareStreamGateway
    * d'importer tout `ParentPortalModule` dans `HardwareStreamModule` pour
    * une seule requête — évite un couplage inter-modules superflu.
    */
-  private async coursesDuParent(organisationId: string, parentId: string): Promise<string[]> {
+  private async coursesDuParent(
+    organisationId: string,
+    parentId: string,
+  ): Promise<string[]> {
     try {
       const tenantDS = await this.connexionEcole(organisationId);
       const lignes = await tenantDS.query(
@@ -81,7 +88,9 @@ export class HardwareStreamGateway
       );
       return lignes.map((l: { id: string }) => l.id);
     } catch (err: any) {
-      this.logger.error(`[WS Parent] Résolution des courses du parent ${parentId} impossible : ${err.message}`);
+      this.logger.error(
+        `[WS Parent] Résolution des courses du parent ${parentId} impossible : ${err.message}`,
+      );
       return [];
     }
   }
@@ -116,8 +125,12 @@ export class HardwareStreamGateway
       }>(token);
 
       if (!payload.organisationId) {
-        this.logger.warn(`Connexion refusée (compte sans école) : ${client.id}`);
-        client.emit('unauthorized', { message: "Aucune école associée à ce compte." });
+        this.logger.warn(
+          `Connexion refusée (compte sans école) : ${client.id}`,
+        );
+        client.emit('unauthorized', {
+          message: 'Aucune école associée à ce compte.',
+        });
         client.disconnect(true);
         return;
       }
@@ -133,16 +146,23 @@ export class HardwareStreamGateway
         // gardée dans `client.data` : `handleSubscribe` s'en sert pour
         // refuser toute tentative de rejoindre une AUTRE course de l'école.
         client.data.role = 'PARENT';
-        const courseIds = await this.coursesDuParent(organisationId, payload.sub);
+        const courseIds = await this.coursesDuParent(
+          organisationId,
+          payload.sub,
+        );
         client.data.allowedCourseIds = courseIds;
-        courseIds.forEach((courseId) => client.join(courseRoom(organisationId, courseId)));
+        courseIds.forEach((courseId) =>
+          client.join(courseRoom(organisationId, courseId)),
+        );
         this.logger.log(
           `Client parent connecté : ${client.id} (école ${organisationId}, ${courseIds.length} course(s))`,
         );
       } else {
         // Compte école : déjà admin de toute l'école, abonnement à son activité complète.
         client.join(schoolRoom(organisationId));
-        this.logger.log(`Client connecté : ${client.id} (école ${organisationId})`);
+        this.logger.log(
+          `Client connecté : ${client.id} (école ${organisationId})`,
+        );
       }
 
       client.emit('connected', { organisationId });
@@ -185,12 +205,19 @@ export class HardwareStreamGateway
     if (client.data.role === 'PARENT') {
       const autorisees: string[] = client.data.allowedCourseIds || [];
       if (!courseId || courseId === '*') {
-        client.emit('subscribed', { room: 'toutes vos courses (déjà rejointes)', status: 'success' });
+        client.emit('subscribed', {
+          room: 'toutes vos courses (déjà rejointes)',
+          status: 'success',
+        });
         return;
       }
       if (!autorisees.includes(courseId)) {
-        this.logger.warn(`[WS Parent] Tentative refusée : ${client.id} → course ${courseId} (pas la sienne)`);
-        client.emit('unauthorized', { message: "Cette course n'appartient pas à l'un de vos enfants." });
+        this.logger.warn(
+          `[WS Parent] Tentative refusée : ${client.id} → course ${courseId} (pas la sienne)`,
+        );
+        client.emit('unauthorized', {
+          message: "Cette course n'appartient pas à l'un de vos enfants.",
+        });
         return;
       }
       const room = courseRoom(organisationId, courseId);
@@ -242,7 +269,11 @@ export class HardwareStreamGateway
    * Écoute l'événement local de pointage ZKTeco pour diffuser en temps réel.
    */
   @OnEvent('hardware.punch')
-  handlePunchBroadcast(payload: { tenantId: string; courseId: string; data: any }) {
+  handlePunchBroadcast(payload: {
+    tenantId: string;
+    courseId: string;
+    data: any;
+  }) {
     this.broadcast('punch', 'Pointage biométrique', payload);
   }
 
@@ -250,7 +281,11 @@ export class HardwareStreamGateway
    * Écoute l'événement local de position GPS Libellule pour diffuser en temps réel.
    */
   @OnEvent('hardware.gps')
-  handleGpsBroadcast(payload: { tenantId: string; courseId: string; data: any }) {
+  handleGpsBroadcast(payload: {
+    tenantId: string;
+    courseId: string;
+    data: any;
+  }) {
     this.broadcast('gps', 'Position GPS', payload);
   }
 
@@ -258,7 +293,11 @@ export class HardwareStreamGateway
    * Écoute l'événement local d'alerte de proximité pour diffuser en temps réel aux parents.
    */
   @OnEvent('hardware.proximity_alert')
-  handleProximityAlertBroadcast(payload: { tenantId: string; courseId: string; data: any }) {
+  handleProximityAlertBroadcast(payload: {
+    tenantId: string;
+    courseId: string;
+    data: any;
+  }) {
     this.broadcast('proximity_alert', 'Alerte de proximité', payload);
   }
 
@@ -266,7 +305,11 @@ export class HardwareStreamGateway
    * Écoute l'événement local d'anomalie critique pour diffuser en temps réel aux écoles.
    */
   @OnEvent('hardware.critical_anomaly')
-  handleCriticalAnomalyBroadcast(payload: { tenantId: string; courseId: string; data: any }) {
+  handleCriticalAnomalyBroadcast(payload: {
+    tenantId: string;
+    courseId: string;
+    data: any;
+  }) {
     this.broadcast('critical_anomaly', 'Anomalie critique', payload);
   }
 
@@ -282,7 +325,11 @@ export class HardwareStreamGateway
    */
   @OnEvent('organisation.permissions_updated')
   handlePermissionsUpdatedBroadcast(payload: { organisationId: string }) {
-    this.server.to(schoolRoom(payload.organisationId)).emit('permissions_updated');
-    this.logger.log(`[WS Broadcast] Permissions mises à jour, école ${payload.organisationId}`);
+    this.server
+      .to(schoolRoom(payload.organisationId))
+      .emit('permissions_updated');
+    this.logger.log(
+      `[WS Broadcast] Permissions mises à jour, école ${payload.organisationId}`,
+    );
   }
 }

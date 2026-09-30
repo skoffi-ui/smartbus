@@ -10,8 +10,19 @@ import {
   ParseIntPipe,
   DefaultValuePipe,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
+import {
+  JwtAuthGuard,
+  RolesGuard,
+  Roles,
+  FeaturesGuard,
+  RequireFeature,
+} from '@app/common';
 import { UserRole } from '@app/database';
 import { AlertesCritiquesService } from './alertes-critiques.service';
 
@@ -22,7 +33,9 @@ import { AlertesCritiquesService } from './alertes-critiques.service';
 @RequireFeature('centre-alertes')
 @Controller('alertes-critiques')
 export class AlertesCritiquesController {
-  constructor(private readonly alertesCritiquesService: AlertesCritiquesService) {}
+  constructor(
+    private readonly alertesCritiquesService: AlertesCritiquesService,
+  ) {}
 
   /**
    * GET /api/v1/alertes-critiques
@@ -41,7 +54,11 @@ export class AlertesCritiquesController {
     @Query('statut') statut?: 'unresolved' | 'resolved' | 'all',
   ) {
     const tenantId = req.user?.organisationId;
-    return this.alertesCritiquesService.getUnresolved(tenantId, limit, statut ?? 'unresolved');
+    return this.alertesCritiquesService.getUnresolved(
+      tenantId,
+      limit,
+      statut ?? 'unresolved',
+    );
   }
 
   /**
@@ -63,14 +80,21 @@ export class AlertesCritiquesController {
    */
   @Patch(':id/resolve')
   @Roles(UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Marquer une anomalie critique comme résolue" })
+  @ApiOperation({ summary: 'Marquer une anomalie critique comme résolue' })
   async resolve(
     @Request() req: any,
     @Param('id') id: string,
     @Body() body: { note?: string },
   ) {
     const tenantId = req.user?.organisationId;
-    const resolvedBy = `${req.user?.firstName ?? ''} ${req.user?.lastName ?? ''}`.trim() || req.user?.email;
-    return this.alertesCritiquesService.resolve(tenantId, id, resolvedBy, body.note);
+    const resolvedBy =
+      `${req.user?.firstName ?? ''} ${req.user?.lastName ?? ''}`.trim() ||
+      req.user?.email;
+    return this.alertesCritiquesService.resolve(
+      tenantId,
+      id,
+      resolvedBy,
+      body.note,
+    );
   }
 }

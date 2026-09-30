@@ -1,8 +1,23 @@
 import {
-  Controller, Get, Post, Put, Delete, Patch,
-  Param, Body, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -26,7 +41,9 @@ export class CoursesController {
   }
 
   @Get('active')
-  @ApiOperation({ summary: 'Liste toutes les courses en cours (statut ACTIVE)' })
+  @ApiOperation({
+    summary: 'Liste toutes les courses en cours (statut ACTIVE)',
+  })
   findActive() {
     return this.coursesService.findActive();
   }
@@ -49,15 +66,15 @@ export class CoursesController {
 
   @Put(':id')
   @ApiOperation({ summary: 'Met à jour une course existante' })
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateCourseDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateCourseDto) {
     return this.coursesService.update(id, dto);
   }
 
   @Patch(':id/status')
-  @ApiOperation({ summary: 'Change uniquement le statut d\'une course (ACTIVE, TERMINEE, ANNULEE)' })
+  @ApiOperation({
+    summary:
+      "Change uniquement le statut d'une course (ACTIVE, TERMINEE, ANNULEE)",
+  })
   updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('statut') statut: CourseStatus,

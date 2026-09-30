@@ -37,10 +37,14 @@ export const DEVICE_STREAM_API_KEY_QUERY_PARAM = 'key';
  * Comparaison en temps constant pour ne pas permettre de deviner le secret
  * octet par octet.
  */
-export function creerGardeCleFluxMateriel(nomVariableEnv: string): Type<CanActivate> {
+export function creerGardeCleFluxMateriel(
+  nomVariableEnv: string,
+): Type<CanActivate> {
   @Injectable()
   class DeviceStreamApiKeyGuard implements CanActivate {
-    private readonly logger = new Logger(`DeviceStreamApiKeyGuard(${nomVariableEnv})`);
+    private readonly logger = new Logger(
+      `DeviceStreamApiKeyGuard(${nomVariableEnv})`,
+    );
 
     constructor(private readonly config: ConfigService) {}
 
@@ -51,7 +55,7 @@ export function creerGardeCleFluxMateriel(nomVariableEnv: string): Type<CanActiv
         // jamais rouvrir silencieusement la route.
         this.logger.error(`${nomVariableEnv} absente : flux refusé.`);
         throw new InternalServerErrorException(
-          "Secret de flux matériel non configuré sur ce service.",
+          'Secret de flux matériel non configuré sur ce service.',
         );
       }
 

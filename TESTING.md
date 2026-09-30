@@ -116,6 +116,7 @@ REDIS_DB=1           # DB Redis dédiée aux tests
 **Objectif** : Tester les services, helpers, et logique métier en isolation.
 
 **Caractéristiques** :
+
 - ✅ Rapides (< 100ms par test)
 - ✅ Isolés (mocks pour dépendances externes)
 - ✅ Couvrent la logique métier complexe
@@ -143,6 +144,7 @@ describe('CoursesService', () => {
 ```
 
 **Commande** :
+
 ```bash
 npm run test:unit
 ```
@@ -152,6 +154,7 @@ npm run test:unit
 **Objectif** : Tester les endpoints API avec une vraie base de données.
 
 **Caractéristiques** :
+
 - ✅ Testent le flow complet HTTP → Service → DB
 - ✅ Utilisent une base de données test
 - ✅ Vérifient les codes HTTP et la structure des réponses
@@ -185,6 +188,7 @@ describe('Auth API (e2e)', () => {
 ```
 
 **Commandes** :
+
 ```bash
 npm run test:e2e           # Tous les tests E2E
 npm run test:e2e:super     # E2E super-app uniquement
@@ -196,6 +200,7 @@ npm run test:e2e:school    # E2E school-app uniquement
 **Objectif** : Tester l'interaction entre plusieurs modules (à implémenter).
 
 **Exemple** :
+
 - Course → Trajet → PointsRecuperation
 - Child → Parent → Notifications
 - Organisation → Provisioning → Tenant DB
@@ -253,30 +258,34 @@ npm run test:debug -- courses.service.spec.ts
 
 ### Nommage des fichiers
 
-| Type | Pattern | Exemple |
-|------|---------|---------|
-| Test unitaire | `*.spec.ts` | `courses.service.spec.ts` |
-| Test E2E | `*.e2e-spec.ts` | `auth.e2e-spec.ts` |
-| Helper | `*.helper.ts` | `test-database.helper.ts` |
-| Fixture | `test-*.ts` | `test-fixtures.ts` |
+| Type          | Pattern         | Exemple                   |
+| ------------- | --------------- | ------------------------- |
+| Test unitaire | `*.spec.ts`     | `courses.service.spec.ts` |
+| Test E2E      | `*.e2e-spec.ts` | `auth.e2e-spec.ts`        |
+| Helper        | `*.helper.ts`   | `test-database.helper.ts` |
+| Fixture       | `test-*.ts`     | `test-fixtures.ts`        |
 
 ### Structure d'un test
 
 ```typescript
 describe('FeatureName', () => {
   // Setup
-  beforeEach(() => { /* ... */ });
-  afterEach(() => { /* ... */ });
+  beforeEach(() => {
+    /* ... */
+  });
+  afterEach(() => {
+    /* ... */
+  });
 
   // Tests groupés par méthode/comportement
   describe('methodName', () => {
     it('should do something when condition', () => {
       // Arrange (Given)
       const input = {};
-      
+
       // Act (When)
       const result = service.method(input);
-      
+
       // Assert (Then)
       expect(result).toBe(expected);
     });
@@ -291,17 +300,19 @@ describe('FeatureName', () => {
 ### Nommage des tests
 
 ✅ **Bon** :
+
 ```typescript
-it('should return 404 when course not found')
-it('should throw ConflictException when empCode already exists')
-it('should auto-sync photo from super-app if missing')
+it('should return 404 when course not found');
+it('should throw ConflictException when empCode already exists');
+it('should auto-sync photo from super-app if missing');
 ```
 
 ❌ **Mauvais** :
+
 ```typescript
-it('test 1')
-it('works')
-it('error case')
+it('test 1');
+it('works');
+it('error case');
 ```
 
 ---
@@ -311,6 +322,7 @@ it('error case')
 ### 1. Isolation des tests
 
 ✅ **Bon** : Chaque test est indépendant
+
 ```typescript
 beforeEach(() => {
   mockRepo = { find: jest.fn() };
@@ -322,20 +334,27 @@ afterEach(() => {
 ```
 
 ❌ **Mauvais** : Tests dépendants de l'ordre
+
 ```typescript
-it('creates user', () => { userId = create(); });
-it('updates user', () => { update(userId); }); // Dépend du test précédent
+it('creates user', () => {
+  userId = create();
+});
+it('updates user', () => {
+  update(userId);
+}); // Dépend du test précédent
 ```
 
 ### 2. Mocking stratégique
 
 ✅ **Mock** :
+
 - Base de données
 - APIs externes (BioTime, Firebase)
 - Services tiers (HttpService, EmailService)
 - Date/Time (pour tests déterministes)
 
 ❌ **Ne pas mocker** :
+
 - La logique métier à tester
 - Helpers simples (formatters, validators)
 
@@ -344,7 +363,10 @@ it('updates user', () => { update(userId); }); // Dépend du test précédent
 Utiliser [test-fixtures.ts](test/helpers/test-fixtures.ts) pour créer des données réutilisables :
 
 ```typescript
-import { createMockUser, createMockOrganisation } from '../helpers/test-fixtures';
+import {
+  createMockUser,
+  createMockOrganisation,
+} from '../helpers/test-fixtures';
 
 const testUser = createMockUser({ role: UserRole.SUPER_ADMIN });
 const testOrg = createMockOrganisation({ name: 'Test School' });
@@ -369,10 +391,12 @@ Les tests E2E peuvent être lents (DB, réseau) :
 
 ```typescript
 // Par test
-it('slow operation', async () => { /* ... */ }, 10000); // 10s
+it('slow operation', async () => {
+  /* ... */
+}, 10000); // 10s
 
 // Global dans config
-testTimeout: 60000
+testTimeout: 60000;
 ```
 
 ---
@@ -381,13 +405,13 @@ testTimeout: 60000
 
 ### Objectifs par type de fichier
 
-| Type | Couverture cible | Justification |
-|------|------------------|---------------|
-| Services | 80-90% | Logique métier critique |
-| Controllers | 70-80% | Flow HTTP important |
-| DTOs | 0% | Validation déclarative |
-| Entities | 0% | ORM configuration |
-| Modules | 0% | Dependency injection |
+| Type        | Couverture cible | Justification           |
+| ----------- | ---------------- | ----------------------- |
+| Services    | 80-90%           | Logique métier critique |
+| Controllers | 70-80%           | Flow HTTP important     |
+| DTOs        | 0%               | Validation déclarative  |
+| Entities    | 0%               | ORM configuration       |
+| Modules     | 0%               | Dependency injection    |
 
 ### Exclusions (collectCoverageFrom)
 
@@ -409,6 +433,7 @@ npm run test:cov
 ```
 
 **Seuils minimum** (jest.config.ts) :
+
 ```typescript
 coverageThreshold: {
   global: {
@@ -436,7 +461,7 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -445,35 +470,35 @@ jobs:
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
-      
+
       redis:
         image: redis:7
         ports:
           - 6379:6379
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run linter
         run: npm run lint
-      
+
       - name: Run unit tests
         run: npm run test:unit
-      
+
       - name: Run E2E tests
         run: npm run test:e2e
-      
+
       - name: Check coverage
         run: npm run test:cov
-      
+
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
@@ -490,6 +515,7 @@ npx husky init
 ```
 
 `.husky/pre-commit` :
+
 ```bash
 #!/bin/sh
 npm run test:unit
@@ -505,9 +531,10 @@ npm run lint
 **Cause** : Base de données lente, connexions non fermées
 
 **Solution** :
+
 ```typescript
 // Augmenter timeout
-testTimeout: 60000
+testTimeout: 60000;
 
 // Fermer connexions
 afterAll(async () => {
@@ -521,6 +548,7 @@ afterAll(async () => {
 **Cause** : Conflit avec apps en dev
 
 **Solution** :
+
 - Utiliser ports différents dans `.env.test`
 - Tuer les processus : `npx kill-port 3000 3001`
 
@@ -529,6 +557,7 @@ afterAll(async () => {
 **Cause** : Path mapping non résolu
 
 **Solution** :
+
 ```typescript
 // jest.config.ts
 moduleNameMapper: {
@@ -540,14 +569,18 @@ moduleNameMapper: {
 ### Problème : Tests flaky (intermittents)
 
 **Causes fréquentes** :
+
 - Données partagées entre tests
 - Ordre d'exécution non déterministe
 - Race conditions async
 
 **Solution** :
+
 ```typescript
 // Isolation stricte
-beforeEach(() => { /* reset state */ });
+beforeEach(() => {
+  /* reset state */
+});
 
 // Attendre les promises
 await expect(promise).resolves.toBe(value);
@@ -558,6 +591,7 @@ await expect(promise).resolves.toBe(value);
 ### Problème : Mocks ne fonctionnent pas
 
 **Solution** :
+
 ```typescript
 // Clear mocks entre tests
 afterEach(() => {

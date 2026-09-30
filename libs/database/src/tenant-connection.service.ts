@@ -1,9 +1,20 @@
-import { Injectable, Scope, Inject, NotFoundException, Logger, InternalServerErrorException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  Scope,
+  Inject,
+  NotFoundException,
+  Logger,
+  InternalServerErrorException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { DataSource, DataSourceOptions, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Organisation, TENANT_ACCESS_STATUSES } from './entities/organisation.entity';
+import {
+  Organisation,
+  TENANT_ACCESS_STATUSES,
+} from './entities/organisation.entity';
 import { TENANT_ENTITIES } from './tenant-entity-list';
 
 // Cache global pour stocker les connexions actives
@@ -26,7 +37,7 @@ export class TenantConnectionService {
   async getTenantConnection(tenantIdOverride?: string): Promise<DataSource> {
     // 1. Déterminer l'ID du Tenant : via override (ex: workers/crons) ou via le header HTTP 'x-tenant-id'
     let tenantId = tenantIdOverride;
-    
+
     if (!tenantId && this.request) {
       // L'identité issue du JWT vérifié (request.user) prime sur tout header client
       tenantId = this.request.user?.organisationId;
@@ -40,7 +51,7 @@ export class TenantConnectionService {
 
     if (!tenantId) {
       throw new InternalServerErrorException(
-        "Impossible de déterminer l'école (Tenant). En-tête 'x-tenant-id' manquant."
+        "Impossible de déterminer l'école (Tenant). En-tête 'x-tenant-id' manquant.",
       );
     }
 
@@ -80,29 +91,41 @@ export class TenantConnectionService {
     });
 
     if (!org) {
-      throw new NotFoundException(`L'école avec l'identifiant ${tenantId} n'existe pas.`);
+      throw new NotFoundException(
+        `L'école avec l'identifiant ${tenantId} n'existe pas.`,
+      );
     }
 
     // Vérifier si l'établissement est actif
     if (!TENANT_ACCESS_STATUSES.includes(org.status)) {
-      throw new ForbiddenException(`L'accès à l'école [${org.id}] est actuellement suspendu ou désactivé.`);
+      throw new ForbiddenException(
+        `L'accès à l'école [${org.id}] est actuellement suspendu ou désactivé.`,
+      );
     }
 
     if (!org.dbProvisioned || !org.dbName) {
       throw new InternalServerErrorException(
-        `La base de données de l'école ${org.id} n'est pas encore provisionnée.`
+        `La base de données de l'école ${org.id} n'est pas encore provisionnée.`,
       );
     }
 
-    this.logger.log(`Connexion dynamique au schéma/base de données de l'école : ${org.dbName}`);
+    this.logger.log(
+      `Connexion dynamique au schéma/base de données de l'école : ${org.dbName}`,
+    );
 
     // 4. Initialiser la nouvelle DataSource
     const dataSourceOptions: DataSourceOptions = {
       type: 'postgres',
-      host: org.dbHost || this.configService.get<string>('SUPER_DB_HOST', 'localhost'),
+      host:
+        org.dbHost ||
+        this.configService.get<string>('SUPER_DB_HOST', 'localhost'),
       port: org.dbPort || this.configService.get<number>('SUPER_DB_PORT', 5432),
-      username: org.dbUser || this.configService.get<string>('SUPER_DB_USER', 'postgres'),
-      password: org.dbPassword || this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
+      username:
+        org.dbUser ||
+        this.configService.get<string>('SUPER_DB_USER', 'postgres'),
+      password:
+        org.dbPassword ||
+        this.configService.get<string>('SUPER_DB_PASSWORD', 'postgres'),
       database: org.dbName,
       entities: TENANT_ENTITIES,
       synchronize: this.configService.get<string>('NODE_ENV') === 'development',

@@ -1,6 +1,16 @@
 import {
-  Controller, Get, Post, Put, Patch, Delete,
-  Param, Body, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Patch,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
@@ -25,7 +35,9 @@ export class TrajetsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Récupère un trajet avec ses points de récupération' })
+  @ApiOperation({
+    summary: 'Récupère un trajet avec ses points de récupération',
+  })
   findById(@Param('id', ParseUUIDPipe) id: string) {
     return this.trajetsService.findById(id);
   }
@@ -37,7 +49,7 @@ export class TrajetsController {
   }
 
   @Put(':id')
-  @ApiOperation({ summary: 'Met à jour les informations d\'un trajet' })
+  @ApiOperation({ summary: "Met à jour les informations d'un trajet" })
   update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTrajetDto) {
     return this.trajetsService.update(id, dto);
   }
@@ -45,7 +57,8 @@ export class TrajetsController {
   @Patch(':id/geojson')
   @ApiOperation({
     summary: 'Met à jour uniquement le tracé GeoJSON',
-    description: 'Endpoint appelé par MapEditor.tsx (Leaflet.draw) lors de la sauvegarde du tracé dessiné.',
+    description:
+      'Endpoint appelé par MapEditor.tsx (Leaflet.draw) lors de la sauvegarde du tracé dessiné.',
   })
   updateGeoJson(
     @Param('id', ParseUUIDPipe) id: string,

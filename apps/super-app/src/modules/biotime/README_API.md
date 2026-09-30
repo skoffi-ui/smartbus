@@ -5,6 +5,7 @@ API REST pour la gestion centralisée du serveur BioTime dans l'architecture mul
 ## 🔐 Authentification
 
 Tous les endpoints nécessitent :
+
 - **Bearer Token JWT** dans le header `Authorization`
 - **Rôle SUPER_ADMIN**
 
@@ -39,6 +40,7 @@ Content-Type: application/json
 ```
 
 **Réponse (201):**
+
 ```json
 {
   "message": "Department created successfully",
@@ -52,6 +54,7 @@ Content-Type: application/json
 ```
 
 **Erreurs:**
+
 - `400` : Organisation a déjà un département
 - `404` : Organisation non trouvée
 
@@ -66,6 +69,7 @@ GET /admin/biotime/departments
 ```
 
 **Réponse (200):**
+
 ```json
 [
   {
@@ -96,6 +100,7 @@ GET /admin/biotime/terminals/available
 ```
 
 **Réponse (200):**
+
 ```json
 [
   {
@@ -124,6 +129,7 @@ GET /admin/biotime/terminals/all-from-server
 ```
 
 **Réponse (200):**
+
 ```json
 [
   {
@@ -148,6 +154,7 @@ POST /admin/biotime/terminals/sync
 ```
 
 **Réponse (200):**
+
 ```json
 {
   "synced": 15,
@@ -174,11 +181,13 @@ Content-Type: application/json
 ```
 
 **Paramètres:**
+
 - `serialNumber` **(requis)** : Numéro de série du terminal
 - `organisationId` **(requis)** : UUID de l'organisation
-- `terminalName` *(optionnel)* : Nom personnalisé
+- `terminalName` _(optionnel)_ : Nom personnalisé
 
 **Réponse (200):**
+
 ```json
 {
   "message": "Terminal assigned successfully",
@@ -193,6 +202,7 @@ Content-Type: application/json
 ```
 
 **Erreurs:**
+
 - `404` : Terminal ou organisation non trouvé(e)
 
 ---
@@ -206,9 +216,11 @@ DELETE /admin/biotime/terminals/:id/unassign
 ```
 
 **Paramètres URL:**
+
 - `:id` : UUID du terminal
 
 **Réponse (200):**
+
 ```json
 {
   "message": "Terminal unassigned successfully"
@@ -216,6 +228,7 @@ DELETE /admin/biotime/terminals/:id/unassign
 ```
 
 **Erreurs:**
+
 - `404` : Terminal non trouvé
 
 ---
@@ -229,9 +242,11 @@ GET /admin/biotime/organisations/:orgId/terminals
 ```
 
 **Paramètres URL:**
+
 - `:orgId` : UUID de l'organisation
 
 **Réponse (200):**
+
 ```json
 [
   {
@@ -261,9 +276,11 @@ GET /admin/biotime/terminals/:serialNumber
 ```
 
 **Paramètres URL:**
+
 - `:serialNumber` : Numéro de série du terminal (ex: SN001)
 
 **Réponse (200):**
+
 ```json
 {
   "id": "uuid-terminal-1",
@@ -282,6 +299,7 @@ GET /admin/biotime/terminals/:serialNumber
 ```
 
 **Erreurs:**
+
 - `404` : Terminal non trouvé
 
 ---
@@ -297,9 +315,11 @@ GET /admin/biotime/organisations/:orgId/transactions/recent
 ```
 
 **Paramètres URL:**
+
 - `:orgId` : UUID de l'organisation
 
 **Réponse (200):**
+
 ```json
 [
   {
@@ -313,6 +333,7 @@ GET /admin/biotime/organisations/:orgId/transactions/recent
 ```
 
 **Erreurs:**
+
 - `404` : Organisation non trouvée ou sans département BioTime
 
 ---

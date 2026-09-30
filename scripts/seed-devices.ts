@@ -4,7 +4,9 @@ import { DataSource } from 'typeorm';
 
 async function bootstrap() {
   console.log('--- Initialisation du contexte NestJS ---');
-  const app = await NestFactory.createApplicationContext(SuperAppModule, { logger: ['error', 'warn', 'log'] });
+  const app = await NestFactory.createApplicationContext(SuperAppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
   console.log('✅ Contexte NestJS initialisé.');
 
   const dataSource = app.get(DataSource);
@@ -13,7 +15,7 @@ async function bootstrap() {
 
   const existing = await dataSource.query(
     `SELECT id FROM devices WHERE serial_number = $1 AND deleted_at IS NULL LIMIT 1`,
-    [defaultSerialNumber]
+    [defaultSerialNumber],
   );
 
   if (!existing || existing.length === 0) {
@@ -21,7 +23,7 @@ async function bootstrap() {
     await dataSource.query(
       `INSERT INTO devices (type_device, serial_number, status, last_seen_at) 
        VALUES ('BADGEUSE', $1, 'ACTIVE', now())`,
-      [defaultSerialNumber]
+      [defaultSerialNumber],
     );
     console.log(`✅ Badgeuse ${defaultSerialNumber} enregistrée.`);
   } else {

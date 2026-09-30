@@ -37,7 +37,11 @@ export class CourseExecution extends BaseEntityModel {
   @Column({ name: 'execution_date', type: 'date' })
   executionDate: Date;
 
-  @Column({ type: 'enum', enum: CourseExecutionStatus, default: CourseExecutionStatus.PLANNED })
+  @Column({
+    type: 'enum',
+    enum: CourseExecutionStatus,
+    default: CourseExecutionStatus.PLANNED,
+  })
   status: CourseExecutionStatus;
 
   @Column({ name: 'started_at', type: 'timestamptz', nullable: true })

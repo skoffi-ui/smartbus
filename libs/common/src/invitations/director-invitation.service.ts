@@ -36,7 +36,10 @@ export class DirectorInvitationService {
   ) {}
 
   async signer(organisationId: string): Promise<string> {
-    const payload: JetonInvitationDirecteur = { purpose: INVITATION_PURPOSE, organisationId };
+    const payload: JetonInvitationDirecteur = {
+      purpose: INVITATION_PURPOSE,
+      organisationId,
+    };
     return this.jwtService.signAsync(payload, {
       secret: jwtSecretRequis(this.configService),
       expiresIn: DUREE_VALIDITE,
@@ -47,11 +50,16 @@ export class DirectorInvitationService {
   async verifier(token: string): Promise<string> {
     let payload: JetonInvitationDirecteur;
     try {
-      payload = await this.jwtService.verifyAsync<JetonInvitationDirecteur>(token, {
-        secret: jwtSecretRequis(this.configService),
-      });
+      payload = await this.jwtService.verifyAsync<JetonInvitationDirecteur>(
+        token,
+        {
+          secret: jwtSecretRequis(this.configService),
+        },
+      );
     } catch {
-      throw new BadRequestException("Ce lien d'invitation est invalide ou a expiré.");
+      throw new BadRequestException(
+        "Ce lien d'invitation est invalide ou a expiré.",
+      );
     }
     if (payload.purpose !== INVITATION_PURPOSE || !payload.organisationId) {
       throw new BadRequestException("Ce lien d'invitation est invalide.");

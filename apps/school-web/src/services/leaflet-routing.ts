@@ -39,13 +39,19 @@ export function chargerLeafletRouting(): Promise<void> {
       document.head.appendChild(lien);
     }
 
-    const existant = document.getElementById('lrm-js') as HTMLScriptElement | null;
+    const existant = document.getElementById(
+      'lrm-js',
+    ) as HTMLScriptElement | null;
     if (existant) {
       // La balise est là mais le téléchargement peut être en cours : on écoute
       // plutôt que de parier sur un délai.
       if ((L as any).Routing) return resolve();
       existant.addEventListener('load', () => resolve(), { once: true });
-      existant.addEventListener('error', () => reject(new Error('LRM injoignable')), { once: true });
+      existant.addEventListener(
+        'error',
+        () => reject(new Error('LRM injoignable')),
+        { once: true },
+      );
       return;
     }
 
@@ -53,10 +59,14 @@ export function chargerLeafletRouting(): Promise<void> {
     script.id = 'lrm-js';
     script.src = `${CDN}/leaflet-routing-machine.js`;
     script.addEventListener('load', () => resolve(), { once: true });
-    script.addEventListener('error', () => {
-      promesse = null; // permet une nouvelle tentative
-      reject(new Error('LRM injoignable'));
-    }, { once: true });
+    script.addEventListener(
+      'error',
+      () => {
+        promesse = null; // permet une nouvelle tentative
+        reject(new Error('LRM injoignable'));
+      },
+      { once: true },
+    );
     document.head.appendChild(script);
   });
 

@@ -1,5 +1,9 @@
 import {
-  Controller, Get, Param, UseGuards, ParseUUIDPipe,
+  Controller,
+  Get,
+  Param,
+  UseGuards,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
@@ -23,7 +27,7 @@ export class MonteesController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, FeaturesGuard)
   @RequireFeature('suivi')
-  @ApiOperation({ summary: 'Historique de transport d\'un enfant spécifique' })
+  @ApiOperation({ summary: "Historique de transport d'un enfant spécifique" })
   findByChild(@Param('childId', ParseUUIDPipe) childId: string) {
     return this.monteesService.findByChild(childId);
   }

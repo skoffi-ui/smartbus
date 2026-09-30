@@ -1,4 +1,11 @@
-import { Entity, Column, ManyToOne, JoinColumn, OneToMany, Relation } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  Relation,
+} from 'typeorm';
 import { SoftDeleteEntityModel } from '../entities/base.entity';
 import { Parent } from './parent.entity';
 

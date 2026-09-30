@@ -38,4 +38,3 @@ export * from './tenant-entities/alerte-critique.entity';
 export * from './tenant-entities/position-historique.entity';
 export { TENANT_ENTITIES } from './tenant-entity-list';
 export { TenantConnectionService } from './tenant-connection.service';
-

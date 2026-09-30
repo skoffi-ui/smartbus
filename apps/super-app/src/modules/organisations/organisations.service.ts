@@ -43,7 +43,9 @@ export class OrganisationsService {
         where: { code: dto.code },
       });
       if (existing) {
-        throw new ConflictException(`Le code organisation "${dto.code}" est déjà utilisé`);
+        throw new ConflictException(
+          `Le code organisation "${dto.code}" est déjà utilisé`,
+        );
       }
     }
 
@@ -53,7 +55,9 @@ export class OrganisationsService {
     let attempts = 0;
 
     while (!isUnique && attempts < 10) {
-      const existing = await this.organisationRepository.findOne({ where: { code: generatedCode } });
+      const existing = await this.organisationRepository.findOne({
+        where: { code: generatedCode },
+      });
       if (!existing) {
         isUnique = true;
       } else {
@@ -63,7 +67,9 @@ export class OrganisationsService {
     }
 
     if (!isUnique) {
-      throw new InternalServerErrorException('Impossible de générer un code unique. Veuillez réessayer.');
+      throw new InternalServerErrorException(
+        'Impossible de générer un code unique. Veuillez réessayer.',
+      );
     }
 
     const org = this.organisationRepository.create({
@@ -78,7 +84,9 @@ export class OrganisationsService {
     // échouer maintenant, clairement, que découvrir le problème plus tard
     // à la création du premier élève.
     try {
-      return await this.biotimeCentralService.createDepartmentForOrganisation(saved.id);
+      return await this.biotimeCentralService.createDepartmentForOrganisation(
+        saved.id,
+      );
     } catch (error: any) {
       await this.organisationRepository.remove(saved);
       throw new InternalServerErrorException(
@@ -99,11 +107,20 @@ export class OrganisationsService {
     };
 
     if (search) {
-      options.where = [{ name: Like(`%${search}%`) }, { code: Like(`%${search}%`) }];
+      options.where = [
+        { name: Like(`%${search}%`) },
+        { code: Like(`%${search}%`) },
+      ];
     }
 
-    const [data, total] = await this.organisationRepository.findAndCount(options);
-    return new PaginationResponseDto(data, total, pagination.page ?? 1, pagination.limit ?? 10);
+    const [data, total] =
+      await this.organisationRepository.findAndCount(options);
+    return new PaginationResponseDto(
+      data,
+      total,
+      pagination.page ?? 1,
+      pagination.limit ?? 10,
+    );
   }
 
   async findOne(id: string): Promise<Organisation> {
@@ -123,8 +140,13 @@ export class OrganisationsService {
     // menu périmé jusqu'à un rechargement de page ou l'expiration du jeton.
     // Aucune connexion ni requête supplémentaire n'est créée : seul un
     // évènement est émis sur le salon que le client occupe déjà.
-    if (dto.allowedFeatures !== undefined || dto.allowAdditionalDirectors !== undefined) {
-      this.eventEmitter.emit('organisation.permissions_updated', { organisationId: saved.id });
+    if (
+      dto.allowedFeatures !== undefined ||
+      dto.allowAdditionalDirectors !== undefined
+    ) {
+      this.eventEmitter.emit('organisation.permissions_updated', {
+        organisationId: saved.id,
+      });
     }
 
     return saved;
@@ -151,7 +173,10 @@ export class OrganisationsService {
    * `status` ni les colonnes BioTime : celles-ci restent réservées au Super
    * Admin via `update()`/`PATCH /organisations/:id`.
    */
-  async updateMine(organisationId: string | null, dto: UpdateMySchoolDto): Promise<Organisation> {
+  async updateMine(
+    organisationId: string | null,
+    dto: UpdateMySchoolDto,
+  ): Promise<Organisation> {
     if (!organisationId) {
       throw new ForbiddenException("Vous n'avez pas encore d'école.");
     }
@@ -174,7 +199,7 @@ export class OrganisationsService {
 
   async remove(id: string): Promise<void> {
     const org = await this.findOne(id);
-    
+
     // 1. Détruire la base de données PostgreSQL isolée si elle existe
     if (org.dbName && org.dbProvisioned) {
       await this.provisioningService.dropOrganisationDatabase(org.dbName);

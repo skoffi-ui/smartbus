@@ -68,7 +68,10 @@ async function rafraichirJeton(): Promise<string> {
   }
 
   // `axios` brut, pas `api` : éviter de redéclencher cet intercepteur en boucle.
-  const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { userId, refreshToken });
+  const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+    userId,
+    refreshToken,
+  });
   localStorage.setItem('accessToken', response.data.accessToken);
   localStorage.setItem('refreshToken', response.data.refreshToken);
   return response.data.accessToken;
@@ -110,7 +113,9 @@ async function rafraichirAvecVerrouInterOnglets(): Promise<string> {
  * `rafraichirAvecVerrouInterOnglets` couvre le cas ENTRE onglets.
  */
 export async function rafraichirJetonDedupe(): Promise<string> {
-  refreshingPromise ??= rafraichirAvecVerrouInterOnglets().finally(() => { refreshingPromise = null; });
+  refreshingPromise ??= rafraichirAvecVerrouInterOnglets().finally(() => {
+    refreshingPromise = null;
+  });
   return refreshingPromise;
 }
 
@@ -129,12 +134,15 @@ function block(code: GatewayErrorCode, message: string): void {
  * Message affichable par les pages. Les réponses de la gateway portent un `code`
  * stable ; les autres erreurs retombent sur le message du service ou un défaut.
  */
-export function messageFromError(error: unknown, fallback = 'Une erreur est survenue.'): string {
+export function messageFromError(
+  error: unknown,
+  fallback = 'Une erreur est survenue.',
+): string {
   const err = error as AxiosError<{ code?: string; message?: string }>;
   const data = err?.response?.data;
 
   if (!err?.response) {
-    return "Le serveur est injoignable. Vérifiez votre connexion réseau.";
+    return 'Le serveur est injoignable. Vérifiez votre connexion réseau.';
   }
   switch (data?.code) {
     case 'UPSTREAM_UNAVAILABLE':
@@ -156,7 +164,9 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const code = error.response?.data?.code;
     const message = error.response?.data?.message;
-    const requeteOriginale = error.config as (typeof error.config & { _dejaRejouee?: boolean }) | undefined;
+    const requeteOriginale = error.config as
+      | (typeof error.config & { _dejaRejouee?: boolean })
+      | undefined;
 
     // Jeton expiré (401), ou fonctionnalité refusée (403 générique, sans code
     // gateway) : peut-être juste un jeton dont les permissions sont périmées
@@ -194,14 +204,22 @@ api.interceptors.response.use(
     // pouvoir lire la raison et régulariser son abonnement.
     else if (
       status === 403 &&
-      (code === 'TENANT_SUSPENDED' || code === 'TENANT_INACTIVE' || code === 'TENANT_NOT_FOUND')
+      (code === 'TENANT_SUSPENDED' ||
+        code === 'TENANT_INACTIVE' ||
+        code === 'TENANT_NOT_FOUND')
     ) {
-      block(code, message || "L'accès à votre établissement est actuellement bloqué.");
+      block(
+        code,
+        message || "L'accès à votre établissement est actuellement bloqué.",
+      );
     }
 
     // Version de l'application trop ancienne pour ce serveur.
     else if (status === 426) {
-      block('APP_UPDATE_REQUIRED', message || 'Une mise à jour de l\'application est requise.');
+      block(
+        'APP_UPDATE_REQUIRED',
+        message || "Une mise à jour de l'application est requise.",
+      );
     }
 
     return Promise.reject(error);

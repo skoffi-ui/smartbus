@@ -5,10 +5,7 @@ import { TenantService } from './tenant.service';
 
 @Global()
 @Module({
-  imports: [
-    DatabaseModule,
-    TypeOrmModule.forFeature([Organisation])
-  ],
+  imports: [DatabaseModule, TypeOrmModule.forFeature([Organisation])],
   providers: [TenantService],
   exports: [TenantService, DatabaseModule],
 })

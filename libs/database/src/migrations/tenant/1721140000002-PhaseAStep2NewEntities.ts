@@ -49,9 +49,13 @@ export class PhaseAStep2NewEntities1721140000002 implements MigrationInterface {
           CONSTRAINT "PK_device_assignments" PRIMARY KEY ("id")
         )
       `);
-      
-      await queryRunner.query(`ALTER TABLE "device_assignments" ADD CONSTRAINT "FK_device_assignments_device_id" FOREIGN KEY ("device_id") REFERENCES "devices"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-      await queryRunner.query(`ALTER TABLE "device_assignments" ADD CONSTRAINT "FK_device_assignments_car_id" FOREIGN KEY ("car_id") REFERENCES "cars"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+
+      await queryRunner.query(
+        `ALTER TABLE "device_assignments" ADD CONSTRAINT "FK_device_assignments_device_id" FOREIGN KEY ("device_id") REFERENCES "devices"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+      );
+      await queryRunner.query(
+        `ALTER TABLE "device_assignments" ADD CONSTRAINT "FK_device_assignments_car_id" FOREIGN KEY ("car_id") REFERENCES "cars"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+      );
 
       // 3. Creation of `biometric_consents` table
       await queryRunner.query(`
@@ -77,8 +81,10 @@ export class PhaseAStep2NewEntities1721140000002 implements MigrationInterface {
           CONSTRAINT "PK_biometric_consents" PRIMARY KEY ("id")
         )
       `);
-      
-      await queryRunner.query(`ALTER TABLE "biometric_consents" ADD CONSTRAINT "FK_biometric_consents_child_id" FOREIGN KEY ("child_id") REFERENCES "children"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+
+      await queryRunner.query(
+        `ALTER TABLE "biometric_consents" ADD CONSTRAINT "FK_biometric_consents_child_id" FOREIGN KEY ("child_id") REFERENCES "children"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+      );
 
       // 4. Creation of `course_executions` table
       await queryRunner.query(`
@@ -103,10 +109,16 @@ export class PhaseAStep2NewEntities1721140000002 implements MigrationInterface {
           CONSTRAINT "PK_course_executions" PRIMARY KEY ("id")
         )
       `);
-      
-      await queryRunner.query(`ALTER TABLE "course_executions" ADD CONSTRAINT "FK_course_executions_course_id" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-      await queryRunner.query(`ALTER TABLE "course_executions" ADD CONSTRAINT "FK_course_executions_car_id" FOREIGN KEY ("car_id") REFERENCES "cars"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-      await queryRunner.query(`ALTER TABLE "course_executions" ADD CONSTRAINT "FK_course_executions_driver_id" FOREIGN KEY ("driver_id") REFERENCES "drivers"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+
+      await queryRunner.query(
+        `ALTER TABLE "course_executions" ADD CONSTRAINT "FK_course_executions_course_id" FOREIGN KEY ("course_id") REFERENCES "courses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+      );
+      await queryRunner.query(
+        `ALTER TABLE "course_executions" ADD CONSTRAINT "FK_course_executions_car_id" FOREIGN KEY ("car_id") REFERENCES "cars"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+      );
+      await queryRunner.query(
+        `ALTER TABLE "course_executions" ADD CONSTRAINT "FK_course_executions_driver_id" FOREIGN KEY ("driver_id") REFERENCES "drivers"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+      );
 
       await queryRunner.commitTransaction();
     } catch (err) {
@@ -118,16 +130,28 @@ export class PhaseAStep2NewEntities1721140000002 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.startTransaction();
     try {
-      await queryRunner.query(`ALTER TABLE "course_executions" DROP CONSTRAINT "FK_course_executions_driver_id"`);
-      await queryRunner.query(`ALTER TABLE "course_executions" DROP CONSTRAINT "FK_course_executions_car_id"`);
-      await queryRunner.query(`ALTER TABLE "course_executions" DROP CONSTRAINT "FK_course_executions_course_id"`);
+      await queryRunner.query(
+        `ALTER TABLE "course_executions" DROP CONSTRAINT "FK_course_executions_driver_id"`,
+      );
+      await queryRunner.query(
+        `ALTER TABLE "course_executions" DROP CONSTRAINT "FK_course_executions_car_id"`,
+      );
+      await queryRunner.query(
+        `ALTER TABLE "course_executions" DROP CONSTRAINT "FK_course_executions_course_id"`,
+      );
       await queryRunner.query(`DROP TABLE "course_executions"`);
 
-      await queryRunner.query(`ALTER TABLE "biometric_consents" DROP CONSTRAINT "FK_biometric_consents_child_id"`);
+      await queryRunner.query(
+        `ALTER TABLE "biometric_consents" DROP CONSTRAINT "FK_biometric_consents_child_id"`,
+      );
       await queryRunner.query(`DROP TABLE "biometric_consents"`);
 
-      await queryRunner.query(`ALTER TABLE "device_assignments" DROP CONSTRAINT "FK_device_assignments_car_id"`);
-      await queryRunner.query(`ALTER TABLE "device_assignments" DROP CONSTRAINT "FK_device_assignments_device_id"`);
+      await queryRunner.query(
+        `ALTER TABLE "device_assignments" DROP CONSTRAINT "FK_device_assignments_car_id"`,
+      );
+      await queryRunner.query(
+        `ALTER TABLE "device_assignments" DROP CONSTRAINT "FK_device_assignments_device_id"`,
+      );
       await queryRunner.query(`DROP TABLE "device_assignments"`);
 
       await queryRunner.query(`DROP TABLE "devices"`);

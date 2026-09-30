@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react';
-import { User, Lock, Bell, Shield, Save, Globe, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import {
+  User,
+  Lock,
+  Bell,
+  Shield,
+  Save,
+  Globe,
+  AlertTriangle,
+  CheckCircle2,
+} from 'lucide-react';
 import api, { messageFromError } from '../services/api';
 import { useI18n, type Langue } from '../i18n';
 import ChampMotDePasse from '../components/ChampMotDePasse';
@@ -22,7 +31,10 @@ export default function Parametres() {
   const [profil, setProfil] = useState<ProfilUtilisateur | null>(null);
   const [chargement, setChargement] = useState(true);
   const [enCours, setEnCours] = useState(false);
-  const [notification, setNotification] = useState<{ type: 'success' | 'error'; texte: string } | null>(null);
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error';
+    texte: string;
+  } | null>(null);
 
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
@@ -41,7 +53,10 @@ export default function Parametres() {
   // la chaîne fonctionne déjà de bout en bout côté serveur, mais reste
   // simulée/journalisée tant que Firebase n'a pas de vraies clés. Sans cet
   // encart, ça ne se voit que dans un log de démarrage que personne ne lit.
-  const [statutFcm, setStatutFcm] = useState<{ fcmConfigure: boolean; message: string } | null>(null);
+  const [statutFcm, setStatutFcm] = useState<{
+    fcmConfigure: boolean;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     chargerProfil();
@@ -97,7 +112,10 @@ export default function Parametres() {
     }
     setEnCours(true);
     try {
-      await api.patch('/auth/me/password', { currentPassword: mdpActuel, newPassword: mdpNouveau });
+      await api.patch('/auth/me/password', {
+        currentPassword: mdpActuel,
+        newPassword: mdpNouveau,
+      });
       afficherMessage('success', t('secu.mdp_succes'));
       setMdpActuel('');
       setMdpNouveau('');
@@ -117,7 +135,11 @@ export default function Parametres() {
   ];
 
   if (chargement) {
-    return <div className="text-center text-navy-300 py-10">{t('param.chargement')}</div>;
+    return (
+      <div className="text-center text-navy-300 py-10">
+        {t('param.chargement')}
+      </div>
+    );
   }
 
   return (
@@ -166,38 +188,69 @@ export default function Parametres() {
           <form onSubmit={sauvegarderProfil}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
               <div className="md:col-span-2 flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-xl font-bold shadow-lg" style={{ color: '#fff' }}>
-                  {(prenom[0] || '').toUpperCase()}{(nom[0] || '').toUpperCase()}
+                <div
+                  className="w-16 h-16 rounded-full bg-gradient-to-tr from-brand-600 to-brand-400 flex items-center justify-center text-xl font-bold shadow-lg"
+                  style={{ color: '#fff' }}
+                >
+                  {(prenom[0] || '').toUpperCase()}
+                  {(nom[0] || '').toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">{prenom} {nom}</h2>
+                  <h2 className="text-lg font-bold text-white">
+                    {prenom} {nom}
+                  </h2>
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/20 text-purple-300">
-                    {profil?.role === 'super_admin' ? t('profil.super_admin') : profil?.role}
+                    {profil?.role === 'super_admin'
+                      ? t('profil.super_admin')
+                      : profil?.role}
                   </span>
                 </div>
               </div>
 
               <div>
                 <label className="form-label">{t('profil.prenom')}</label>
-                <input type="text" value={prenom} onChange={(e) => setPrenom(e.target.value)} className="form-input" required />
+                <input
+                  type="text"
+                  value={prenom}
+                  onChange={(e) => setPrenom(e.target.value)}
+                  className="form-input"
+                  required
+                />
               </div>
               <div>
                 <label className="form-label">{t('profil.nom')}</label>
-                <input type="text" value={nom} onChange={(e) => setNom(e.target.value)} className="form-input" required />
+                <input
+                  type="text"
+                  value={nom}
+                  onChange={(e) => setNom(e.target.value)}
+                  className="form-input"
+                  required
+                />
               </div>
               <div className="md:col-span-2">
                 <label className="form-label">{t('profil.email')}</label>
-                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="form-input" required />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="form-input"
+                  required
+                />
               </div>
 
               {profil?.lastLoginAt && (
                 <div className="md:col-span-2 text-sm text-navy-300">
-                  {t('profil.derniere_co')} : {new Date(profil.lastLoginAt).toLocaleString('fr-FR')}
+                  {t('profil.derniere_co')} :{' '}
+                  {new Date(profil.lastLoginAt).toLocaleString('fr-FR')}
                 </div>
               )}
 
               <div className="md:col-span-2 pt-2">
-                <button type="submit" disabled={enCours} className="btn-primary">
+                <button
+                  type="submit"
+                  disabled={enCours}
+                  className="btn-primary"
+                >
                   <Save size={16} className="mr-2" />
                   {enCours ? t('enregistrement') : t('enregistrer')}
                 </button>
@@ -216,20 +269,40 @@ export default function Parametres() {
             <form onSubmit={changerMotDePasse} className="space-y-4">
               <div>
                 <label className="form-label">{t('secu.mdp_actuel')}</label>
-                <ChampMotDePasse value={mdpActuel} onChange={(e) => setMdpActuel(e.target.value)} required />
+                <ChampMotDePasse
+                  value={mdpActuel}
+                  onChange={(e) => setMdpActuel(e.target.value)}
+                  required
+                />
               </div>
               <div>
                 <label className="form-label">{t('secu.mdp_nouveau')}</label>
-                <ChampMotDePasse value={mdpNouveau} onChange={(e) => setMdpNouveau(e.target.value)} required minLength={8} />
+                <ChampMotDePasse
+                  value={mdpNouveau}
+                  onChange={(e) => setMdpNouveau(e.target.value)}
+                  required
+                  minLength={8}
+                />
               </div>
               <div>
                 <label className="form-label">{t('secu.mdp_confirmer')}</label>
-                <ChampMotDePasse value={mdpConfirmation} onChange={(e) => setMdpConfirmation(e.target.value)} required minLength={8} />
+                <ChampMotDePasse
+                  value={mdpConfirmation}
+                  onChange={(e) => setMdpConfirmation(e.target.value)}
+                  required
+                  minLength={8}
+                />
               </div>
               <div className="pt-2">
-                <button type="submit" disabled={enCours} className="btn-primary">
+                <button
+                  type="submit"
+                  disabled={enCours}
+                  className="btn-primary"
+                >
                   <Lock size={16} className="mr-2" />
-                  {enCours ? t('secu.mdp_modification') : t('secu.mdp_modifier')}
+                  {enCours
+                    ? t('secu.mdp_modification')
+                    : t('secu.mdp_modifier')}
                 </button>
               </div>
             </form>
@@ -242,10 +315,21 @@ export default function Parametres() {
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-white font-medium">{t('secu.session_actuelle')}</p>
-                    <p className="text-sm text-navy-300">{t('secu.navigateur')} &mdash; {navigator.userAgent.includes('Chrome') ? 'Chrome' : navigator.userAgent.includes('Firefox') ? 'Firefox' : 'Navigateur'}</p>
+                    <p className="text-white font-medium">
+                      {t('secu.session_actuelle')}
+                    </p>
+                    <p className="text-sm text-navy-300">
+                      {t('secu.navigateur')} &mdash;{' '}
+                      {navigator.userAgent.includes('Chrome')
+                        ? 'Chrome'
+                        : navigator.userAgent.includes('Firefox')
+                          ? 'Firefox'
+                          : 'Navigateur'}
+                    </p>
                   </div>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400">{t('secu.active')}</span>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400">
+                    {t('secu.active')}
+                  </span>
                 </div>
               </div>
             </div>
@@ -275,21 +359,50 @@ export default function Parametres() {
                 )}
                 <div>
                   <p className="font-semibold">
-                    {statutFcm.fcmConfigure ? t('notif.push_actives') : t('notif.push_simulees')}
+                    {statutFcm.fcmConfigure
+                      ? t('notif.push_actives')
+                      : t('notif.push_simulees')}
                   </p>
-                  <p className="text-sm opacity-80 mt-0.5">{statutFcm.message}</p>
+                  <p className="text-sm opacity-80 mt-0.5">
+                    {statutFcm.message}
+                  </p>
                 </div>
               </div>
             )}
 
             <div className="space-y-4">
-              <LigneBascule label={t('notif.serveur_down')} description={t('notif.serveur_down_desc')} active={notifServeurDown} surChangement={setNotifServeurDown} />
-              <LigneBascule label={t('notif.badgeuse_off')} description={t('notif.badgeuse_off_desc')} active={notifBadgeuseOff} surChangement={setNotifBadgeuseOff} />
-              <LigneBascule label={t('notif.abo_expire')} description={t('notif.abo_expire_desc')} active={notifAboExpire} surChangement={setNotifAboExpire} />
-              <LigneBascule label={t('notif.nouvelle_ecole')} description={t('notif.nouvelle_ecole_desc')} active={notifNouvelleEcole} surChangement={setNotifNouvelleEcole} />
+              <LigneBascule
+                label={t('notif.serveur_down')}
+                description={t('notif.serveur_down_desc')}
+                active={notifServeurDown}
+                surChangement={setNotifServeurDown}
+              />
+              <LigneBascule
+                label={t('notif.badgeuse_off')}
+                description={t('notif.badgeuse_off_desc')}
+                active={notifBadgeuseOff}
+                surChangement={setNotifBadgeuseOff}
+              />
+              <LigneBascule
+                label={t('notif.abo_expire')}
+                description={t('notif.abo_expire_desc')}
+                active={notifAboExpire}
+                surChangement={setNotifAboExpire}
+              />
+              <LigneBascule
+                label={t('notif.nouvelle_ecole')}
+                description={t('notif.nouvelle_ecole_desc')}
+                active={notifNouvelleEcole}
+                surChangement={setNotifNouvelleEcole}
+              />
             </div>
             <div className="pt-6">
-              <button onClick={() => afficherMessage('success', t('notif.pref_succes'))} className="btn-primary">
+              <button
+                onClick={() =>
+                  afficherMessage('success', t('notif.pref_succes'))
+                }
+                className="btn-primary"
+              >
                 <Save size={16} className="mr-2" />
                 {t('notif.enregistrer_pref')}
               </button>
@@ -298,7 +411,9 @@ export default function Parametres() {
         )}
 
         {/* Onglet Langue */}
-        {ongletActif === 'langue' && <OngletLangue afficherMessage={afficherMessage} />}
+        {ongletActif === 'langue' && (
+          <OngletLangue afficherMessage={afficherMessage} />
+        )}
       </div>
     </div>
   );
@@ -306,7 +421,11 @@ export default function Parametres() {
 
 /* ── Onglet Langue ─────────────────────────────────────────────── */
 
-function OngletLangue({ afficherMessage }: { afficherMessage: (t: 'success' | 'error', m: string) => void }) {
+function OngletLangue({
+  afficherMessage,
+}: {
+  afficherMessage: (t: 'success' | 'error', m: string) => void;
+}) {
   const { langue, changerLangue, t } = useI18n();
 
   const selectionner = (l: Langue) => {
@@ -322,14 +441,32 @@ function OngletLangue({ afficherMessage }: { afficherMessage: (t: 'success' | 'e
       </h2>
       <p className="text-navy-300 text-sm mb-6">{t('langue.description')}</p>
       <div className="space-y-3">
-        <BoutonLangue code="fr" label={t('langue.francais')} drapeau="🇫🇷" estActif={langue === 'fr'} surClic={() => selectionner('fr')} />
-        <BoutonLangue code="en" label={t('langue.anglais')} drapeau="🇬🇧" estActif={langue === 'en'} surClic={() => selectionner('en')} />
+        <BoutonLangue
+          code="fr"
+          label={t('langue.francais')}
+          drapeau="🇫🇷"
+          estActif={langue === 'fr'}
+          surClic={() => selectionner('fr')}
+        />
+        <BoutonLangue
+          code="en"
+          label={t('langue.anglais')}
+          drapeau="🇬🇧"
+          estActif={langue === 'en'}
+          surClic={() => selectionner('en')}
+        />
       </div>
     </div>
   );
 }
 
-function BoutonLangue({ code, label, drapeau, estActif, surClic }: {
+function BoutonLangue({
+  code,
+  label,
+  drapeau,
+  estActif,
+  surClic,
+}: {
   code: string;
   label: string;
   drapeau: string;
@@ -344,7 +481,14 @@ function BoutonLangue({ code, label, drapeau, estActif, surClic }: {
           ? 'bg-brand-500/10 border-brand-500/30 text-white'
           : 'bg-white/5 border-white/10 text-navy-300 hover:bg-white/10 hover:text-white'
       }`}
-      style={estActif ? { borderColor: 'var(--accent-primary, #4f46e5)', background: 'rgba(79,70,229,0.1)' } : {}}
+      style={
+        estActif
+          ? {
+              borderColor: 'var(--accent-primary, #4f46e5)',
+              background: 'rgba(79,70,229,0.1)',
+            }
+          : {}
+      }
     >
       <span className="text-2xl">{drapeau}</span>
       <div className="flex-1">
@@ -362,7 +506,12 @@ function BoutonLangue({ code, label, drapeau, estActif, surClic }: {
 
 /* ── Composant Bascule ─────────────────────────────────────────── */
 
-function LigneBascule({ label, description, active, surChangement }: {
+function LigneBascule({
+  label,
+  description,
+  active,
+  surChangement,
+}: {
   label: string;
   description: string;
   active: boolean;
@@ -380,7 +529,9 @@ function LigneBascule({ label, description, active, surChangement }: {
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${active ? 'bg-brand-500' : 'bg-white/20'}`}
         style={active ? { background: 'var(--accent-primary, #4f46e5)' } : {}}
       >
-        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${active ? 'translate-x-6' : 'translate-x-1'}`} />
+        <span
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${active ? 'translate-x-6' : 'translate-x-1'}`}
+        />
       </button>
     </div>
   );

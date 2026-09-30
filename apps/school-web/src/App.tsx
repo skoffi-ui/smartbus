@@ -33,7 +33,12 @@ import SuiviMontees from './pages/SuiviMontees';
 import CentreAlertes from './pages/CentreAlertes';
 import Settings from './pages/Settings';
 import Abonnement from './pages/Abonnement';
-import { aAcces, monOrganisationId, peutGererEquipe, type SchoolFeature } from './constants/schoolFeatures';
+import {
+  aAcces,
+  monOrganisationId,
+  peutGererEquipe,
+  type SchoolFeature,
+} from './constants/schoolFeatures';
 
 /**
  * Protège une page : redirige vers /login si non connecté, vers
@@ -49,7 +54,15 @@ import { aAcces, monOrganisationId, peutGererEquipe, type SchoolFeature } from '
  * `/centre-alertes`, qui fusionne désormais anomalies critiques et alertes
  * de proximité, deux fonctionnalités qu'une école peut activer indépendamment).
  */
-function PageProtegee({ feature, equipe, children }: { feature?: SchoolFeature | SchoolFeature[]; equipe?: boolean; children: ReactNode }) {
+function PageProtegee({
+  feature,
+  equipe,
+  children,
+}: {
+  feature?: SchoolFeature | SchoolFeature[];
+  equipe?: boolean;
+  children: ReactNode;
+}) {
   const isAuthenticated = !!localStorage.getItem('accessToken');
   if (!isAuthenticated) return <Navigate to="/login" />;
   if (!monOrganisationId()) return <Navigate to="/creer-mon-ecole" />;
@@ -99,10 +112,16 @@ function PageRacine() {
 function EcranChargement() {
   const { t } = useI18n();
   return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg-primary)', color: 'var(--text-secondary)',
-    }}>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+        color: 'var(--text-secondary)',
+      }}
+    >
       {t('chargement')}
     </div>
   );
@@ -155,7 +174,9 @@ function App() {
         .catch(() => {});
     };
     socket.on('permissions_updated', surPermissionsMiseAJour);
-    return () => { socket.off('permissions_updated', surPermissionsMiseAJour); };
+    return () => {
+      socket.off('permissions_updated', surPermissionsMiseAJour);
+    };
   }, [isAuthenticated, pret]);
 
   if (!pret) {
@@ -181,31 +202,139 @@ function App() {
         <Route path="/acces-bloque" element={<AccesBloque />} />
 
         {/* Pages protégées : authentification + permission (voir PageProtegee) */}
-        <Route path="/dashboard" element={<PageProtegee><Dashboard /></PageProtegee>} />
-        <Route path="/cars" element={<PageProtegee feature="cars"><Cars /></PageProtegee>} />
-        <Route path="/drivers" element={<PageProtegee feature="drivers"><Drivers /></PageProtegee>} />
-        <Route path="/parents" element={<PageProtegee feature="parents"><Parents /></PageProtegee>} />
-        <Route path="/children" element={<PageProtegee feature="children"><Children /></PageProtegee>} />
-        <Route path="/children/:id" element={<PageProtegee feature="children"><ChildProfile /></PageProtegee>} />
-        <Route path="/live" element={<PageProtegee feature="live"><LiveTracking /></PageProtegee>} />
+        <Route
+          path="/dashboard"
+          element={
+            <PageProtegee>
+              <Dashboard />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/cars"
+          element={
+            <PageProtegee feature="cars">
+              <Cars />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/drivers"
+          element={
+            <PageProtegee feature="drivers">
+              <Drivers />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/parents"
+          element={
+            <PageProtegee feature="parents">
+              <Parents />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/children"
+          element={
+            <PageProtegee feature="children">
+              <Children />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/children/:id"
+          element={
+            <PageProtegee feature="children">
+              <ChildProfile />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/live"
+          element={
+            <PageProtegee feature="live">
+              <LiveTracking />
+            </PageProtegee>
+          }
+        />
 
         {/* Transport Scolaire */}
-        <Route path="/courses" element={<PageProtegee feature="courses"><Courses /></PageProtegee>} />
-        <Route path="/trajets" element={<PageProtegee feature="trajets"><TrajetEditor /></PageProtegee>} />
-        <Route path="/affectation" element={<PageProtegee feature="affectation"><AffectationEleves /></PageProtegee>} />
-        <Route path="/suivi" element={<PageProtegee feature="suivi"><SuiviMontees /></PageProtegee>} />
-        <Route path="/centre-alertes" element={<PageProtegee feature={['centre-alertes', 'alertes']}><CentreAlertes /></PageProtegee>} />
+        <Route
+          path="/courses"
+          element={
+            <PageProtegee feature="courses">
+              <Courses />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/trajets"
+          element={
+            <PageProtegee feature="trajets">
+              <TrajetEditor />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/affectation"
+          element={
+            <PageProtegee feature="affectation">
+              <AffectationEleves />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/suivi"
+          element={
+            <PageProtegee feature="suivi">
+              <SuiviMontees />
+            </PageProtegee>
+          }
+        />
+        <Route
+          path="/centre-alertes"
+          element={
+            <PageProtegee feature={['centre-alertes', 'alertes']}>
+              <CentreAlertes />
+            </PageProtegee>
+          }
+        />
         {/* Ancienne URL « Alertes Transport », fusionnée dans /centre-alertes — redirige les liens/marque-pages existants. */}
-        <Route path="/alertes" element={<Navigate to="/centre-alertes" replace />} />
-        <Route path="/settings" element={<PageProtegee feature="settings"><Settings /></PageProtegee>} />
+        <Route
+          path="/alertes"
+          element={<Navigate to="/centre-alertes" replace />}
+        />
+        <Route
+          path="/settings"
+          element={
+            <PageProtegee feature="settings">
+              <Settings />
+            </PageProtegee>
+          }
+        />
         {/* Sans `feature` : toujours accessible, y compris une école suspendue —
             c'est justement la page qui permet de régulariser (voir AccesBloque.tsx).
             `payments`/`subscriptions` ciblent super-app, jamais bloqués par le
             statut du tenant (voir GatewayService.checkTenant, api-gateway). */}
-        <Route path="/abonnement" element={<PageProtegee><Abonnement /></PageProtegee>} />
+        <Route
+          path="/abonnement"
+          element={
+            <PageProtegee>
+              <Abonnement />
+            </PageProtegee>
+          }
+        />
         {/* Réservée aux écoles autorisées par le Super Admin à créer des comptes
             directeur supplémentaires — voir Layout.tsx, MonEquipe.tsx. */}
-        <Route path="/mon-equipe" element={<PageProtegee equipe><MonEquipe /></PageProtegee>} />
+        <Route
+          path="/mon-equipe"
+          element={
+            <PageProtegee equipe>
+              <MonEquipe />
+            </PageProtegee>
+          }
+        />
 
         <Route path="/" element={<PageRacine />} />
       </Routes>

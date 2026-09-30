@@ -1,4 +1,11 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n } from '../i18n';
 
@@ -16,13 +23,19 @@ interface ConfirmOptions {
   danger?: boolean;
 }
 
-type ConfirmFn = (message: string, options?: ConfirmOptions) => Promise<boolean>;
+type ConfirmFn = (
+  message: string,
+  options?: ConfirmOptions,
+) => Promise<boolean>;
 
 const ConfirmContext = createContext<ConfirmFn | null>(null);
 
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
-  const [etat, setEtat] = useState<{ message: string; options: ConfirmOptions } | null>(null);
+  const [etat, setEtat] = useState<{
+    message: string;
+    options: ConfirmOptions;
+  } | null>(null);
   const resolveRef = useRef<((valeur: boolean) => void) | null>(null);
 
   const confirmer: ConfirmFn = useCallback((message, options = {}) => {
@@ -71,7 +84,14 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             style={{ maxWidth: '420px', width: '100%', padding: '1.5rem' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                marginBottom: '0.75rem',
+              }}
+            >
               <div
                 style={{
                   width: '36px',
@@ -80,27 +100,51 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: etat.options.danger ? 'var(--danger-tint)' : 'var(--accent-tint)',
-                  color: etat.options.danger ? 'var(--danger)' : 'var(--accent-primary)',
+                  background: etat.options.danger
+                    ? 'var(--danger-tint)'
+                    : 'var(--accent-tint)',
+                  color: etat.options.danger
+                    ? 'var(--danger)'
+                    : 'var(--accent-primary)',
                   flexShrink: 0,
                 }}
               >
                 <AlertTriangle size={18} />
               </div>
-              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+              <span
+                style={{
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  color: 'var(--text-primary)',
+                }}
+              >
                 {etat.options.titre || t('confirmation_titre')}
               </span>
             </div>
-            <p style={{ margin: '0 0 1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+            <p
+              style={{
+                margin: '0 0 1.25rem',
+                color: 'var(--text-secondary)',
+                fontSize: '0.9rem',
+                lineHeight: 1.5,
+              }}
+            >
               {etat.message}
             </p>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button className="btn-secondary flex-1" onClick={() => repondre(false)}>
+              <button
+                className="btn-secondary flex-1"
+                onClick={() => repondre(false)}
+              >
                 {etat.options.libelleAnnuler || t('annuler')}
               </button>
               <button
                 className="btn-primary flex-1"
-                style={etat.options.danger ? { background: 'var(--danger-container)' } : undefined}
+                style={
+                  etat.options.danger
+                    ? { background: 'var(--danger-container)' }
+                    : undefined
+                }
                 onClick={() => repondre(true)}
               >
                 {etat.options.libelleConfirmer || t('confirmer')}
@@ -115,6 +159,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext);
-  if (!ctx) throw new Error('useConfirm() doit être utilisé sous <ConfirmProvider>');
+  if (!ctx)
+    throw new Error('useConfirm() doit être utilisé sous <ConfirmProvider>');
   return ctx;
 }

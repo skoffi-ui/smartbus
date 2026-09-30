@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Car } from '@app/database';
 import { CreateCarDto, UpdateCarDto } from './dto/cars.dto';
@@ -72,13 +76,27 @@ export class CarsService {
     ]);
 
     const cars = await repo.find({
-      select: { id: true, plateNumber: true, gpsDeviceId: true, biotimeTerminalSn: true },
+      select: {
+        id: true,
+        plateNumber: true,
+        gpsDeviceId: true,
+        biotimeTerminalSn: true,
+      },
     });
-    const usageGps = new Map(cars.filter((c) => c.gpsDeviceId).map((c) => [c.gpsDeviceId, c]));
-    const usageBadgeuse = new Map(cars.filter((c) => c.biotimeTerminalSn).map((c) => [c.biotimeTerminalSn, c]));
+    const usageGps = new Map(
+      cars.filter((c) => c.gpsDeviceId).map((c) => [c.gpsDeviceId, c]),
+    );
+    const usageBadgeuse = new Map(
+      cars
+        .filter((c) => c.biotimeTerminalSn)
+        .map((c) => [c.biotimeTerminalSn, c]),
+    );
 
     const annoter = (d: any) => {
-      const usage = d.typeDevice === 'GPS' ? usageGps.get(d.serialNumber) : usageBadgeuse.get(d.serialNumber);
+      const usage =
+        d.typeDevice === 'GPS'
+          ? usageGps.get(d.serialNumber)
+          : usageBadgeuse.get(d.serialNumber);
       return {
         ...d,
         assignedCarId: usage?.id ?? null,
@@ -93,7 +111,9 @@ export class CarsService {
     const repo = await this.getRepo();
     const car = await repo.findOne({ where: { id } });
     if (!car) {
-      throw new NotFoundException(`Véhicule ${id} introuvable dans cette école.`);
+      throw new NotFoundException(
+        `Véhicule ${id} introuvable dans cette école.`,
+      );
     }
     return car;
   }
@@ -126,12 +146,19 @@ export class CarsService {
 
   async create(createCarDto: CreateCarDto): Promise<Car> {
     const repo = await this.getRepo();
-    const existing = await repo.findOne({ where: { plateNumber: createCarDto.plateNumber } });
+    const existing = await repo.findOne({
+      where: { plateNumber: createCarDto.plateNumber },
+    });
     if (existing) {
-      throw new ConflictException(`Le véhicule immatriculé ${createCarDto.plateNumber} existe déjà.`);
+      throw new ConflictException(
+        `Le véhicule immatriculé ${createCarDto.plateNumber} existe déjà.`,
+      );
     }
     await this.assertAppareilLibre('gpsDeviceId', createCarDto.gpsDeviceId);
-    await this.assertAppareilLibre('biotimeTerminalSn', createCarDto.biotimeTerminalSn);
+    await this.assertAppareilLibre(
+      'biotimeTerminalSn',
+      createCarDto.biotimeTerminalSn,
+    );
     const car = repo.create(createCarDto);
     return repo.save(car);
   }
@@ -140,7 +167,11 @@ export class CarsService {
     const repo = await this.getRepo();
     const car = await this.findOne(id);
     await this.assertAppareilLibre('gpsDeviceId', updateCarDto.gpsDeviceId, id);
-    await this.assertAppareilLibre('biotimeTerminalSn', updateCarDto.biotimeTerminalSn, id);
+    await this.assertAppareilLibre(
+      'biotimeTerminalSn',
+      updateCarDto.biotimeTerminalSn,
+      id,
+    );
     Object.assign(car, updateCarDto);
     return repo.save(car);
   }
@@ -150,5 +181,4 @@ export class CarsService {
     const car = await this.findOne(id);
     await repo.remove(car);
   }
-
 }

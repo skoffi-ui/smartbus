@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Organisation, OrganisationStatus, TENANT_ACCESS_STATUSES } from '@app/database';
+import {
+  Organisation,
+  OrganisationStatus,
+  TENANT_ACCESS_STATUSES,
+} from '@app/database';
 
 export type TenantVerdict = 'ok' | 'not_found' | 'suspended' | 'inactive';
 
@@ -56,8 +60,14 @@ export class TenantGateService {
     else if (org.status === OrganisationStatus.SUSPENDED) verdict = 'suspended';
     else verdict = 'inactive';
 
-    const result: TenantCheckResult = { verdict, allowedFeatures: org?.allowedFeatures ?? null };
-    this.cache.set(organisationId, { result, expiresAt: Date.now() + TenantGateService.TTL_MS });
+    const result: TenantCheckResult = {
+      verdict,
+      allowedFeatures: org?.allowedFeatures ?? null,
+    };
+    this.cache.set(organisationId, {
+      result,
+      expiresAt: Date.now() + TenantGateService.TTL_MS,
+    });
     return result;
   }
 

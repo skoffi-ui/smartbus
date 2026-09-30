@@ -1,8 +1,23 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CarsService } from './cars.service';
 import { CreateCarDto, UpdateCarDto } from './dto/cars.dto';
-import { JwtAuthGuard, RolesGuard, Roles, FeaturesGuard, RequireFeature } from '@app/common';
+import {
+  JwtAuthGuard,
+  RolesGuard,
+  Roles,
+  FeaturesGuard,
+  RequireFeature,
+} from '@app/common';
 import { UserRole } from '@app/database';
 
 @ApiTags('cars')
@@ -27,7 +42,7 @@ export class CarsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Lister tous les véhicules de l\'école' })
+  @ApiOperation({ summary: "Lister tous les véhicules de l'école" })
   // Aussi utilisé par Courses.tsx (choix du véhicule d'une course) et
   // LiveTracking.tsx (afficher les détails du bus sur la carte en direct).
   @RequireFeature('cars', 'courses', 'live')
@@ -36,13 +51,13 @@ export class CarsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtenir les détails d\'un véhicule' })
+  @ApiOperation({ summary: "Obtenir les détails d'un véhicule" })
   findOne(@Param('id') id: string) {
     return this.carsService.findOne(id);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'Mettre à jour les informations d\'un véhicule' })
+  @ApiOperation({ summary: "Mettre à jour les informations d'un véhicule" })
   update(@Param('id') id: string, @Body() updateCarDto: UpdateCarDto) {
     return this.carsService.update(id, updateCarDto);
   }

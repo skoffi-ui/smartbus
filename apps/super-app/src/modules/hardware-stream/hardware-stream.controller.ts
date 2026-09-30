@@ -8,13 +8,29 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiSecurity } from '@nestjs/swagger';
-import { JwtAuthGuard, RolesGuard, Roles, CurrentUser, UserRole, creerGardeCleFluxMateriel, DEVICE_STREAM_API_KEY_HEADER } from '@app/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiSecurity,
+} from '@nestjs/swagger';
+import {
+  JwtAuthGuard,
+  RolesGuard,
+  Roles,
+  CurrentUser,
+  UserRole,
+  creerGardeCleFluxMateriel,
+  DEVICE_STREAM_API_KEY_HEADER,
+} from '@app/common';
 import { HardwareStreamService } from './hardware-stream.service';
 
 // Un secret distinct par flux : une fuite sur l'un (ex. la config d'un
 // forwarder Traccar mal protégée) ne compromet pas les autres.
-const GardeFluxZktLibellule = creerGardeCleFluxMateriel('HARDWARE_STREAM_API_KEY');
+const GardeFluxZktLibellule = creerGardeCleFluxMateriel(
+  'HARDWARE_STREAM_API_KEY',
+);
 const GardeFluxTraccar = creerGardeCleFluxMateriel('HARDWARE_TRACCAR_API_KEY');
 
 @ApiTags('Hardware Stream Routing')
@@ -42,10 +58,17 @@ export class HardwareStreamController {
   @ApiSecurity('device-api-key')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Point d'entrée unique de streaming matériel pour ZKTeco et Libellule",
+    summary:
+      "Point d'entrée unique de streaming matériel pour ZKTeco et Libellule",
   })
-  @ApiResponse({ status: 200, description: 'Flux routé et traité avec succès.' })
-  @ApiResponse({ status: 401, description: `Secret manquant/invalide (en-tête ${DEVICE_STREAM_API_KEY_HEADER}).` })
+  @ApiResponse({
+    status: 200,
+    description: 'Flux routé et traité avec succès.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: `Secret manquant/invalide (en-tête ${DEVICE_STREAM_API_KEY_HEADER}).`,
+  })
   async receiveStream(@Body() payload: any) {
     return this.hardwareStreamService.handleStream(payload);
   }
@@ -55,7 +78,10 @@ export class HardwareStreamController {
   @ApiSecurity('device-api-key')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Endpoint Webhook pour la télématique Traccar' })
-  @ApiResponse({ status: 401, description: `Secret manquant/invalide (en-tête ${DEVICE_STREAM_API_KEY_HEADER}).` })
+  @ApiResponse({
+    status: 401,
+    description: `Secret manquant/invalide (en-tête ${DEVICE_STREAM_API_KEY_HEADER}).`,
+  })
   async receiveTraccar(@Body() payload: any) {
     return this.hardwareStreamService.handleTraccarStream(payload);
   }
@@ -68,9 +94,13 @@ export class HardwareStreamController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: "Positions GPS en direct des véhicules de SA propre école uniquement",
+    summary:
+      'Positions GPS en direct des véhicules de SA propre école uniquement',
   })
-  @ApiResponse({ status: 403, description: "Aucune école associée au compte appelant." })
+  @ApiResponse({
+    status: 403,
+    description: 'Aucune école associée au compte appelant.',
+  })
   getLiveLocations(@CurrentUser() user: { organisationId?: string }) {
     // L'école vient du JWT vérifié. Aucun paramètre client ne peut l'élargir.
     if (!user?.organisationId) {
@@ -87,9 +117,12 @@ export class HardwareStreamController {
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      "Alertes sur les équipements inactifs de TOUTE la plateforme (réservé au super admin)",
+      'Alertes sur les équipements inactifs de TOUTE la plateforme (réservé au super admin)',
   })
-  @ApiResponse({ status: 200, description: 'Liste des alertes matérielles récupérée.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des alertes matérielles récupérée.',
+  })
   async getDeviceAlerts() {
     // Cette vue couvre le parc entier : elle reste réservée à l'administration centrale.
     return this.hardwareStreamService.getDeviceAlerts();

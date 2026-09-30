@@ -1,4 +1,10 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, Matches } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  Matches,
+} from 'class-validator';
 
 export class CreateParentDto {
   @IsString()
@@ -27,7 +33,9 @@ export class CreateParentDto {
    */
   @IsString()
   @IsOptional()
-  @Matches(/^\d{4}$/, { message: 'Le code PIN doit être composé de 4 chiffres.' })
+  @Matches(/^\d{4}$/, {
+    message: 'Le code PIN doit être composé de 4 chiffres.',
+  })
   pinCode?: string;
 }
 
@@ -54,6 +62,8 @@ export class UpdateParentDto {
 
   @IsString()
   @IsOptional()
-  @Matches(/^\d{4}$/, { message: 'Le code PIN doit être composé de 4 chiffres.' })
+  @Matches(/^\d{4}$/, {
+    message: 'Le code PIN doit être composé de 4 chiffres.',
+  })
   pinCode?: string;
 }

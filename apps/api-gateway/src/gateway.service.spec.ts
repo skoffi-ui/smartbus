@@ -41,7 +41,13 @@ describe('GatewayService', () => {
 
     const config = {
       get: (key: string, def?: string) =>
-        ({ SUPER_APP_URL: SUPER, SCHOOL_APP_URL: SCHOOL, APP_MIN_VERSION: '2.0.0' } as Record<string, string>)[key] ?? def,
+        (
+          ({
+            SUPER_APP_URL: SUPER,
+            SCHOOL_APP_URL: SCHOOL,
+            APP_MIN_VERSION: '2.0.0',
+          }) as Record<string, string>
+        )[key] ?? def,
     } as unknown as ConfigService;
     const tenantGate = {
       check: jest.fn(async () => ({ verdict, allowedFeatures })),
@@ -51,7 +57,11 @@ describe('GatewayService', () => {
     handler = service.handler();
   });
 
-  async function call(method: string, url: string, headers: Record<string, string> = {}) {
+  async function call(
+    method: string,
+    url: string,
+    headers: Record<string, string> = {},
+  ) {
     const req: any = { method, originalUrl: url, url, headers };
     const res = makeRes();
     const next = jest.fn();
@@ -60,7 +70,11 @@ describe('GatewayService', () => {
   }
 
   it('injecte le tenant issu du JWT et écrase un x-tenant-id usurpé', async () => {
-    const t = token({ sub: 'u1', role: 'school_admin', organisationId: 'org-A' });
+    const t = token({
+      sub: 'u1',
+      role: 'school_admin',
+      organisationId: 'org-A',
+    });
     const { req, res } = await call('GET', '/api/v1/children', {
       authorization: `Bearer ${t}`,
       'x-tenant-id': 'org-VICTIME',
@@ -79,25 +93,36 @@ describe('GatewayService', () => {
   it('pose x-allowed-features à jour depuis la base (pas le JWT) et écrase toute valeur usurpée', async () => {
     allowedFeatures = ['live', 'drivers'];
     // Le JWT prétend n'avoir aucune restriction : la valeur fraîche de la base doit gagner.
-    const t = token({ sub: 'u1', role: 'school_admin', organisationId: 'org-A', allowedFeatures: null });
+    const t = token({
+      sub: 'u1',
+      role: 'school_admin',
+      organisationId: 'org-A',
+      allowedFeatures: null,
+    });
     const { req } = await call('GET', '/api/v1/children', {
       authorization: `Bearer ${t}`,
       'x-allowed-features': '["cars","parents"]',
     });
 
-    expect(req.headers['x-allowed-features']).toBe(JSON.stringify(['live', 'drivers']));
+    expect(req.headers['x-allowed-features']).toBe(
+      JSON.stringify(['live', 'drivers']),
+    );
   });
 
   it('pose x-allowed-features à "null" pour une école sans restriction', async () => {
     allowedFeatures = null;
     const t = token({ sub: 'u1', organisationId: 'org-A' });
-    const { req } = await call('GET', '/api/v1/children', { authorization: `Bearer ${t}` });
+    const { req } = await call('GET', '/api/v1/children', {
+      authorization: `Bearer ${t}`,
+    });
 
     expect(req.headers['x-allowed-features']).toBe('null');
   });
 
   it('retire les en-têtes d’identité même sur une route publique', async () => {
-    const { req } = await call('POST', '/api/v1/auth/login', { 'x-tenant-id': 'org-VICTIME' });
+    const { req } = await call('POST', '/api/v1/auth/login', {
+      'x-tenant-id': 'org-VICTIME',
+    });
 
     expect(proxyMocks[SUPER]).toHaveBeenCalledTimes(1);
     expect(req.headers['x-tenant-id']).toBeUndefined();
@@ -107,32 +132,47 @@ describe('GatewayService', () => {
     const { res } = await call('GET', '/api/v1/children');
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'TOKEN_MISSING' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'TOKEN_MISSING' }),
+    );
     expect(proxyMocks[SCHOOL]).not.toHaveBeenCalled();
   });
 
   it('répond 401 pour un token signé avec un autre secret', async () => {
-    const forged = new JwtService({ secret: 'autre' }).sign({ sub: 'u1', organisationId: 'org-A' });
-    const { res } = await call('GET', '/api/v1/children', { authorization: `Bearer ${forged}` });
+    const forged = new JwtService({ secret: 'autre' }).sign({
+      sub: 'u1',
+      organisationId: 'org-A',
+    });
+    const { res } = await call('GET', '/api/v1/children', {
+      authorization: `Bearer ${forged}`,
+    });
 
     expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'TOKEN_INVALID' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'TOKEN_INVALID' }),
+    );
   });
 
   it('répond 403 TENANT_SUSPENDED pour une école suspendue', async () => {
     verdict = 'suspended';
     const t = token({ sub: 'u1', organisationId: 'org-A' });
-    const { res } = await call('GET', '/api/v1/children', { authorization: `Bearer ${t}` });
+    const { res } = await call('GET', '/api/v1/children', {
+      authorization: `Bearer ${t}`,
+    });
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'TENANT_SUSPENDED' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'TENANT_SUSPENDED' }),
+    );
     expect(proxyMocks[SCHOOL]).not.toHaveBeenCalled();
   });
 
   it('laisse une école suspendue accéder à la SUPER APP (paiement / réactivation)', async () => {
     verdict = 'suspended';
     const t = token({ sub: 'u1', organisationId: 'org-A' });
-    const { res } = await call('POST', '/api/v1/payments/initiate', { authorization: `Bearer ${t}` });
+    const { res } = await call('POST', '/api/v1/payments/initiate', {
+      authorization: `Bearer ${t}`,
+    });
 
     expect(res.status).not.toHaveBeenCalled();
     expect(proxyMocks[SUPER]).toHaveBeenCalledTimes(1);
@@ -140,24 +180,36 @@ describe('GatewayService', () => {
 
   it("répond 403 si le compte n'a pas d'organisation sur une route école", async () => {
     const t = token({ sub: 'root', role: 'super_admin' });
-    const { res } = await call('GET', '/api/v1/children', { authorization: `Bearer ${t}` });
+    const { res } = await call('GET', '/api/v1/children', {
+      authorization: `Bearer ${t}`,
+    });
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'NO_ORGANISATION' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'NO_ORGANISATION' }),
+    );
   });
 
   it('répond 426 si x-app-version est inférieure au minimum', async () => {
     const t = token({ sub: 'u1', organisationId: 'org-A' });
-    const { res } = await call('GET', '/api/v1/children', { authorization: `Bearer ${t}`, 'x-app-version': '1.9.9' });
+    const { res } = await call('GET', '/api/v1/children', {
+      authorization: `Bearer ${t}`,
+      'x-app-version': '1.9.9',
+    });
 
     expect(res.status).toHaveBeenCalledWith(426);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ code: 'APP_UPDATE_REQUIRED' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'APP_UPDATE_REQUIRED' }),
+    );
     expect(proxyMocks[SCHOOL]).not.toHaveBeenCalled();
   });
 
   it('accepte une version égale ou supérieure, ou l’absence de l’en-tête', async () => {
     const t = token({ sub: 'u1', organisationId: 'org-A' });
-    await call('GET', '/api/v1/children', { authorization: `Bearer ${t}`, 'x-app-version': '2.0.0' });
+    await call('GET', '/api/v1/children', {
+      authorization: `Bearer ${t}`,
+      'x-app-version': '2.0.0',
+    });
     await call('GET', '/api/v1/children', { authorization: `Bearer ${t}` });
 
     expect(proxyMocks[SCHOOL]).toHaveBeenCalledTimes(2);

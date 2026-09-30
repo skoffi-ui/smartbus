@@ -2,7 +2,7 @@ const http = require('http');
 
 const data = JSON.stringify({
   email: 'direction@ecole.com',
-  password: 'password123'
+  password: 'password123',
 });
 
 const options = {
@@ -12,13 +12,13 @@ const options = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Content-Length': data.length
-  }
+    'Content-Length': data.length,
+  },
 };
 
 const req = http.request(options, (res) => {
   let body = '';
-  res.on('data', (chunk) => body += chunk);
+  res.on('data', (chunk) => (body += chunk));
   res.on('end', () => {
     console.log(`Status: ${res.statusCode}`);
     console.log(`Body: ${body}`);

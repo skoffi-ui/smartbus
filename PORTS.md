@@ -7,16 +7,16 @@
 
 ## Table des ports
 
-| Service           | Port     | Type                         | URL locale                    |
-|-------------------|----------|------------------------------|-------------------------------|
-| api-gateway       | **3002** | NestJS (point d'entree unique) | http://localhost:3002       |
-| super-app         | **3000** | NestJS API (backend admin)   | http://localhost:3000         |
-| school-app        | **3001** | NestJS API (backend ecole)   | http://localhost:3001         |
-| super-admin-web   | **5173** | Vite React (frontend admin)  | http://localhost:5173         |
-| school-web        | **5174** | Vite React (frontend ecole)  | http://localhost:5174         |
-| PostgreSQL        | **5432** | Base de donnees              | localhost:5432                |
-| MinIO             | **9000** | Stockage fichiers            | http://localhost:9000         |
-| BioTime           | **8080** | Biometrie (externe)          | http://160.120.143.20:8080    |
+| Service         | Port     | Type                           | URL locale                 |
+| --------------- | -------- | ------------------------------ | -------------------------- |
+| api-gateway     | **3002** | NestJS (point d'entree unique) | http://localhost:3002      |
+| super-app       | **3000** | NestJS API (backend admin)     | http://localhost:3000      |
+| school-app      | **3001** | NestJS API (backend ecole)     | http://localhost:3001      |
+| super-admin-web | **5173** | Vite React (frontend admin)    | http://localhost:5173      |
+| school-web      | **5174** | Vite React (frontend ecole)    | http://localhost:5174      |
+| PostgreSQL      | **5432** | Base de donnees                | localhost:5432             |
+| MinIO           | **9000** | Stockage fichiers              | http://localhost:9000      |
+| BioTime         | **8080** | Biometrie (externe)            | http://160.120.143.20:8080 |
 
 ---
 
@@ -31,6 +31,7 @@ super-admin-web (5173) --+
 ```
 
 Les frontends ne parlent qu'a l'API Gateway. Elle :
+
 - verifie le JWT et **ecrase** tout `x-tenant-id` / `x-user-*` envoye par le client ;
 - injecte `x-tenant-id` (organisation du JWT) vers school-app ;
 - refuse (403) les ecoles suspendues sur les routes ecole (la SUPER APP reste accessible pour payer) ;
@@ -41,10 +42,10 @@ Les frontends ne parlent qu'a l'API Gateway. Elle :
 
 ## Swagger API Docs
 
-| Service    | URL Swagger                          |
-|------------|--------------------------------------|
-| super-app  | http://localhost:3000/api/docs       |
-| school-app | http://localhost:3001/api/docs       |
+| Service    | URL Swagger                    |
+| ---------- | ------------------------------ |
+| super-app  | http://localhost:3000/api/docs |
+| school-app | http://localhost:3001/api/docs |
 
 ---
 
@@ -73,8 +74,8 @@ cd apps/school-web && npm run dev
 ### Tout demarrer (4 terminaux)
 
 | Terminal | Commande                           | URL   |
-|----------|------------------------------------|-------|
-| 1        | npm run start:super-app  (racine)  | :3000 |
+| -------- | ---------------------------------- | ----- |
+| 1        | npm run start:super-app (racine)   | :3000 |
 | 2        | npm run start:school-app (racine)  | :3001 |
 | 3        | npm run dev (apps/super-admin-web) | :5173 |
 | 4        | npm run dev (apps/school-web)      | :5174 |

@@ -1,13 +1,13 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
-import { applyTheme, getInitialTheme } from './theme'
-import { FournisseurI18n } from './i18n'
-import { ToastProvider } from './components/ToastProvider'
-import { ConfirmProvider } from './components/ConfirmProvider'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import App from './App.tsx';
+import { applyTheme, getInitialTheme } from './theme';
+import { FournisseurI18n } from './i18n';
+import { ToastProvider } from './components/ToastProvider';
+import { ConfirmProvider } from './components/ConfirmProvider';
 
-applyTheme(getInitialTheme())
+applyTheme(getInitialTheme());
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -19,4 +19,4 @@ createRoot(document.getElementById('root')!).render(
       </ToastProvider>
     </FournisseurI18n>
   </StrictMode>,
-)
+);

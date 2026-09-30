@@ -1,5 +1,8 @@
 import { ForbiddenException } from '@nestjs/common';
-import { HardwareStreamService, LiveCarPosition } from './hardware-stream.service';
+import {
+  HardwareStreamService,
+  LiveCarPosition,
+} from './hardware-stream.service';
 import { HardwareStreamController } from './hardware-stream.controller';
 
 /**
@@ -54,14 +57,20 @@ describe('Isolation GPS entre écoles', () => {
       const vuParA = service.getLiveLocations(ORG_A);
 
       expect(vuParA).toHaveLength(3);
-      expect(vuParA.map((p) => p.plateNumber).sort()).toEqual(['AA-001', 'AA-002', 'AA-003']);
+      expect(vuParA.map((p) => p.plateNumber).sort()).toEqual([
+        'AA-001',
+        'AA-002',
+        'AA-003',
+      ]);
       expect(vuParA.every((p) => p.organisationId === ORG_A)).toBe(true);
 
       // Et symétriquement pour B, qui a sa propre flotte.
-      expect(service.getLiveLocations(ORG_B).map((p) => p.plateNumber).sort()).toEqual([
-        'BB-001',
-        'BB-002',
-      ]);
+      expect(
+        service
+          .getLiveLocations(ORG_B)
+          .map((p) => p.plateNumber)
+          .sort(),
+      ).toEqual(['BB-001', 'BB-002']);
     });
 
     it("ne laisse fuir aucun bus de l'autre école", () => {
@@ -72,7 +81,9 @@ describe('Isolation GPS entre écoles', () => {
       const vuParA = service.getLiveLocations(ORG_A);
       const platesB = ['BB-001', 'BB-002'];
 
-      expect(vuParA.some((p) => platesB.includes(p.plateNumber as string))).toBe(false);
+      expect(
+        vuParA.some((p) => platesB.includes(p.plateNumber as string)),
+      ).toBe(false);
     });
 
     it('renvoie une liste vide, et non tout le parc, si aucune école est fournie', () => {
@@ -94,8 +105,12 @@ describe('Isolation GPS entre écoles', () => {
       seed(ORG_A, 'car-partage', 'AA-001');
       seed(ORG_B, 'car-partage', 'BB-001');
 
-      expect(service.getLiveLocations(ORG_A).map((p) => p.plateNumber)).toEqual(['AA-001']);
-      expect(service.getLiveLocations(ORG_B).map((p) => p.plateNumber)).toEqual(['BB-001']);
+      expect(service.getLiveLocations(ORG_A).map((p) => p.plateNumber)).toEqual(
+        ['AA-001'],
+      );
+      expect(service.getLiveLocations(ORG_B).map((p) => p.plateNumber)).toEqual(
+        ['BB-001'],
+      );
     });
   });
 
@@ -105,7 +120,12 @@ describe('Isolation GPS entre écoles', () => {
 
     it("rattache l'appareil à l'école qui l'a appairé", async () => {
       centralQuery.mockResolvedValue([
-        { organisationId: ORG_B, name: 'École B', dbName: 'db_b', dbProvisioned: true },
+        {
+          organisationId: ORG_B,
+          name: 'École B',
+          dbName: 'db_b',
+          dbProvisioned: true,
+        },
       ]);
 
       await expect(resolve('GPS-123')).resolves.toEqual({
@@ -123,7 +143,7 @@ describe('Isolation GPS entre écoles', () => {
       expect(organisationFind).not.toHaveBeenCalled();
     });
 
-    it("propage une panne de base centrale au lieu de la faire passer pour une attente", async () => {
+    it('propage une panne de base centrale au lieu de la faire passer pour une attente', async () => {
       centralQuery.mockRejectedValue(new Error('connexion perdue'));
 
       await expect(resolve('GPS-123')).rejects.toThrow('connexion perdue');
@@ -157,7 +177,9 @@ describe('Isolation GPS entre écoles', () => {
 
     it("ne publie aucune position tant que la balise n'a pas d'école", async () => {
       centralQuery.mockResolvedValue([]);
-      jest.spyOn(service as any, 'getTenantDataSource').mockResolvedValue({} as any);
+      jest
+        .spyOn(service as any, 'getTenantDataSource')
+        .mockResolvedValue({} as any);
 
       await service.handleTraccarStream({
         uniqueId: 'GPS-NEUVE',
@@ -186,9 +208,11 @@ describe('Isolation GPS entre écoles', () => {
       expect(getLiveLocations).toHaveBeenCalledTimes(1);
     });
 
-    it("refuse un compte sans école plutôt que de tout renvoyer", () => {
+    it('refuse un compte sans école plutôt que de tout renvoyer', () => {
       expect(() => controller.getLiveLocations({})).toThrow(ForbiddenException);
-      expect(() => controller.getLiveLocations(undefined as any)).toThrow(ForbiddenException);
+      expect(() => controller.getLiveLocations(undefined as any)).toThrow(
+        ForbiddenException,
+      );
       expect(getLiveLocations).not.toHaveBeenCalled();
     });
   });

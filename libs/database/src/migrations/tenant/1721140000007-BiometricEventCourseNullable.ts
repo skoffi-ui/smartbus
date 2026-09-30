@@ -19,7 +19,9 @@ export class BiometricEventCourseNullable1721140000007 implements MigrationInter
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Les lignes sans course doivent partir avant de rétablir la contrainte.
-    await queryRunner.query(`DELETE FROM "biometric_events" WHERE "course_id" IS NULL`);
+    await queryRunner.query(
+      `DELETE FROM "biometric_events" WHERE "course_id" IS NULL`,
+    );
     await queryRunner.query(
       `ALTER TABLE "biometric_events" ALTER COLUMN "course_id" SET NOT NULL`,
     );

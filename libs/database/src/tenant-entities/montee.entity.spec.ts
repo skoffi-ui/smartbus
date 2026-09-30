@@ -15,14 +15,14 @@ describe('sensFromPunchState', () => {
     }
   });
 
-  it('traite les codes d\'entrée ZKTeco comme des montées', () => {
+  it("traite les codes d'entrée ZKTeco comme des montées", () => {
     // 0 Check-In, 3 Break-In, 4 OT-In
     for (const code of ['0', '3', '4']) {
       expect(sensFromPunchState(code)).toBe(SensPointage.MONTEE);
     }
   });
 
-  it('accepte un code numérique aussi bien qu\'une chaîne', () => {
+  it("accepte un code numérique aussi bien qu'une chaîne", () => {
     expect(sensFromPunchState(1)).toBe(SensPointage.DESCENTE);
     expect(sensFromPunchState(0)).toBe(SensPointage.MONTEE);
   });
@@ -31,7 +31,7 @@ describe('sensFromPunchState', () => {
     expect(sensFromPunchState(' 1 ')).toBe(SensPointage.DESCENTE);
   });
 
-  it('retombe sur une montée quand la badgeuse n\'annonce aucun état', () => {
+  it("retombe sur une montée quand la badgeuse n'annonce aucun état", () => {
     // Une valeur absente ne doit jamais faire planter l'ingestion.
     expect(sensFromPunchState(undefined)).toBe(SensPointage.MONTEE);
     expect(sensFromPunchState(null)).toBe(SensPointage.MONTEE);

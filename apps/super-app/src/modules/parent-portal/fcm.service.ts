@@ -28,11 +28,13 @@ export class FcmService implements OnModuleInit {
         this.isInitialized = true;
         this.logger.log('Firebase Cloud Messaging initialisé avec succès.');
       } catch (err: any) {
-        this.logger.error(`Échec d'initialisation Firebase Admin SDK : ${err.message}`);
+        this.logger.error(
+          `Échec d'initialisation Firebase Admin SDK : ${err.message}`,
+        );
       }
     } else {
       this.logger.warn(
-        'Firebase Cloud Messaging non configuré. Les notifications push seront simulées dans les journaux.'
+        'Firebase Cloud Messaging non configuré. Les notifications push seront simulées dans les journaux.',
       );
     }
   }
@@ -66,7 +68,7 @@ export class FcmService implements OnModuleInit {
       this.logger.log(
         `[SIMULATION PUSH] Envoyé à [${token}] | Titre: "${title}" | Message: "${body}" | Data: ${JSON.stringify(
           data || {},
-        )}`
+        )}`,
       );
       return true;
     }
@@ -80,19 +82,26 @@ export class FcmService implements OnModuleInit {
         },
         data: data || {},
       });
-      this.logger.log(`[FCM Push] Notification envoyée avec succès à [${token}]`);
+      this.logger.log(
+        `[FCM Push] Notification envoyée avec succès à [${token}]`,
+      );
       return true;
     } catch (error: any) {
-      this.logger.error(`[FCM Push] Échec d'envoi à [${token}] : ${error.message}`);
-      
+      this.logger.error(
+        `[FCM Push] Échec d'envoi à [${token}] : ${error.message}`,
+      );
+
       // Gestion robuste si le token est invalide ou expiré
       const invalidCodes = [
         'messaging/invalid-registration-token',
         'messaging/registration-token-not-registered',
       ];
-      if (invalidCodes.includes(error.code) || error.message.includes('registration-token')) {
+      if (
+        invalidCodes.includes(error.code) ||
+        error.message.includes('registration-token')
+      ) {
         this.logger.warn(
-          `[FCM Push] Le token push est invalide ou a expiré. Indication pour nettoyage en base de données.`
+          `[FCM Push] Le token push est invalide ou a expiré. Indication pour nettoyage en base de données.`,
         );
         return false;
       }

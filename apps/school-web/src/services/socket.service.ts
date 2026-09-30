@@ -52,5 +52,5 @@ export const socketService = {
   },
   disconnect(): void {
     disconnectSocket();
-  }
+  },
 };

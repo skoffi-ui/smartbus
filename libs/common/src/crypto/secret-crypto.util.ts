@@ -25,11 +25,14 @@ const LONGUEUR_CLE = 32; // AES-256
  * Prend la valeur brute déjà lue (jamais la source elle-même) : ça reste une
  * fonction pure, testable sans mock d'environnement ni de `ConfigService`.
  */
-export function validerEtConvertirCle(brut: string | undefined, nomVariable = 'ENCRYPTION_KEY'): Buffer {
+export function validerEtConvertirCle(
+  brut: string | undefined,
+  nomVariable = 'ENCRYPTION_KEY',
+): Buffer {
   if (!brut) {
     throw new Error(
       `${nomVariable} est absente : impossible de chiffrer ou déchiffrer un secret. ` +
-        'Générez-la avec `node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"`.',
+        "Générez-la avec `node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"`.",
     );
   }
 
@@ -51,11 +54,16 @@ export function validerEtConvertirCle(brut: string | undefined, nomVariable = 'E
 }
 
 /** Repli pour les contextes sans DI (ex. `ValueTransformer` TypeORM) : lit `process.env` directement. */
-export function obtenirCleChiffrementDepuisEnv(nomVariable = 'ENCRYPTION_KEY'): Buffer {
+export function obtenirCleChiffrementDepuisEnv(
+  nomVariable = 'ENCRYPTION_KEY',
+): Buffer {
   return validerEtConvertirCle(process.env[nomVariable], nomVariable);
 }
 
-export function chiffrerAvecCle(valeurEnClair: string, cle: Buffer): SecretChiffre {
+export function chiffrerAvecCle(
+  valeurEnClair: string,
+  cle: Buffer,
+): SecretChiffre {
   const iv = crypto.randomBytes(LONGUEUR_IV);
   const chiffreur = crypto.createCipheriv(ALGORITHME, cle, iv);
   const ciphertext = Buffer.concat([
@@ -71,7 +79,11 @@ export function chiffrerAvecCle(valeurEnClair: string, cle: Buffer): SecretChiff
 }
 
 export function dechiffrerAvecCle(secret: SecretChiffre, cle: Buffer): string {
-  const dechiffreur = crypto.createDecipheriv(ALGORITHME, cle, Buffer.from(secret.iv, 'base64'));
+  const dechiffreur = crypto.createDecipheriv(
+    ALGORITHME,
+    cle,
+    Buffer.from(secret.iv, 'base64'),
+  );
   dechiffreur.setAuthTag(Buffer.from(secret.tag, 'base64'));
 
   return Buffer.concat([
@@ -94,7 +106,11 @@ export function emballerSecret(secret: SecretChiffre): string {
 export function deballerSecret(valeur: string): SecretChiffre | null {
   try {
     const objet = JSON.parse(valeur);
-    if (typeof objet?.ciphertext === 'string' && typeof objet?.iv === 'string' && typeof objet?.tag === 'string') {
+    if (
+      typeof objet?.ciphertext === 'string' &&
+      typeof objet?.iv === 'string' &&
+      typeof objet?.tag === 'string'
+    ) {
       return objet;
     }
     return null;

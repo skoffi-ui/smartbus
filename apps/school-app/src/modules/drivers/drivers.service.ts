@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Driver } from '@app/database';
 import { CreateDriverDto, UpdateDriverDto } from './dto/drivers.dto';
@@ -22,16 +26,22 @@ export class DriversService {
     const repo = await this.getRepo();
     const driver = await repo.findOne({ where: { id } });
     if (!driver) {
-      throw new NotFoundException(`Chauffeur ${id} introuvable dans cette école.`);
+      throw new NotFoundException(
+        `Chauffeur ${id} introuvable dans cette école.`,
+      );
     }
     return driver;
   }
 
   async create(createDriverDto: CreateDriverDto): Promise<Driver> {
     const repo = await this.getRepo();
-    const existing = await repo.findOne({ where: { licenseNumber: createDriverDto.licenseNumber } });
+    const existing = await repo.findOne({
+      where: { licenseNumber: createDriverDto.licenseNumber },
+    });
     if (existing) {
-      throw new ConflictException(`Le permis ${createDriverDto.licenseNumber} existe déjà.`);
+      throw new ConflictException(
+        `Le permis ${createDriverDto.licenseNumber} existe déjà.`,
+      );
     }
     const driver = repo.create(createDriverDto);
     return repo.save(driver);

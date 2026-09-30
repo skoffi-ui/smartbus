@@ -1,9 +1,18 @@
-import { IsString, IsNumber, IsOptional, IsUUID, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsUUID,
+  Min,
+  Max,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
 export class CreatePointDto {
-  @ApiProperty({ description: 'Nom du point de récupération (ex: Carrefour Anono)' })
+  @ApiProperty({
+    description: 'Nom du point de récupération (ex: Carrefour Anono)',
+  })
   @IsString()
   nom: string;
 
@@ -21,32 +30,40 @@ export class CreatePointDto {
   @Max(180)
   longitude: number;
 
-  @ApiProperty({ description: 'Ordre de passage sur le trajet (1 = premier arrêt)', example: 1 })
+  @ApiProperty({
+    description: 'Ordre de passage sur le trajet (1 = premier arrêt)',
+    example: 1,
+  })
   @IsNumber()
   @Type(() => Number)
   @Min(1)
   ordrePassage: number;
 
-  @ApiPropertyOptional({ description: 'UUID du trajet auquel ce point appartient' })
+  @ApiPropertyOptional({
+    description: 'UUID du trajet auquel ce point appartient',
+  })
   @IsOptional()
   @IsUUID()
   trajetId?: string;
 
-  @ApiPropertyOptional({ description: 'Rayon de détection GPS en mètres (défaut: 30)' })
+  @ApiPropertyOptional({
+    description: 'Rayon de détection GPS en mètres (défaut: 30)',
+  })
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
   rayonDetection?: number;
 
   @ApiPropertyOptional({
-    description: "Heure théorique de passage à cet arrêt (ex: 07:30) - Obsolète, utiliser heurePassage",
+    description:
+      'Heure théorique de passage à cet arrêt (ex: 07:30) - Obsolète, utiliser heurePassage',
   })
   @IsOptional()
   @IsString()
   tempsArret?: string;
 
   @ApiPropertyOptional({
-    description: "Heure de passage calculée automatiquement (format HH:mm)",
+    description: 'Heure de passage calculée automatiquement (format HH:mm)',
   })
   @IsOptional()
   @IsString()
@@ -54,7 +71,7 @@ export class CreatePointDto {
 
   @ApiPropertyOptional({
     description: "Durée d'arrêt en minutes (défaut: 2)",
-    example: 2
+    example: 2,
   })
   @IsOptional()
   @IsNumber()
@@ -71,7 +88,7 @@ export class CreatePointDto {
   @ApiPropertyOptional({
     description: 'Type de point: depart, arret, ou arrivee',
     enum: ['depart', 'arret', 'arrivee'],
-    default: 'arret'
+    default: 'arret',
   })
   @IsOptional()
   @IsString()

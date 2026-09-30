@@ -2,7 +2,7 @@ const http = require('http');
 
 const authData = JSON.stringify({
   username: 'KOMARA',
-  password: 'KOMARA2222'
+  password: 'KOMARA2222',
 });
 
 const authOptions = {
@@ -12,13 +12,13 @@ const authOptions = {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Content-Length': authData.length
-  }
+    'Content-Length': authData.length,
+  },
 };
 
 const req = http.request(authOptions, (res) => {
   let body = '';
-  res.on('data', (chunk) => body += chunk);
+  res.on('data', (chunk) => (body += chunk));
   res.on('end', () => {
     if (res.statusCode !== 200) {
       console.error('Erreur authentification:', body);
@@ -34,13 +34,13 @@ const req = http.request(authOptions, (res) => {
       path: '/personnel/api/employees/?page_size=5', // juste les 5 premiers pour voir
       method: 'GET',
       headers: {
-        'Authorization': `JWT ${token}`
-      }
+        Authorization: `JWT ${token}`,
+      },
     };
 
     const getReq = http.request(getOptions, (getRes) => {
       let getBody = '';
-      getRes.on('data', (chunk) => getBody += chunk);
+      getRes.on('data', (chunk) => (getBody += chunk));
       getRes.on('end', () => {
         console.log('--- DONNÉES ENFANTS (ÉCHANTILLON) ---');
         console.log(getBody);

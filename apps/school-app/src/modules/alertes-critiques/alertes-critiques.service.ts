@@ -24,7 +24,11 @@ export class AlertesCritiquesService {
     try {
       const ds = await this.tenantService.getDataSource(tenantId);
       const clauseResolu =
-        statut === 'unresolved' ? 'AND ac.resolved = false' : statut === 'resolved' ? 'AND ac.resolved = true' : '';
+        statut === 'unresolved'
+          ? 'AND ac.resolved = false'
+          : statut === 'resolved'
+            ? 'AND ac.resolved = true'
+            : '';
       // `driverId` de la course détectée, pour le bouton "Appeler le
       // chauffeur" de CentreAlertes.tsx — jusqu'ici il tentait de faire
       // correspondre `detectedCarPlate` à un champ `plateNumber` qui
@@ -35,7 +39,8 @@ export class AlertesCritiquesService {
       // dans le schéma mais n'est écrit nulle part, donc inexploitable).
       // Le nom/téléphone se résolvent côté client via `GET /drivers` (déjà
       // chargé par CentreAlertes.tsx) : pas besoin de les dupliquer ici.
-      return ds.query(`
+      return ds.query(
+        `
         SELECT
           ac.id, ac.type, ac.severity, ac.message,
           ac.child_id        AS "childId",
@@ -58,9 +63,13 @@ export class AlertesCritiquesService {
         WHERE ac.deleted_at IS NULL ${clauseResolu}
         ORDER BY ac.created_at DESC
         LIMIT $1
-      `, [limit]);
+      `,
+        [limit],
+      );
     } catch (err: any) {
-      this.logger.error(`Erreur récupération alertes_critiques : ${err.message}`);
+      this.logger.error(
+        `Erreur récupération alertes_critiques : ${err.message}`,
+      );
       return [];
     }
   }
@@ -85,10 +94,16 @@ export class AlertesCritiquesService {
   /**
    * Marque une anomalie comme résolue.
    */
-  async resolve(tenantId: string, alerteId: string, resolvedBy: string, note?: string): Promise<{ success: boolean }> {
+  async resolve(
+    tenantId: string,
+    alerteId: string,
+    resolvedBy: string,
+    note?: string,
+  ): Promise<{ success: boolean }> {
     try {
       const ds = await this.tenantService.getDataSource(tenantId);
-      await ds.query(`
+      await ds.query(
+        `
         UPDATE alertes_critiques
         SET resolved = true,
             resolved_at = now(),
@@ -96,10 +111,14 @@ export class AlertesCritiquesService {
             resolution_note = $3,
             updated_at = now()
         WHERE id = $1 AND deleted_at IS NULL
-      `, [alerteId, resolvedBy, note ?? null]);
+      `,
+        [alerteId, resolvedBy, note ?? null],
+      );
       return { success: true };
     } catch (err: any) {
-      this.logger.error(`Erreur résolution alerte critique ${alerteId} : ${err.message}`);
+      this.logger.error(
+        `Erreur résolution alerte critique ${alerteId} : ${err.message}`,
+      );
       return { success: false };
     }
   }

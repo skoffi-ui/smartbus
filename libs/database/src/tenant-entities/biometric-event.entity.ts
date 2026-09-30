@@ -7,8 +7,8 @@ import { Child } from './child.entity';
  * Type d'événement biométrique
  */
 export enum BiometricEventType {
-  BOARDING = 'boarding',    // Montée dans le car
-  ALIGHTING = 'alighting',  // Descente du car
+  BOARDING = 'boarding', // Montée dans le car
+  ALIGHTING = 'alighting', // Descente du car
 }
 
 /**
@@ -56,6 +56,12 @@ export class BiometricEvent extends BaseEntityModel {
   notificationSent: boolean;
 
   // Confiance de la reconnaissance biométrique (0-100%)
-  @Column({ name: 'confidence_score', type: 'decimal', precision: 5, scale: 2, nullable: true })
+  @Column({
+    name: 'confidence_score',
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+  })
   confidenceScore: number;
 }

@@ -16,9 +16,9 @@ export default function Login() {
     try {
       const response = await api.post('/auth/login', {
         email: email.trim(),
-        password
+        password,
       });
-      
+
       // Les deux jetons sont nécessaires : sans refreshToken, la session ne
       // peut jamais se renouveler automatiquement (voir services/api.ts).
       localStorage.setItem('accessToken', response.data.tokens.accessToken);
@@ -27,22 +27,42 @@ export default function Login() {
       // On recharge la page pour que le routeur nous envoie vers le tableau de bord
       window.location.href = '/dashboard';
     } catch (err: any) {
-      setError(messageFromError(err, 'Erreur de connexion. Vérifiez vos identifiants.'));
+      setError(
+        messageFromError(
+          err,
+          'Erreur de connexion. Vérifiez vos identifiants.',
+        ),
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center" style={{ minHeight: '100vh', padding: '20px' }}>
-      <div className="glass-panel animate-fade-in w-full" style={{ maxWidth: '400px', padding: '2.5rem' }}>
+    <div
+      className="flex items-center justify-center"
+      style={{ minHeight: '100vh', padding: '20px' }}
+    >
+      <div
+        className="glass-panel animate-fade-in w-full"
+        style={{ maxWidth: '400px', padding: '2.5rem' }}
+      >
         <div className="text-center mb-6">
           <h1 className="text-2xl text-accent mb-2">SMARTBUS</h1>
           <p className="text-secondary">Administration Centrale</p>
         </div>
 
         {error && (
-          <div className="mb-4 text-center" style={{ color: 'var(--danger)', fontSize: '0.875rem', background: 'rgba(239, 68, 68, 0.1)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+          <div
+            className="mb-4 text-center"
+            style={{
+              color: 'var(--danger)',
+              fontSize: '0.875rem',
+              background: 'rgba(239, 68, 68, 0.1)',
+              padding: '0.75rem',
+              borderRadius: '0.5rem',
+            }}
+          >
             {error}
           </div>
         )}
@@ -50,9 +70,9 @@ export default function Login() {
         <form onSubmit={handleLogin}>
           <div className="form-group">
             <label className="form-label">Adresse Email</label>
-            <input 
-              type="email" 
-              className="form-input" 
+            <input
+              type="email"
+              className="form-input"
               placeholder="admin@smartbus.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -70,7 +90,11 @@ export default function Login() {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary w-full"
+            disabled={loading}
+          >
             {loading ? 'Connexion en cours...' : 'Se connecter'}
           </button>
         </form>

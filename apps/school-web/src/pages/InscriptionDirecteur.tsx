@@ -29,7 +29,9 @@ export default function InscriptionDirecteur() {
     setErreur('');
 
     if (!token) {
-      setErreur("Ce lien est incomplet. Demandez un nouveau lien à votre administrateur.");
+      setErreur(
+        'Ce lien est incomplet. Demandez un nouveau lien à votre administrateur.',
+      );
       return;
     }
     if (motDePasse.length < 8) {
@@ -45,36 +47,72 @@ export default function InscriptionDirecteur() {
     try {
       // `axios` brut, pas `api` : aucun jeton de session n'existe encore.
       const res = await axios.post(`${API_BASE_URL}/auth/rejoindre-ecole`, {
-        token, firstName: prenom, lastName: nom, email, password: motDePasse,
+        token,
+        firstName: prenom,
+        lastName: nom,
+        email,
+        password: motDePasse,
       });
       localStorage.setItem('accessToken', res.data.tokens.accessToken);
       localStorage.setItem('refreshToken', res.data.tokens.refreshToken);
       window.location.href = '/dashboard';
     } catch (err) {
-      setErreur(messageFromError(
-        err,
-        "Ce lien a expiré ou est invalide. Demandez un nouveau lien à votre administrateur.",
-      ));
+      setErreur(
+        messageFromError(
+          err,
+          'Ce lien a expiré ou est invalide. Demandez un nouveau lien à votre administrateur.',
+        ),
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex items-center justify-center flex-col" style={{ minHeight: '100vh', padding: '20px' }}>
+    <div
+      className="flex items-center justify-center flex-col"
+      style={{ minHeight: '100vh', padding: '20px' }}
+    >
       <div className="text-center mb-8">
-        <h1 className="text-2xl text-accent" style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>SMARTBUS</h1>
-        <p className="text-secondary" style={{ letterSpacing: '2px', textTransform: 'uppercase' }}>Portail Établissement</p>
+        <h1
+          className="text-2xl text-accent"
+          style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}
+        >
+          SMARTBUS
+        </h1>
+        <p
+          className="text-secondary"
+          style={{ letterSpacing: '2px', textTransform: 'uppercase' }}
+        >
+          Portail Établissement
+        </p>
       </div>
 
-      <div className="glass-panel animate-fade-in w-full" style={{ maxWidth: '420px', padding: '2.5rem' }}>
-        <h2 className="text-xl mb-2 text-center">Créer votre compte directeur</h2>
-        <p className="text-secondary text-center mb-6" style={{ fontSize: '0.85rem' }}>
+      <div
+        className="glass-panel animate-fade-in w-full"
+        style={{ maxWidth: '420px', padding: '2.5rem' }}
+      >
+        <h2 className="text-xl mb-2 text-center">
+          Créer votre compte directeur
+        </h2>
+        <p
+          className="text-secondary text-center mb-6"
+          style={{ fontSize: '0.85rem' }}
+        >
           Vous seul choisissez votre email de connexion et votre mot de passe.
         </p>
 
         {erreur && (
-          <div className="mb-4 text-center" style={{ color: 'var(--danger)', fontSize: '0.9rem', background: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '4px' }}>
+          <div
+            className="mb-4 text-center"
+            style={{
+              color: 'var(--danger)',
+              fontSize: '0.9rem',
+              background: 'rgba(239, 68, 68, 0.1)',
+              padding: '0.5rem',
+              borderRadius: '4px',
+            }}
+          >
             {erreur}
           </div>
         )}
@@ -82,30 +120,65 @@ export default function InscriptionDirecteur() {
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label className="form-label">Prénom</label>
-            <input type="text" className="form-input" value={prenom} onChange={(e) => setPrenom(e.target.value)} required />
+            <input
+              type="text"
+              className="form-input"
+              value={prenom}
+              onChange={(e) => setPrenom(e.target.value)}
+              required
+            />
           </div>
 
           <div className="form-group">
             <label className="form-label">Nom</label>
-            <input type="text" className="form-input" value={nom} onChange={(e) => setNom(e.target.value)} required />
+            <input
+              type="text"
+              className="form-input"
+              value={nom}
+              onChange={(e) => setNom(e.target.value)}
+              required
+            />
           </div>
 
           <div className="form-group">
             <label className="form-label">Votre email de connexion</label>
-            <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="direction@ecole.com" />
+            <input
+              type="email"
+              className="form-input"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="direction@ecole.com"
+            />
           </div>
 
           <div className="form-group">
             <label className="form-label">Mot de passe</label>
-            <ChampMotDePasse value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} required minLength={8} placeholder="8 caractères minimum" />
+            <ChampMotDePasse
+              value={motDePasse}
+              onChange={(e) => setMotDePasse(e.target.value)}
+              required
+              minLength={8}
+              placeholder="8 caractères minimum"
+            />
           </div>
 
           <div className="form-group mb-6">
             <label className="form-label">Confirmer le mot de passe</label>
-            <ChampMotDePasse value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required minLength={8} placeholder="••••••••" />
+            <ChampMotDePasse
+              value={confirmation}
+              onChange={(e) => setConfirmation(e.target.value)}
+              required
+              minLength={8}
+              placeholder="••••••••"
+            />
           </div>
 
-          <button type="submit" className="btn btn-primary w-full" disabled={loading}>
+          <button
+            type="submit"
+            className="btn btn-primary w-full"
+            disabled={loading}
+          >
             {loading ? 'Création du compte…' : 'Créer mon compte'}
           </button>
         </form>

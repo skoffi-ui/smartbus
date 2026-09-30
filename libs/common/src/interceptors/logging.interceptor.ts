@@ -25,9 +25,7 @@ export class LoggingInterceptor implements NestInterceptor {
         const response = context.switchToHttp().getResponse();
         const { statusCode } = response;
         const duration = Date.now() - now;
-        this.logger.log(
-          `${method} ${url} ${statusCode} ${duration}ms - ${ip}`,
-        );
+        this.logger.log(`${method} ${url} ${statusCode} ${duration}ms - ${ip}`);
       }),
     );
   }

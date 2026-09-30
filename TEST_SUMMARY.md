@@ -3,12 +3,14 @@
 ## 📋 Ce qui a été créé
 
 ### 🔧 Configuration (4 fichiers)
+
 1. ✅ **[jest.config.ts](jest.config.ts)** - Configuration Jest principale (tests unitaires)
 2. ✅ **[jest-e2e.config.ts](jest-e2e.config.ts)** - Configuration Jest E2E
 3. ✅ **[.env.test](.env.test)** - Variables d'environnement test
 4. ✅ **[test/setup.ts](test/setup.ts)** - Setup global des tests
 
 ### 🧪 Tests Unitaires (2 fichiers)
+
 1. ✅ **[courses.service.spec.ts](apps/school-app/src/modules/courses/courses.service.spec.ts)**
    - 12 tests couvrant toutes les méthodes CRUD
    - Mocking de TenantService et Repository
@@ -20,6 +22,7 @@
    - Tests de bulk import et photo sync
 
 ### 🚀 Tests E2E (4 fichiers)
+
 1. ✅ **[test/super-app/auth.e2e-spec.ts](test/super-app/auth.e2e-spec.ts)**
    - Login, register, refresh token, logout
    - 15+ scénarios de test
@@ -44,6 +47,7 @@
    - 15+ scénarios
 
 ### 🛠️ Helpers & Fixtures (2 fichiers)
+
 1. ✅ **[test/helpers/test-database.helper.ts](test/helpers/test-database.helper.ts)**
    - Setup/cleanup base de données test
    - Configuration DataSource réutilisable
@@ -54,6 +58,7 @@
    - Données de test réutilisables
 
 ### 📚 Documentation (3 fichiers)
+
 1. ✅ **[TESTING.md](TESTING.md)** - Documentation complète (2000+ lignes)
    - Vue d'ensemble de la stratégie
    - Architecture des tests
@@ -70,6 +75,7 @@
 3. ✅ **[TEST_SUMMARY.md](TEST_SUMMARY.md)** - Ce fichier
 
 ### ⚙️ CI/CD (1 fichier)
+
 1. ✅ **[.github/workflows/tests.yml](.github/workflows/tests.yml)**
    - Pipeline GitHub Actions complet
    - Lint → Unit Tests → E2E Tests → Build
@@ -77,6 +83,7 @@
    - Upload coverage vers Codecov
 
 ### 📦 Scripts NPM (package.json mis à jour)
+
 ```json
 {
   "test": "jest --config jest.config.ts",
@@ -95,20 +102,21 @@
 
 ## 📊 Statistiques
 
-| Métrique | Valeur |
-|----------|--------|
-| **Fichiers de test créés** | 15 |
-| **Tests unitaires** | 30+ |
-| **Tests E2E** | 55+ |
-| **Lignes de code test** | ~3,500 |
-| **Documentation** | ~2,500 lignes |
-| **Couverture visée** | 70% minimum |
+| Métrique                   | Valeur        |
+| -------------------------- | ------------- |
+| **Fichiers de test créés** | 15            |
+| **Tests unitaires**        | 30+           |
+| **Tests E2E**              | 55+           |
+| **Lignes de code test**    | ~3,500        |
+| **Documentation**          | ~2,500 lignes |
+| **Couverture visée**       | 70% minimum   |
 
 ---
 
 ## 🚀 Comment utiliser
 
 ### 1. Installation initiale
+
 ```bash
 # Installer les dépendances
 npm install
@@ -120,6 +128,7 @@ docker-compose up -d postgres redis
 ### 2. Lancer les tests
 
 #### Tests unitaires (rapides)
+
 ```bash
 npm run test
 # ou en mode watch
@@ -127,6 +136,7 @@ npm run test:watch
 ```
 
 #### Tests E2E (avec DB)
+
 ```bash
 npm run test:e2e
 # ou par application
@@ -135,12 +145,14 @@ npm run test:e2e:school
 ```
 
 #### Tous les tests avec couverture
+
 ```bash
 npm run test:all
 npm run test:cov
 ```
 
 ### 3. Voir la couverture
+
 ```bash
 npm run test:cov
 # Puis ouvrir: coverage/lcov-report/index.html
@@ -151,18 +163,21 @@ npm run test:cov
 ## ✨ Points forts de cette implémentation
 
 ### 1. **Architecture solide**
+
 - ✅ Séparation claire unit/E2E
 - ✅ Helpers réutilisables
 - ✅ Fixtures centralisées
 - ✅ Configuration modulaire
 
 ### 2. **Couverture complète**
+
 - ✅ Services critiques testés (Courses, Children)
 - ✅ Authentification complète (JWT, refresh, logout)
 - ✅ CRUD organisations
 - ✅ Cas d'erreur couverts (404, 409, 400, 401)
 
 ### 3. **Best practices**
+
 - ✅ Mocking approprié (DB, HTTP, services externes)
 - ✅ Isolation des tests (beforeEach, afterEach)
 - ✅ Nommage descriptif ("should X when Y")
@@ -170,12 +185,14 @@ npm run test:cov
 - ✅ Cleanup après E2E
 
 ### 4. **Documentation exhaustive**
+
 - ✅ Guide complet (TESTING.md)
 - ✅ Quick start (test/README.md)
 - ✅ Exemples de code
 - ✅ Troubleshooting guide
 
 ### 5. **CI/CD Ready**
+
 - ✅ GitHub Actions workflow
 - ✅ Services PostgreSQL + Redis
 - ✅ Quality gate
@@ -186,7 +203,9 @@ npm run test:cov
 ## 🎯 Prochaines étapes recommandées
 
 ### Immédiat
+
 1. **Lancer les tests** pour vérifier que tout fonctionne
+
    ```bash
    npm run test:unit
    ```
@@ -196,9 +215,10 @@ npm run test:cov
 3. **Ajuster .env.test** selon votre environnement local
 
 ### Court terme (1-2 semaines)
+
 4. **Ajouter tests pour modules restants** :
    - NotificationsService
-   - GPSService  
+   - GPSService
    - TrajetsService
    - ParentsService
    - DriversService
@@ -212,6 +232,7 @@ npm run test:cov
    ```
 
 ### Moyen terme (1 mois)
+
 7. **Tests d'intégration** entre modules
    - Course → Trajet → PointsRecuperation
    - Child → Parent → Notifications
@@ -226,6 +247,7 @@ npm run test:cov
    - XSS, CSRF
 
 ### Long terme (3 mois)
+
 10. **Mutation testing** (Stryker)
     - Vérifier qualité des tests
     - Identifier code non testé
@@ -242,36 +264,43 @@ npm run test:cov
 
 ## 📈 Objectifs de couverture
 
-| Composant | Couverture actuelle | Objectif |
-|-----------|---------------------|----------|
-| CoursesService | 90%+ | ✅ Atteint |
-| ChildrenService | 85%+ | ✅ Atteint |
-| Auth API | 80%+ | ✅ Atteint |
-| Organisations API | 80%+ | ✅ Atteint |
-| **Autres services** | 0% | 🎯 70% |
-| **Global** | ~15% | 🎯 70% |
+| Composant           | Couverture actuelle | Objectif   |
+| ------------------- | ------------------- | ---------- |
+| CoursesService      | 90%+                | ✅ Atteint |
+| ChildrenService     | 85%+                | ✅ Atteint |
+| Auth API            | 80%+                | ✅ Atteint |
+| Organisations API   | 80%+                | ✅ Atteint |
+| **Autres services** | 0%                  | 🎯 70%     |
+| **Global**          | ~15%                | 🎯 70%     |
 
 ---
 
 ## 🐛 Problèmes connus & solutions
 
 ### 1. Tests timeout
+
 **Solution** : Augmenter `testTimeout` dans config
+
 ```typescript
-testTimeout: 60000 // 60 secondes
+testTimeout: 60000; // 60 secondes
 ```
 
 ### 2. Port déjà utilisé
+
 **Solution** :
+
 ```bash
 npx kill-port 3100 3101
 ```
 
 ### 3. Cannot find module @app/common
+
 **Solution** : Vérifier `moduleNameMapper` dans jest.config.ts
 
 ### 4. PostgreSQL non accessible
+
 **Solution** :
+
 ```bash
 docker-compose down
 docker-compose up -d

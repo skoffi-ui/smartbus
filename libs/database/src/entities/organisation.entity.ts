@@ -1,10 +1,4 @@
-import {
-  Entity,
-  Column,
-  OneToMany,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntityModel } from './base.entity';
 import { Subscription } from './subscription.entity';
 import { BiotimeTerminal } from './biotime-terminal.entity';
@@ -79,7 +73,12 @@ export class Organisation extends BaseEntityModel {
    * cette table ne doit jamais l'exposer en clair. `select: false` reste en
    * plus, en défense en profondeur (ne sort pas par défaut d'une requête).
    */
-  @Column({ name: 'db_password', nullable: true, select: false, transformer: OrganisationDbPasswordTransformer })
+  @Column({
+    name: 'db_password',
+    nullable: true,
+    select: false,
+    transformer: OrganisationDbPasswordTransformer,
+  })
   dbPassword: string;
 
   @Column({ name: 'db_provisioned', default: false })
@@ -125,7 +124,7 @@ export class Organisation extends BaseEntityModel {
   allowAdditionalDirectors: boolean;
 
   // ---- Relation vers les terminaux BioTime ----
-  @OneToMany(() => BiotimeTerminal, terminal => terminal.organisation)
+  @OneToMany(() => BiotimeTerminal, (terminal) => terminal.organisation)
   biotimeTerminals: BiotimeTerminal[];
 
   // ---- Relation vers les abonnements ----

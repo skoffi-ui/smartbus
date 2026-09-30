@@ -19,7 +19,9 @@
 // `on conflict (serial_number) do nothing`).
 const path = require('path');
 const R = path.resolve(__dirname, '../..');
-require(path.join(R, 'node_modules/dotenv')).config({ path: path.join(R, '.env') });
+require(path.join(R, 'node_modules/dotenv')).config({
+  path: path.join(R, '.env'),
+});
 const { Client } = require(path.join(R, 'node_modules/pg'));
 
 // Plage d'identifiants volontairement improbable côté vrai serveur BioTime,
@@ -27,9 +29,24 @@ const { Client } = require(path.join(R, 'node_modules/pg'));
 const DEPARTMENT_ID_DEMO = 9001;
 
 const TERMINAUX_DEMO = [
-  { serial: 'DEMO-TERM-001', nom: 'Badgeuse Bus 1 (Démo)', biotimeId: 9101, modele: 'ZKTeco F18' },
-  { serial: 'DEMO-TERM-002', nom: 'Badgeuse Bus 2 (Démo)', biotimeId: 9102, modele: 'ZKTeco F18' },
-  { serial: 'DEMO-TERM-003', nom: 'Badgeuse Portail École (Démo)', biotimeId: 9103, modele: 'SpeedFace-V5L' },
+  {
+    serial: 'DEMO-TERM-001',
+    nom: 'Badgeuse Bus 1 (Démo)',
+    biotimeId: 9101,
+    modele: 'ZKTeco F18',
+  },
+  {
+    serial: 'DEMO-TERM-002',
+    nom: 'Badgeuse Bus 2 (Démo)',
+    biotimeId: 9102,
+    modele: 'ZKTeco F18',
+  },
+  {
+    serial: 'DEMO-TERM-003',
+    nom: 'Badgeuse Portail École (Démo)',
+    biotimeId: 9103,
+    modele: 'SpeedFace-V5L',
+  },
 ];
 
 const base = {
@@ -41,7 +58,10 @@ const base = {
 
 /** Organisation ciblée (id, nom, code, base école, département déjà assigné ?), lue en base centrale. */
 async function organisationCiblee() {
-  const central = new Client({ ...base, database: process.env.SUPER_DB_NAME || 'smartbus_super' });
+  const central = new Client({
+    ...base,
+    database: process.env.SUPER_DB_NAME || 'smartbus_super',
+  });
   await central.connect();
   const cible = process.env.DEMO_ORG_CODE;
   const r = await central.query(
@@ -52,7 +72,9 @@ async function organisationCiblee() {
   );
   if (!r.rows.length) {
     await central.end();
-    throw new Error(cible ? `Aucune école de code ${cible}` : 'Aucune école en base centrale');
+    throw new Error(
+      cible ? `Aucune école de code ${cible}` : 'Aucune école en base centrale',
+    );
   }
   return { central, org: r.rows[0] };
 }
@@ -63,13 +85,17 @@ async function organisationCiblee() {
   try {
     // ---- Département BioTime de l'école -----------------------------------
     if (org.biotime_department_id) {
-      console.log(`Département BioTime déjà assigné à ${org.name} (id ${org.biotime_department_id}) — inchangé.`);
+      console.log(
+        `Département BioTime déjà assigné à ${org.name} (id ${org.biotime_department_id}) — inchangé.`,
+      );
     } else {
       await central.query(
         `update organisations set biotime_department_id = $1, biotime_department_name = $2 where id = $3`,
         [DEPARTMENT_ID_DEMO, `[DÉMO] ${org.name}`, org.id],
       );
-      console.log(`Département BioTime fictif assigné à ${org.name} (id ${DEPARTMENT_ID_DEMO}).`);
+      console.log(
+        `Département BioTime fictif assigné à ${org.name} (id ${DEPARTMENT_ID_DEMO}).`,
+      );
     }
 
     // ---- Badgeuses (terminaux) assignées à l'école -------------------------
@@ -81,22 +107,28 @@ async function organisationCiblee() {
         [t.serial, t.nom, t.biotimeId, t.modele, org.id],
       );
     }
-    const nbTerminaux = (await central.query(
-      'select count(*)::int n from biotime_terminals where organisation_id = $1',
-      [org.id],
-    )).rows[0].n;
+    const nbTerminaux = (
+      await central.query(
+        'select count(*)::int n from biotime_terminals where organisation_id = $1',
+        [org.id],
+      )
+    ).rows[0].n;
     console.log(`${nbTerminaux} badgeuse(s) assignée(s) à ${org.name}.`);
 
     // ---- Statut de synchro des élèves (base de l'école) --------------------
     const ecole = new Client({ ...base, database: org.db_name });
     await ecole.connect();
     try {
-      const enfants = (await ecole.query(
-        `select id, emp_code from children where deleted_at is null and last_modified_source = 'demo' order by created_at`,
-      )).rows;
+      const enfants = (
+        await ecole.query(
+          `select id, emp_code from children where deleted_at is null and last_modified_source = 'demo' order by created_at`,
+        )
+      ).rows;
 
       if (enfants.length === 0) {
-        console.log("Aucun élève de démonstration trouvé — lancez d'abord `npm run demo:peupler`.");
+        console.log(
+          "Aucun élève de démonstration trouvé — lancez d'abord `npm run demo:peupler`.",
+        );
       } else {
         let biotimeId = 9200;
         for (let i = 0; i < enfants.length; i++) {
@@ -120,17 +152,22 @@ async function organisationCiblee() {
             );
           }
         }
-        const repartition = (await ecole.query(
-          `select biotime_sync_status, count(*)::int n from children where deleted_at is null group by biotime_sync_status`,
-        )).rows;
+        const repartition = (
+          await ecole.query(
+            `select biotime_sync_status, count(*)::int n from children where deleted_at is null group by biotime_sync_status`,
+          )
+        ).rows;
         console.log('\n=== statut de synchro BioTime (fictif) ===');
-        for (const r of repartition) console.log(`  ${String(r.biotime_sync_status).padEnd(15)} ${r.n}`);
+        for (const r of repartition)
+          console.log(`  ${String(r.biotime_sync_status).padEnd(15)} ${r.n}`);
       }
     } finally {
       await ecole.end();
     }
 
-    console.log('\nRappel : ces données sont 100% fictives, aucun appel n\'a été fait à un vrai serveur BioTime.');
+    console.log(
+      "\nRappel : ces données sont 100% fictives, aucun appel n'a été fait à un vrai serveur BioTime.",
+    );
   } catch (e) {
     console.error('ECHEC :', e.message);
     process.exitCode = 1;

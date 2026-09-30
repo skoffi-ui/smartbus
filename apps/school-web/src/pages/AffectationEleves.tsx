@@ -1,5 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Users, Search, Plus, Trash2, MapPin, RefreshCw, AlertCircle, Route, CheckCircle2, Circle, GripVertical, UserCheck, UserX, TrendingUp } from 'lucide-react';
+import {
+  Users,
+  Search,
+  Plus,
+  Trash2,
+  MapPin,
+  RefreshCw,
+  AlertCircle,
+  Route,
+  CheckCircle2,
+  Circle,
+  GripVertical,
+  UserCheck,
+  UserX,
+  TrendingUp,
+} from 'lucide-react';
 import {
   getCourses,
   getPointsByCourse,
@@ -36,7 +51,9 @@ interface Affectation {
 }
 
 const nomComplet = (e?: Eleve) =>
-  e ? `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || 'Élève sans nom' : 'Élève inconnu';
+  e
+    ? `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim() || 'Élève sans nom'
+    : 'Élève inconnu';
 
 /**
  * Affectation des élèves aux points de récupération, PAR COURSE.
@@ -69,10 +86,15 @@ export default function AffectationEleves() {
 
   const toast = useToast();
   const confirmer = useConfirm();
-  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => toast[type](message);
+  const showToast = (
+    message: string,
+    type: 'success' | 'error' | 'info' = 'success',
+  ) => toast[type](message);
 
   // Animation de succès
-  const [recentlyAffected, setRecentlyAffected] = useState<Set<string>>(new Set());
+  const [recentlyAffected, setRecentlyAffected] = useState<Set<string>>(
+    new Set(),
+  );
   const [showConfetti, setShowConfetti] = useState(false);
   const [statsChanged, setStatsChanged] = useState(false);
 
@@ -97,12 +119,21 @@ export default function AffectationEleves() {
     setChargement(true);
     setErreur('');
     try {
-      const [c, e, a] = await Promise.all([getCourses(), getEleves(), getAffectations()]);
+      const [c, e, a] = await Promise.all([
+        getCourses(),
+        getEleves(),
+        getAffectations(),
+      ]);
       setCourses(Array.isArray(c) ? c : []);
       setEleves(Array.isArray(e) ? e : []);
       setAffectations(Array.isArray(a) ? a : []);
     } catch (err) {
-      setErreur(messageFromError(err, "Impossible de charger les données d'affectation."));
+      setErreur(
+        messageFromError(
+          err,
+          "Impossible de charger les données d'affectation.",
+        ),
+      );
     } finally {
       setChargement(false);
     }
@@ -134,7 +165,12 @@ export default function AffectationEleves() {
         if (!annule) {
           setPoints([]);
           setPointActif(null);
-          setErreur(messageFromError(err, 'Impossible de charger les arrêts de cette course.'));
+          setErreur(
+            messageFromError(
+              err,
+              'Impossible de charger les arrêts de cette course.',
+            ),
+          );
         }
       })
       .finally(() => !annule && setChargementPoints(false));
@@ -162,12 +198,16 @@ export default function AffectationEleves() {
   }, [affectationsDeLaCourse]);
 
   const nomDuPoint = useCallback(
-    (pointId: string) => points.find((p) => p.id === pointId)?.nom ?? 'un autre arrêt',
+    (pointId: string) =>
+      points.find((p) => p.id === pointId)?.nom ?? 'un autre arrêt',
     [points],
   );
 
   const affectesAuPoint = useMemo(
-    () => (pointActif ? affectationsDeLaCourse.filter((a) => a.pointId === pointActif.id) : []),
+    () =>
+      pointActif
+        ? affectationsDeLaCourse.filter((a) => a.pointId === pointActif.id)
+        : [],
     [affectationsDeLaCourse, pointActif],
   );
 
@@ -178,7 +218,9 @@ export default function AffectationEleves() {
       .filter((e) =>
         !q
           ? true
-          : `${nomComplet(e)} ${e.className ?? ''} ${e.empCode ?? ''}`.toLowerCase().includes(q),
+          : `${nomComplet(e)} ${e.className ?? ''} ${e.empCode ?? ''}`
+              .toLowerCase()
+              .includes(q),
       );
   }, [eleves, affectationParEleve, recherche]);
 
@@ -192,7 +234,12 @@ export default function AffectationEleves() {
   );
 
   // ── Statistiques globales ──
-  const [prevStats, setPrevStats] = useState({ total: 0, affectes: 0, nonAffectes: 0, pourcentage: 0 });
+  const [prevStats, setPrevStats] = useState({
+    total: 0,
+    affectes: 0,
+    nonAffectes: 0,
+    pourcentage: 0,
+  });
   const stats = useMemo(() => {
     const total = eleves.length;
     const affectes = affectationsDeLaCourse.length;
@@ -207,7 +254,11 @@ export default function AffectationEleves() {
       setStatsChanged(true);
       setTimeout(() => setStatsChanged(false), 600);
     }
-    if (stats.pourcentage === 100 && prevStats.pourcentage < 100 && stats.total > 0) {
+    if (
+      stats.pourcentage === 100 &&
+      prevStats.pourcentage < 100 &&
+      stats.total > 0
+    ) {
       triggerConfetti();
       showToast('🎉 Tous les élèves sont affectés !', 'success');
     }
@@ -225,12 +276,21 @@ export default function AffectationEleves() {
       // ramassage — l'ordre de passage restait donc silencieusement inerte
       // pour tout trajet géré depuis cet écran plutôt que TrajetEditor.tsx
       // (qui, lui, le calcule déjà correctement).
-      const ordreMontee = affectationsDeLaCourse.filter((a) => a.pointId === pointActif.id).length + 1;
-      await affecterEnfant(pointActif.id, { childId: eleve.id, ordreMontee, courseId });
+      const ordreMontee =
+        affectationsDeLaCourse.filter((a) => a.pointId === pointActif.id)
+          .length + 1;
+      await affecterEnfant(pointActif.id, {
+        childId: eleve.id,
+        ordreMontee,
+        courseId,
+      });
       const a = await getAffectations();
       setAffectations(Array.isArray(a) ? a : []);
       triggerSuccessAnimation(eleve.id);
-      showToast(`${nomComplet(eleve)} a été affecté(e) à ${pointActif.nom}`, 'success');
+      showToast(
+        `${nomComplet(eleve)} a été affecté(e) à ${pointActif.nom}`,
+        'success',
+      );
     } catch (err) {
       setErreur(messageFromError(err, "Impossible d'affecter cet élève."));
       showToast("Échec de l'affectation", 'error');
@@ -241,7 +301,12 @@ export default function AffectationEleves() {
 
   const desaffecter = async (affectation: Affectation) => {
     const eleveNom = nomComplet(affectation.child);
-    if (!(await confirmer(`Voulez-vous vraiment retirer ${eleveNom} de cet arrêt ?`))) return;
+    if (
+      !(await confirmer(
+        `Voulez-vous vraiment retirer ${eleveNom} de cet arrêt ?`,
+      ))
+    )
+      return;
 
     setEnCours(affectation.id);
     setErreur('');
@@ -277,11 +342,17 @@ export default function AffectationEleves() {
     setEnCours('bulk');
     setErreur('');
     try {
-      const ordreDeBase = affectationsDeLaCourse.filter((a) => a.pointId === pointActif.id).length;
+      const ordreDeBase = affectationsDeLaCourse.filter(
+        (a) => a.pointId === pointActif.id,
+      ).length;
       await Promise.all(
         eleveIds.map((childId, index) =>
-          affecterEnfant(pointActif.id, { childId, ordreMontee: ordreDeBase + index + 1, courseId })
-        )
+          affecterEnfant(pointActif.id, {
+            childId,
+            ordreMontee: ordreDeBase + index + 1,
+            courseId,
+          }),
+        ),
       );
       const a = await getAffectations();
       setAffectations(Array.isArray(a) ? a : []);
@@ -292,7 +363,10 @@ export default function AffectationEleves() {
         triggerConfetti();
       }
       setSelectedEleves(new Set());
-      showToast(`${count} élève${count > 1 ? 's' : ''} affecté${count > 1 ? 's' : ''} à ${pointActif.nom}`, 'success');
+      showToast(
+        `${count} élève${count > 1 ? 's' : ''} affecté${count > 1 ? 's' : ''} à ${pointActif.nom}`,
+        'success',
+      );
     } catch (err) {
       setErreur(messageFromError(err, "Impossible d'affecter ces élèves."));
       showToast("Échec de l'affectation en masse", 'error');
@@ -366,7 +440,8 @@ export default function AffectationEleves() {
             Affectation des Élèves
           </h1>
           <p className="text-gray-500 mt-2">
-            Associez chaque élève à l'arrêt où il monte. Utilisez le drag & drop ou les boutons.
+            Associez chaque élève à l'arrêt où il monte. Utilisez le drag & drop
+            ou les boutons.
           </p>
         </div>
         <div className="flex gap-2">
@@ -375,7 +450,7 @@ export default function AffectationEleves() {
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
           >
             <MapPin size={15} />
-            {showAllStops ? 'Masquer' : 'Vue d\'ensemble'}
+            {showAllStops ? 'Masquer' : "Vue d'ensemble"}
           </button>
           <button
             onClick={charger}
@@ -394,7 +469,11 @@ export default function AffectationEleves() {
           ) : (
             <Circle size={20} className="text-gray-300" />
           )}
-          <span className={courseId ? 'text-green-600 font-medium' : 'text-gray-400'}>
+          <span
+            className={
+              courseId ? 'text-green-600 font-medium' : 'text-gray-400'
+            }
+          >
             1. Course
           </span>
         </div>
@@ -405,7 +484,11 @@ export default function AffectationEleves() {
           ) : (
             <Circle size={20} className="text-gray-300" />
           )}
-          <span className={pointActif ? 'text-green-600 font-medium' : 'text-gray-400'}>
+          <span
+            className={
+              pointActif ? 'text-green-600 font-medium' : 'text-gray-400'
+            }
+          >
             2. Arrêt
           </span>
         </div>
@@ -442,36 +525,54 @@ export default function AffectationEleves() {
         </div>
 
         {/* Élèves affectés */}
-        <div className={`glass-panel p-4 flex items-center gap-4 transition-all ${statsChanged ? 'animate-stats-update' : ''}`}>
-          <div className={`w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center ${statsChanged ? 'animate-bounce-small' : ''}`}>
+        <div
+          className={`glass-panel p-4 flex items-center gap-4 transition-all ${statsChanged ? 'animate-stats-update' : ''}`}
+        >
+          <div
+            className={`w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center ${statsChanged ? 'animate-bounce-small' : ''}`}
+          >
             <UserCheck size={24} className="text-green-600" />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Affectés</p>
-            <p className="text-2xl font-bold text-green-600">{stats.affectes}</p>
+            <p className="text-2xl font-bold text-green-600">
+              {stats.affectes}
+            </p>
           </div>
         </div>
 
         {/* Élèves non affectés */}
-        <div className={`glass-panel p-4 flex items-center gap-4 transition-all ${statsChanged ? 'animate-stats-update' : ''}`}>
-          <div className={`w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center ${statsChanged ? 'animate-bounce-small' : ''}`}>
+        <div
+          className={`glass-panel p-4 flex items-center gap-4 transition-all ${statsChanged ? 'animate-stats-update' : ''}`}
+        >
+          <div
+            className={`w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center ${statsChanged ? 'animate-bounce-small' : ''}`}
+          >
             <UserX size={24} className="text-orange-600" />
           </div>
           <div>
             <p className="text-sm text-gray-500 font-medium">Non Affectés</p>
-            <p className="text-2xl font-bold text-orange-600">{stats.nonAffectes}</p>
+            <p className="text-2xl font-bold text-orange-600">
+              {stats.nonAffectes}
+            </p>
           </div>
         </div>
 
         {/* Progression */}
-        <div className={`glass-panel p-4 flex items-center gap-4 transition-all ${statsChanged ? 'animate-stats-update' : ''}`}>
-          <div className={`w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center ${statsChanged ? 'animate-bounce-small' : ''}`}>
+        <div
+          className={`glass-panel p-4 flex items-center gap-4 transition-all ${statsChanged ? 'animate-stats-update' : ''}`}
+        >
+          <div
+            className={`w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center ${statsChanged ? 'animate-bounce-small' : ''}`}
+          >
             <TrendingUp size={24} className="text-purple-600" />
           </div>
           <div className="flex-1">
             <p className="text-sm text-gray-500 font-medium">Progression</p>
             <div className="flex items-center gap-2">
-              <p className="text-2xl font-bold text-purple-600">{stats.pourcentage}%</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {stats.pourcentage}%
+              </p>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2 mt-1 overflow-hidden">
               <div
@@ -496,8 +597,9 @@ export default function AffectationEleves() {
 
       {courses.length === 0 && (
         <div className="mb-4 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-          Aucune course n'existe encore. Créez une course et son trajet dans « Courses » et
-          « Trajets », puis ajoutez-y des arrêts pour pouvoir affecter des élèves.
+          Aucune course n'existe encore. Créez une course et son trajet dans «
+          Courses » et « Trajets », puis ajoutez-y des arrêts pour pouvoir
+          affecter des élèves.
         </div>
       )}
 
@@ -510,12 +612,26 @@ export default function AffectationEleves() {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {points.map((point) => {
-              const nb = affectations.filter((a) => a.pointId === point.id).length;
+              const nb = affectations.filter(
+                (a) => a.pointId === point.id,
+              ).length;
               const pct = nb > 0 ? Math.min((nb / 40) * 100, 100) : 0;
               const color =
-                pct === 0 ? 'bg-gray-100' : pct < 50 ? 'bg-yellow-100' : pct < 80 ? 'bg-orange-100' : 'bg-green-100';
+                pct === 0
+                  ? 'bg-gray-100'
+                  : pct < 50
+                    ? 'bg-yellow-100'
+                    : pct < 80
+                      ? 'bg-orange-100'
+                      : 'bg-green-100';
               const textColor =
-                pct === 0 ? 'text-gray-600' : pct < 50 ? 'text-yellow-700' : pct < 80 ? 'text-orange-700' : 'text-green-700';
+                pct === 0
+                  ? 'text-gray-600'
+                  : pct < 50
+                    ? 'text-yellow-700'
+                    : pct < 80
+                      ? 'text-orange-700'
+                      : 'text-green-700';
               return (
                 <button
                   key={point.id}
@@ -525,7 +641,9 @@ export default function AffectationEleves() {
                   }}
                   className={`${color} ${textColor} p-3 rounded-lg text-left hover:shadow-md transition-all`}
                 >
-                  <div className="text-xs font-medium mb-1 truncate">{point.nom}</div>
+                  <div className="text-xs font-medium mb-1 truncate">
+                    {point.nom}
+                  </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-white/50 rounded-full h-1.5 overflow-hidden">
                       <div
@@ -575,7 +693,9 @@ export default function AffectationEleves() {
             )}
 
             {courseId && chargementPoints && (
-              <p className="text-sm text-gray-400 py-4 text-center">Chargement des arrêts…</p>
+              <p className="text-sm text-gray-400 py-4 text-center">
+                Chargement des arrêts…
+              </p>
             )}
 
             {courseId && !chargementPoints && points.length === 0 && (
@@ -588,11 +708,19 @@ export default function AffectationEleves() {
             )}
 
             {points.map((point) => {
-              const nb = affectations.filter((a) => a.pointId === point.id).length;
+              const nb = affectations.filter(
+                (a) => a.pointId === point.id,
+              ).length;
               const actif = pointActif?.id === point.id;
               const pct = Math.min((nb / 40) * 100, 100);
               const statusColor =
-                nb === 0 ? 'text-gray-400' : pct < 50 ? 'text-yellow-600' : pct < 80 ? 'text-orange-600' : 'text-green-600';
+                nb === 0
+                  ? 'text-gray-400'
+                  : pct < 50
+                    ? 'text-yellow-600'
+                    : pct < 80
+                      ? 'text-orange-600'
+                      : 'text-green-600';
               return (
                 <button
                   key={point.id}
@@ -606,9 +734,14 @@ export default function AffectationEleves() {
                       : 'border-gray-200 hover:bg-gray-50 hover:border-gray-300'
                   }`}
                 >
-                  <MapPin size={18} className={`shrink-0 mt-0.5 ${actif ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <MapPin
+                    size={18}
+                    className={`shrink-0 mt-0.5 ${actif ? 'text-blue-600' : 'text-gray-400'}`}
+                  />
                   <div className="flex-1 text-left min-w-0">
-                    <div className={`font-medium truncate ${actif ? 'text-blue-700' : 'text-gray-700'}`}>
+                    <div
+                      className={`font-medium truncate ${actif ? 'text-blue-700' : 'text-gray-700'}`}
+                    >
                       {point.ordrePassage ? `${point.ordrePassage}. ` : ''}
                       {point.nom}
                     </div>
@@ -616,12 +749,20 @@ export default function AffectationEleves() {
                       <div className="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
                         <div
                           className={`h-full transition-all ${
-                            nb === 0 ? 'bg-gray-300' : pct < 50 ? 'bg-yellow-500' : pct < 80 ? 'bg-orange-500' : 'bg-green-500'
+                            nb === 0
+                              ? 'bg-gray-300'
+                              : pct < 50
+                                ? 'bg-yellow-500'
+                                : pct < 80
+                                  ? 'bg-orange-500'
+                                  : 'bg-green-500'
                           }`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>
-                      <span className={`text-xs font-bold ${statusColor}`}>{nb}</span>
+                      <span className={`text-xs font-bold ${statusColor}`}>
+                        {nb}
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -634,25 +775,30 @@ export default function AffectationEleves() {
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col min-h-0">
           {!pointActif ? (
             <div className="flex-1 flex items-center justify-center text-gray-500 text-center px-6">
-              Sélectionnez un arrêt à gauche pour voir et modifier les élèves qui y montent.
+              Sélectionnez un arrêt à gauche pour voir et modifier les élèves
+              qui y montent.
             </div>
           ) : (
             <>
               <div className="flex flex-wrap justify-between items-center gap-3 mb-4 pb-4 border-b border-gray-100">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-800">
-                    Arrêt : <span className="text-blue-600">{pointActif.nom}</span>
+                    Arrêt :{' '}
+                    <span className="text-blue-600">{pointActif.nom}</span>
                   </h2>
                   <div className="flex items-center gap-3 mt-1">
                     <span className="text-sm text-gray-500">
-                      {affectesAuPoint.length} élève{affectesAuPoint.length > 1 ? 's' : ''}
+                      {affectesAuPoint.length} élève
+                      {affectesAuPoint.length > 1 ? 's' : ''}
                     </span>
                     {/* Barre de progression */}
                     <div className="flex items-center gap-2">
                       <div className="w-24 bg-gray-200 rounded-full h-2 overflow-hidden">
                         <div
                           className="h-full bg-blue-600 transition-all"
-                          style={{ width: `${Math.min((affectesAuPoint.length / 40) * 100, 100)}%` }}
+                          style={{
+                            width: `${Math.min((affectesAuPoint.length / 40) * 100, 100)}%`,
+                          }}
                         />
                       </div>
                       <span className="text-xs text-gray-400">/40</span>
@@ -678,7 +824,10 @@ export default function AffectationEleves() {
                       onChange={(e) => setRecherche(e.target.value)}
                       className="pl-9 pr-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none w-48"
                     />
-                    <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+                    <Search
+                      size={16}
+                      className="absolute left-3 top-3 text-gray-400"
+                    />
                   </div>
                 </div>
               </div>
@@ -691,7 +840,14 @@ export default function AffectationEleves() {
                   onDrop={handleDrop}
                 >
                   <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2">
-                    <CheckCircle2 size={16} className={draggedEleve ? 'text-blue-600 animate-bounce-small' : 'text-green-600'} />
+                    <CheckCircle2
+                      size={16}
+                      className={
+                        draggedEleve
+                          ? 'text-blue-600 animate-bounce-small'
+                          : 'text-green-600'
+                      }
+                    />
                     <span>Montent à cet arrêt</span>
                     {draggedEleve && (
                       <span className="ml-auto text-xs font-medium px-2 py-1 rounded-full bg-blue-100 text-blue-700 animate-pulse">
@@ -712,8 +868,12 @@ export default function AffectationEleves() {
                           <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-blue-500 flex items-center justify-center">
                             <Plus size={32} className="text-white" />
                           </div>
-                          <p className="text-lg font-bold text-blue-700">Déposez {nomComplet(draggedEleve)} ici</p>
-                          <p className="text-sm text-blue-600 mt-1">pour l'affecter à {pointActif?.nom}</p>
+                          <p className="text-lg font-bold text-blue-700">
+                            Déposez {nomComplet(draggedEleve)} ici
+                          </p>
+                          <p className="text-sm text-blue-600 mt-1">
+                            pour l'affecter à {pointActif?.nom}
+                          </p>
                         </div>
                       </div>
                     )}
@@ -721,38 +881,46 @@ export default function AffectationEleves() {
                       <p className="text-sm text-gray-400 py-4 text-center">
                         Aucun élève affecté
                       </p>
-                    ) : !draggedEleve && (
-                      <ul className="space-y-2">
-                        {affectesAuPoint.map((a) => (
-                          <li
-                            key={a.id}
-                            className={`flex items-center gap-3 p-3 rounded-lg border shadow-sm hover:shadow transition-all ${
-                              recentlyAffected.has(a.childId)
-                                ? 'border-green-400 bg-green-50 animate-success-pulse'
-                                : 'border-green-100 bg-white'
-                            }`}
-                          >
-                            <CheckCircle2 size={18} className={`shrink-0 ${recentlyAffected.has(a.childId) ? 'text-green-600 animate-bounce-small' : 'text-green-600'}`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-gray-900 truncate">
-                                {nomComplet(a.child)}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {a.child?.className ?? 'Classe non renseignée'}
-                                {a.child?.empCode ? ` · ${a.child.empCode}` : ''}
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => desaffecter(a)}
-                              disabled={enCours === a.id}
-                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
-                              title="Retirer de cet arrêt"
+                    ) : (
+                      !draggedEleve && (
+                        <ul className="space-y-2">
+                          {affectesAuPoint.map((a) => (
+                            <li
+                              key={a.id}
+                              className={`flex items-center gap-3 p-3 rounded-lg border shadow-sm hover:shadow transition-all ${
+                                recentlyAffected.has(a.childId)
+                                  ? 'border-green-400 bg-green-50 animate-success-pulse'
+                                  : 'border-green-100 bg-white'
+                              }`}
                             >
-                              <Trash2 size={18} />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                              <CheckCircle2
+                                size={18}
+                                className={`shrink-0 ${recentlyAffected.has(a.childId) ? 'text-green-600 animate-bounce-small' : 'text-green-600'}`}
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900 truncate">
+                                  {nomComplet(a.child)}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {a.child?.className ??
+                                    'Classe non renseignée'}
+                                  {a.child?.empCode
+                                    ? ` · ${a.child.empCode}`
+                                    : ''}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => desaffecter(a)}
+                                disabled={enCours === a.id}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
+                                title="Retirer de cet arrêt"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )
                     )}
                   </div>
                 </div>
@@ -762,7 +930,9 @@ export default function AffectationEleves() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-sm font-semibold text-gray-600 flex items-center gap-2">
                       <Users size={16} className="text-gray-600" />
-                      <span>Élèves sans arrêt ({elevesDisponibles.length})</span>
+                      <span>
+                        Élèves sans arrêt ({elevesDisponibles.length})
+                      </span>
                       {elevesDisponibles.length > 0 && (
                         <span className="text-xs font-normal px-2 py-1 rounded-full bg-gray-200 text-gray-600 flex items-center gap-1">
                           <GripVertical size={12} />
@@ -773,10 +943,14 @@ export default function AffectationEleves() {
                     {elevesDisponibles.length > 0 && (
                       <button
                         onClick={() => {
-                          if (selectedEleves.size === elevesDisponibles.length) {
+                          if (
+                            selectedEleves.size === elevesDisponibles.length
+                          ) {
                             setSelectedEleves(new Set());
                           } else {
-                            setSelectedEleves(new Set(elevesDisponibles.map((e) => e.id)));
+                            setSelectedEleves(
+                              new Set(elevesDisponibles.map((e) => e.id)),
+                            );
                           }
                         }}
                         className="text-xs text-blue-600 hover:underline"
@@ -789,7 +963,9 @@ export default function AffectationEleves() {
                   </div>
                   {nbAffectesAilleurs > 0 && (
                     <p className="text-xs text-gray-400 mb-2">
-                      {nbAffectesAilleurs} élève{nbAffectesAilleurs > 1 ? 's' : ''} déjà placé{nbAffectesAilleurs > 1 ? 's' : ''} ailleurs
+                      {nbAffectesAilleurs} élève
+                      {nbAffectesAilleurs > 1 ? 's' : ''} déjà placé
+                      {nbAffectesAilleurs > 1 ? 's' : ''} ailleurs
                     </p>
                   )}
                   <div className="flex-1 overflow-y-auto p-3 rounded-lg bg-gray-50">
@@ -815,8 +991,8 @@ export default function AffectationEleves() {
                               draggedEleve?.id === e.id
                                 ? 'border-blue-400 opacity-30 scale-95 cursor-grabbing'
                                 : selectedEleves.has(e.id)
-                                ? 'border-blue-300 bg-blue-50 cursor-grab hover:shadow-lg'
-                                : 'border-gray-200 cursor-grab hover:shadow-lg hover:border-blue-200'
+                                  ? 'border-blue-300 bg-blue-50 cursor-grab hover:shadow-lg'
+                                  : 'border-gray-200 cursor-grab hover:shadow-lg hover:border-blue-200'
                             }`}
                           >
                             <input
@@ -827,7 +1003,10 @@ export default function AffectationEleves() {
                               onClick={(ev) => ev.stopPropagation()}
                             />
                             <div className="drag-handle p-1 rounded hover:bg-gray-100 transition-colors">
-                              <GripVertical size={18} className="text-gray-400 shrink-0" />
+                              <GripVertical
+                                size={18}
+                                className="text-gray-400 shrink-0"
+                              />
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-gray-900 truncate">
@@ -869,7 +1048,13 @@ export default function AffectationEleves() {
                 style={{
                   left: `${Math.random() * 100}%`,
                   animationDelay: `${Math.random() * 0.5}s`,
-                  backgroundColor: ['#22c55e', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'][Math.floor(Math.random() * 5)],
+                  backgroundColor: [
+                    '#22c55e',
+                    '#3b82f6',
+                    '#f59e0b',
+                    '#ef4444',
+                    '#8b5cf6',
+                  ][Math.floor(Math.random() * 5)],
                 }}
               />
             ))}

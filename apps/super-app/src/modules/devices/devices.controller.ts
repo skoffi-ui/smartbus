@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DevicesService, DeviceData } from './devices.service';
 import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
@@ -23,7 +31,9 @@ export class DevicesController {
   }
 
   @Get('gpswox-sante')
-  @ApiOperation({ summary: 'Santé du sondage GPSWOX (dernier succès, échecs consécutifs)' })
+  @ApiOperation({
+    summary: 'Santé du sondage GPSWOX (dernier succès, échecs consécutifs)',
+  })
   getGpswoxSante() {
     return this.gpswoxService.getSante();
   }

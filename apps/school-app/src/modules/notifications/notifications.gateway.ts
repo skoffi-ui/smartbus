@@ -16,18 +16,24 @@ import { Logger } from '@nestjs/common';
   },
   namespace: 'notifications',
 })
-export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class NotificationsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(NotificationsGateway.name);
 
   @WebSocketServer()
   server: Server;
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connecté au Namespace des Notifications : ${client.id}`);
+    this.logger.log(
+      `Client connecté au Namespace des Notifications : ${client.id}`,
+    );
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client déconnecté du Namespace des Notifications : ${client.id}`);
+    this.logger.log(
+      `Client déconnecté du Namespace des Notifications : ${client.id}`,
+    );
   }
 
   /**
@@ -42,7 +48,10 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
       const room = `child_${data.childId}`;
       client.join(room);
       this.logger.log(`Client ${client.id} a rejoint la salle : ${room}`);
-      return { status: 'success', message: `Abonné avec succès à la salle ${room}` };
+      return {
+        status: 'success',
+        message: `Abonné avec succès à la salle ${room}`,
+      };
     }
     return { status: 'error', message: 'childId invalide.' };
   }
@@ -53,6 +62,8 @@ export class NotificationsGateway implements OnGatewayConnection, OnGatewayDisco
   sendPunchNotificationToParent(childId: string, payload: any) {
     const room = `child_${childId}`;
     this.server.to(room).emit('punch_event', payload);
-    this.logger.log(`📢 Diffusion du pointage à la salle ${room} : ${JSON.stringify(payload)}`);
+    this.logger.log(
+      `📢 Diffusion du pointage à la salle ${room} : ${JSON.stringify(payload)}`,
+    );
   }
 }

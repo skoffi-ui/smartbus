@@ -37,7 +37,7 @@ async function bootstrap() {
     .addTag('parents', 'Gestion des parents et liens parent-enfant')
     .addTag('drivers', 'Gestion des chauffeurs')
     .addTag('cars', 'Gestion du parc automobile')
-    .addTag('routes', 'Gestion des trajets et points d\'arrêt')
+    .addTag('routes', "Gestion des trajets et points d'arrêt")
     .addTag('trips', 'Gestion des courses (exécution des trajets)')
     .addTag('biometric-events', 'Événements biométriques (montée/descente)')
     .addTag('notifications', 'Notifications aux parents')
@@ -56,7 +56,9 @@ async function bootstrap() {
   await app.listen(port, host);
 
   console.log(`\n🏫 SMARTBUS School App running on: http://localhost:${port}`);
-  console.log(`📚 Swagger docs available at: http://localhost:${port}/api/docs\n`);
+  console.log(
+    `📚 Swagger docs available at: http://localhost:${port}/api/docs\n`,
+  );
 }
 
 bootstrap();

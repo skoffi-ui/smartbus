@@ -1,7 +1,16 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Payment, SandboxPaymentStatus, SandboxPaymentMethod, Subscription, SubscriptionStatus, SubscriptionPlan, Organisation, OrganisationStatus } from '@app/database';
+import {
+  Payment,
+  SandboxPaymentStatus,
+  SandboxPaymentMethod,
+  Subscription,
+  SubscriptionStatus,
+  SubscriptionPlan,
+  Organisation,
+  OrganisationStatus,
+} from '@app/database';
 import { PlanTarifsService } from '../plan-tarifs/plan-tarifs.service';
 
 @Injectable()
@@ -28,14 +37,23 @@ export class PaymentsService {
    * la durée accordée doit être réelle. Même calcul que
    * `CinetpayService.handleWebhook` (flux Mobile Money).
    */
-  async sandboxCheckout(organisationId: string, plan: SubscriptionPlan = SubscriptionPlan.STARTER) {
-    const org = await this.organisationRepository.findOne({ where: { id: organisationId } });
+  async sandboxCheckout(
+    organisationId: string,
+    plan: SubscriptionPlan = SubscriptionPlan.STARTER,
+  ) {
+    const org = await this.organisationRepository.findOne({
+      where: { id: organisationId },
+    });
     if (!org) {
-      throw new NotFoundException(`Organisation ${organisationId} introuvable.`);
+      throw new NotFoundException(
+        `Organisation ${organisationId} introuvable.`,
+      );
     }
 
     // 1. Chercher l'abonnement existant ou en créer un nouveau
-    let subscription = await this.subscriptionRepository.findOne({ where: { organisationId } });
+    let subscription = await this.subscriptionRepository.findOne({
+      where: { organisationId },
+    });
 
     // Tarif réel du forfait demandé (voir PlanTarif) — avant ce correctif,
     // seuls 2 prix existaient en dur pour les 5 forfaits (BASIC/STANDARD/
@@ -44,7 +62,11 @@ export class PaymentsService {
     const tarif = await this.planTarifsService.findOne(plan);
 
     const now = new Date();
-    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+    const endDate = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      now.getDate(),
+    );
 
     if (subscription) {
       // Lu AVANT d'écraser le statut ci-dessous : sinon la comparaison
@@ -94,10 +116,13 @@ export class PaymentsService {
       await this.organisationRepository.save(org);
     }
 
-    this.logger.log(`Paiement Sandbox réussi pour l'école ${org.code}. Fin de l'abonnement: ${endDate.toLocaleTimeString()}`);
+    this.logger.log(
+      `Paiement Sandbox réussi pour l'école ${org.code}. Fin de l'abonnement: ${endDate.toLocaleTimeString()}`,
+    );
 
     return {
-      message: 'Paiement de test réussi ! L\'abonnement est prolongé de 5 minutes.',
+      message:
+        "Paiement de test réussi ! L'abonnement est prolongé de 5 minutes.",
       subscription,
       payment,
     };

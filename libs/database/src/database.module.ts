@@ -37,15 +37,28 @@ import { TenantConnectionService } from './tenant-connection.service';
         // enregistrant BiotimeTerminal via `forFeature` pour compenser via
         // `autoLoadEntities` (contrairement à super-app, où biotime.module.ts
         // le fait — coïncidence qui masquait le problème).
-        entities: [Organisation, User, Subscription, BillingRecord, MetaData, Payment, AuditLog, SuperAppChild, SuperAppPunch, TenantSchemaVersion, BiotimeConfig, BiotimeTerminal],
+        entities: [
+          Organisation,
+          User,
+          Subscription,
+          BillingRecord,
+          MetaData,
+          Payment,
+          AuditLog,
+          SuperAppChild,
+          SuperAppPunch,
+          TenantSchemaVersion,
+          BiotimeConfig,
+          BiotimeTerminal,
+        ],
         // En développement uniquement – à désactiver en production
         synchronize: configService.get<string>('NODE_ENV') === 'development',
         logging: configService.get<string>('NODE_ENV') === 'development',
         autoLoadEntities: true,
         ssl:
           configService.get<string>('NODE_ENV') === 'production'
-              ? { rejectUnauthorized: false }
-              : false,
+            ? { rejectUnauthorized: false }
+            : false,
       }),
       inject: [ConfigService],
     }),

@@ -90,9 +90,15 @@ export class CreateAlertsCritiques1721140000005 implements MigrationInterface {
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.startTransaction();
     try {
-      await queryRunner.query(`DROP INDEX IF EXISTS "IDX_alertes_critiques_severity"`);
-      await queryRunner.query(`DROP INDEX IF EXISTS "IDX_alertes_critiques_child_id"`);
-      await queryRunner.query(`DROP INDEX IF EXISTS "IDX_alertes_critiques_resolved_created"`);
+      await queryRunner.query(
+        `DROP INDEX IF EXISTS "IDX_alertes_critiques_severity"`,
+      );
+      await queryRunner.query(
+        `DROP INDEX IF EXISTS "IDX_alertes_critiques_child_id"`,
+      );
+      await queryRunner.query(
+        `DROP INDEX IF EXISTS "IDX_alertes_critiques_resolved_created"`,
+      );
       await queryRunner.query(`DROP TABLE IF EXISTS "alertes_critiques"`);
       await queryRunner.commitTransaction();
     } catch (err) {

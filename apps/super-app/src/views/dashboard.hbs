@@ -1,105 +1,144 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang='fr'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
     <title>SMARTBUS - Tableau de Bord</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body>
-    <div class="background-blobs">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-        <div class="blob blob-3"></div>
+    <link rel='preconnect' href='https://fonts.googleapis.com' />
+    <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin />
+    <link
+      href='https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'
+      rel='stylesheet'
+    />
+    <link rel='stylesheet' href='/styles.css' />
+    <link
+      rel='stylesheet'
+      href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'
+    />
+  </head>
+  <body>
+    <div class='background-blobs'>
+      <div class='blob blob-1'></div>
+      <div class='blob blob-2'></div>
+      <div class='blob blob-3'></div>
     </div>
 
-    <div class="dashboard-container">
-        <aside class="sidebar glass-panel">
-            <div class="logo">
-                <i class="fa-solid fa-bus"></i>
-                <h2>SMARTBUS</h2>
-            </div>
-            <nav class="nav-menu">
-                <a href="#" class="nav-item active"><i class="fa-solid fa-chart-pie"></i> Vue d'ensemble</a>
-                <a href="#" class="nav-item"><i class="fa-solid fa-children"></i> Enfants</a>
-                <a href="#" class="nav-item"><i class="fa-solid fa-clock-rotate-left"></i> Historique</a>
-                <a href="#" class="nav-item"><i class="fa-solid fa-gear"></i> Paramètres</a>
-            </nav>
-            <div class="live-status">
-                <span class="pulse-dot"></span>
-                <span>BioTime API: Connecté</span>
-            </div>
-        </aside>
+    <div class='dashboard-container'>
+      <aside class='sidebar glass-panel'>
+        <div class='logo'>
+          <i class='fa-solid fa-bus'></i>
+          <h2>SMARTBUS</h2>
+        </div>
+        <nav class='nav-menu'>
+          <a href='#' class='nav-item active'><i
+              class='fa-solid fa-chart-pie'
+            ></i>
+            Vue d'ensemble</a>
+          <a href='#' class='nav-item'><i class='fa-solid fa-children'></i>
+            Enfants</a>
+          <a href='#' class='nav-item'><i
+              class='fa-solid fa-clock-rotate-left'
+            ></i>
+            Historique</a>
+          <a href='#' class='nav-item'><i class='fa-solid fa-gear'></i>
+            Paramètres</a>
+        </nav>
+        <div class='live-status'>
+          <span class='pulse-dot'></span>
+          <span>BioTime API: Connecté</span>
+        </div>
+      </aside>
 
-        <main class="main-content">
-            <header class="topbar">
-                <div class="search-bar glass-panel">
-                    <i class="fa-solid fa-search"></i>
-                    <input type="text" id="search-input" placeholder="Rechercher un enfant, une école...">
-                </div>
-                <div class="user-profile">
-                    <div class="avatar"><i class="fa-solid fa-user-shield"></i></div>
-                    <span>Administrateur</span>
-                </div>
-            </header>
+      <main class='main-content'>
+        <header class='topbar'>
+          <div class='search-bar glass-panel'>
+            <i class='fa-solid fa-search'></i>
+            <input
+              type='text'
+              id='search-input'
+              placeholder='Rechercher un enfant, une école...'
+            />
+          </div>
+          <div class='user-profile'>
+            <div class='avatar'><i class='fa-solid fa-user-shield'></i></div>
+            <span>Administrateur</span>
+          </div>
+        </header>
 
-            <div class="stats-grid">
-                <div class="stat-card glass-panel">
-                    <div class="stat-icon" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6;"><i class="fa-solid fa-children"></i></div>
-                    <div class="stat-info">
-                        <h3>Enfants Inscrits</h3>
-                        <p id="total-children">--</p>
-                    </div>
-                </div>
-                <div class="stat-card glass-panel">
-                    <div class="stat-icon" style="background: rgba(16, 185, 129, 0.2); color: #10b981;"><i class="fa-solid fa-check-to-slot"></i></div>
-                    <div class="stat-info">
-                        <h3>Pointages Aujourd'hui</h3>
-                        <p id="total-punches">--</p>
-                    </div>
-                </div>
-                <div class="stat-card glass-panel">
-                    <div class="stat-icon" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;"><i class="fa-solid fa-bus-simple"></i></div>
-                    <div class="stat-info">
-                        <h3>Bus Actifs</h3>
-                        <p>1</p>
-                    </div>
-                </div>
+        <div class='stats-grid'>
+          <div class='stat-card glass-panel'>
+            <div
+              class='stat-icon'
+              style='background: rgba(59, 130, 246, 0.2); color: #3b82f6;'
+            ><i class='fa-solid fa-children'></i></div>
+            <div class='stat-info'>
+              <h3>Enfants Inscrits</h3>
+              <p id='total-children'>--</p>
             </div>
-
-            <div class="dashboard-grid">
-                <section class="children-section glass-panel">
-                    <div class="section-header">
-                        <h2>Derniers Enfants Synchronisés</h2>
-                        <button class="btn-refresh" onclick="fetchChildren()" title="Rafraîchir"><i class="fa-solid fa-rotate"></i></button>
-                    </div>
-                    <div class="children-list" id="children-container">
-                        <div class="loader">Chargement des données...</div>
-                        <!-- Injecté par JS -->
-                    </div>
-                </section>
-
-                <section class="activity-section glass-panel">
-                    <div class="section-header">
-                        <h2>Activité en Direct</h2>
-                        <div>
-                            <button class="btn-refresh" onclick="exportPunchesCSV()" title="Exporter en CSV" style="margin-right: 8px;"><i class="fa-solid fa-download"></i></button>
-                            <button class="btn-refresh" onclick="fetchPunches()" title="Rafraîchir"><i class="fa-solid fa-rotate"></i></button>
-                        </div>
-                    </div>
-                    <div class="activity-feed" id="punches-container">
-                        <div class="loader">Chargement de l'historique...</div>
-                        <!-- Injecté par JS -->
-                    </div>
-                </section>
+          </div>
+          <div class='stat-card glass-panel'>
+            <div
+              class='stat-icon'
+              style='background: rgba(16, 185, 129, 0.2); color: #10b981;'
+            ><i class='fa-solid fa-check-to-slot'></i></div>
+            <div class='stat-info'>
+              <h3>Pointages Aujourd'hui</h3>
+              <p id='total-punches'>--</p>
             </div>
-        </main>
+          </div>
+          <div class='stat-card glass-panel'>
+            <div
+              class='stat-icon'
+              style='background: rgba(245, 158, 11, 0.2); color: #f59e0b;'
+            ><i class='fa-solid fa-bus-simple'></i></div>
+            <div class='stat-info'>
+              <h3>Bus Actifs</h3>
+              <p>1</p>
+            </div>
+          </div>
+        </div>
+
+        <div class='dashboard-grid'>
+          <section class='children-section glass-panel'>
+            <div class='section-header'>
+              <h2>Derniers Enfants Synchronisés</h2>
+              <button
+                class='btn-refresh'
+                onclick='fetchChildren()'
+                title='Rafraîchir'
+              ><i class='fa-solid fa-rotate'></i></button>
+            </div>
+            <div class='children-list' id='children-container'>
+              <div class='loader'>Chargement des données...</div>
+              <!-- Injecté par JS -->
+            </div>
+          </section>
+
+          <section class='activity-section glass-panel'>
+            <div class='section-header'>
+              <h2>Activité en Direct</h2>
+              <div>
+                <button
+                  class='btn-refresh'
+                  onclick='exportPunchesCSV()'
+                  title='Exporter en CSV'
+                  style='margin-right: 8px;'
+                ><i class='fa-solid fa-download'></i></button>
+                <button
+                  class='btn-refresh'
+                  onclick='fetchPunches()'
+                  title='Rafraîchir'
+                ><i class='fa-solid fa-rotate'></i></button>
+              </div>
+            </div>
+            <div class='activity-feed' id='punches-container'>
+              <div class='loader'>Chargement de l'historique...</div>
+              <!-- Injecté par JS -->
+            </div>
+          </section>
+        </div>
+      </main>
     </div>
 
-    <script src="/app.js"></script>
-</body>
+    <script src='/app.js'></script>
+  </body>
 </html>

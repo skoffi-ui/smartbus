@@ -34,7 +34,9 @@ export class UpdateChildBiotimeDept1727100000003 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_children_biotime_emp_code"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_children_biotime_emp_code"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_children_biotime_dept"`);
     await queryRunner.query(`
       ALTER TABLE "children"

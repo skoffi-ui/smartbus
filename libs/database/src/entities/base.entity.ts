@@ -30,13 +30,28 @@ export abstract class BaseEntityModel extends BaseEntity {
   @Column({ name: 'updated_by', type: 'uuid', nullable: true })
   updatedBy: string;
 
-  @Column({ name: 'created_by_type', type: 'varchar', length: 50, nullable: true })
+  @Column({
+    name: 'created_by_type',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
   createdByType: ActorType;
 
-  @Column({ name: 'updated_by_type', type: 'varchar', length: 50, nullable: true })
+  @Column({
+    name: 'updated_by_type',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
   updatedByType: ActorType;
 
-  @Column({ name: 'last_modified_source', type: 'varchar', length: 50, nullable: true })
+  @Column({
+    name: 'last_modified_source',
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
   lastModifiedSource: ModificationSource;
 }
 

@@ -84,7 +84,9 @@ export class GpswoxService {
     // `pollDevices`), même principe que `BiotimeCentralService`. Ces quatre
     // valeurs ne vivent QUE dans `.env` (jamais commité, voir .gitignore),
     // jamais en dur dans ce fichier ni dans aucun message/log.
-    this.baseUrl = this.configService.get<string>('GPSWOX_BASE_URL', '').replace(/\/+$/, '');
+    this.baseUrl = this.configService
+      .get<string>('GPSWOX_BASE_URL', '')
+      .replace(/\/+$/, '');
     this.email = this.configService.get<string>('GPSWOX_EMAIL', '');
     this.password = this.configService.get<string>('GPSWOX_PASSWORD', '');
     this.apiHash = this.configService.get<string>('GPSWOX_API_HASH', '');
@@ -105,7 +107,14 @@ export class GpswoxService {
         // `user_api_hash` documenté — passés via `params` (axios les
         // sérialise lui-même dans l'URL), jamais concaténés à la main dans
         // une chaîne qui pourrait finir dans un message de log ou d'erreur.
-        params: { lang: 'fr', email: this.email, password: this.password, user_api_hash: this.apiHash, limit, page },
+        params: {
+          lang: 'fr',
+          email: this.email,
+          password: this.password,
+          user_api_hash: this.apiHash,
+          limit,
+          page,
+        },
         timeout: 15000,
       }),
     );
@@ -164,7 +173,12 @@ export class GpswoxService {
       for (const item of items) {
         const lat = Number(item?.lat);
         const lng = Number(item?.lng);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) continue;
+        if (
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng) ||
+          (lat === 0 && lng === 0)
+        )
+          continue;
         if (item?.id === undefined || item?.id === null) continue;
 
         positions.push({
@@ -180,7 +194,10 @@ export class GpswoxService {
           // `item.timestamp` (epoch secondes) représente le même instant
           // (recoupé en direct : quelques secondes d'écart, horloge serveur
           // vs appareil) et EST documenté pour cet usage.
-          time: Number(item.timestamp) > 0 ? new Date(Number(item.timestamp) * 1000).toISOString() : undefined,
+          time:
+            Number(item.timestamp) > 0
+              ? new Date(Number(item.timestamp) * 1000).toISOString()
+              : undefined,
           address: item.address,
         });
       }
@@ -214,7 +231,9 @@ export class GpswoxService {
       // contiennent l'URL complète avec email/mot de passe/hash en clair
       // dans la query string. Ne pas élargir ce log sans y repenser.
       this.echecsConsecutifs++;
-      this.logger.error(`[GPSWOX] Récupération des véhicules impossible : ${err.message}`);
+      this.logger.error(
+        `[GPSWOX] Récupération des véhicules impossible : ${err.message}`,
+      );
       return [];
     }
   }
@@ -224,12 +243,19 @@ export class GpswoxService {
    * Avant ça, un GPSWOX injoignable ne se voyait que dans les logs — rien ne
    * prévenait qu'aucune position ne se mettait plus à jour depuis un moment.
    */
-  getSante(): { configured: boolean; dernierSuccesA: Date | null; echecsConsecutifs: number; enPanne: boolean } {
+  getSante(): {
+    configured: boolean;
+    dernierSuccesA: Date | null;
+    echecsConsecutifs: number;
+    enPanne: boolean;
+  } {
     return {
       configured: this.configured,
       dernierSuccesA: this.dernierSuccesA,
       echecsConsecutifs: this.echecsConsecutifs,
-      enPanne: this.configured && this.echecsConsecutifs >= GpswoxService.SEUIL_ECHECS_PANNE,
+      enPanne:
+        this.configured &&
+        this.echecsConsecutifs >= GpswoxService.SEUIL_ECHECS_PANNE,
     };
   }
 

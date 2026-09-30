@@ -9,7 +9,8 @@ import * as stockage from './storage';
  * `app.getHttpServer().on('upgrade', ...)`), même chemin que school-web
  * (`apps/school-web/src/services/socket.service.ts`).
  */
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3002/api/v1';
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3002/api/v1';
 const GATEWAY_ORIGIN = API_BASE_URL.replace(/\/api\/v\d+\/?$/, '');
 
 let socket: Socket | null = null;

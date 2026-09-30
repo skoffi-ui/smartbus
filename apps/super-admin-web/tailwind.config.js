@@ -9,10 +9,7 @@
  * (`bg-navy-800/50`), grâce au format `rgb(var(--x) / <alpha-value>)`.
  */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -47,7 +44,7 @@ export default {
           700: '#2f3136',
           800: 'rgb(var(--surface-rgb) / <alpha-value>)', // surface (--bg-secondary)
           900: 'rgb(var(--bg-primary-rgb) / <alpha-value>)', // background (--bg-primary)
-        }
+        },
       },
       fontFamily: {
         sans: ['Roboto', 'sans-serif'],
@@ -55,10 +52,10 @@ export default {
       boxShadow: {
         // Valeurs statiques (Tailwind ne théise pas boxShadow) : assez
         // discrètes pour rester correctes en clair comme en sombre.
-        'soft': '0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        'glass': '0 8px 32px 0 rgba(0, 0, 0, 0.18)',
-      }
+        soft: '0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        glass: '0 8px 32px 0 rgba(0, 0, 0, 0.18)',
+      },
     },
   },
   plugins: [],
-}
+};

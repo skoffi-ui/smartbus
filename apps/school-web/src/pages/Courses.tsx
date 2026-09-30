@@ -1,6 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  Plus, Trash2, Bus, Clock, User, Search, Navigation, AlertCircle, Route, RefreshCw
+  Plus,
+  Trash2,
+  Bus,
+  Clock,
+  User,
+  Search,
+  Navigation,
+  AlertCircle,
+  Route,
+  RefreshCw,
 } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
@@ -14,7 +23,13 @@ import './UiverseRadioList.css';
 import './UiverseDeleteButton.css';
 import './UiverseNewButton.css';
 
-import { getCourses, createCourse, deleteCourse, updateCourse, getTrajets } from '../services/transport.service';
+import {
+  getCourses,
+  createCourse,
+  deleteCourse,
+  updateCourse,
+  getTrajets,
+} from '../services/transport.service';
 import api from '../services/api';
 import { useI18n } from '../i18n';
 import { useToast } from '../components/ToastProvider';
@@ -33,7 +48,6 @@ function routage(): any {
   return (window as any).L?.Routing;
 }
 
-
 /** Centre de carte par défaut : Abidjan, et non Paris. */
 const ABIDJAN: [number, number] = [5.3364, -4.0267];
 
@@ -41,13 +55,19 @@ const ABIDJAN: [number, number] = [5.3364, -4.0267];
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+  iconRetinaUrl:
+    'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
 const JOURS_SEMAINE = [
-  { id: 'L', label: 'Lundi' }, { id: 'M', label: 'Mardi' }, { id: 'Me', label: 'Mercredi' },
-  { id: 'J', label: 'Jeudi' }, { id: 'V', label: 'Vendredi' }, { id: 'S', label: 'Samedi' }, { id: 'D', label: 'Dimanche' }
+  { id: 'L', label: 'Lundi' },
+  { id: 'M', label: 'Mardi' },
+  { id: 'Me', label: 'Mercredi' },
+  { id: 'J', label: 'Jeudi' },
+  { id: 'V', label: 'Vendredi' },
+  { id: 'S', label: 'Samedi' },
+  { id: 'D', label: 'Dimanche' },
 ];
 
 /**
@@ -60,39 +80,51 @@ const JOURS_SEMAINE = [
 function estimerHeureArrivee(heureDepart: string, dureeMin: number): string {
   const [h, m] = heureDepart.split(':').map(Number);
   if (Number.isNaN(h) || Number.isNaN(m)) return heureDepart;
-  const totalMin = ((h * 60 + m + Math.round(dureeMin)) % (24 * 60) + 24 * 60) % (24 * 60);
+  const totalMin =
+    (((h * 60 + m + Math.round(dureeMin)) % (24 * 60)) + 24 * 60) % (24 * 60);
   const hh = Math.floor(totalMin / 60);
   const mm = totalMin % 60;
   return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
 }
 
 const PRESET_COLORS = [
-  { hex: '#2563EB', name: 'Bleu' }, { hex: '#8B5CF6', name: 'Violet' },
-  { hex: '#EC4899', name: 'Rose' }, { hex: '#EF4444', name: 'Rouge' },
-  { hex: '#F59E0B', name: 'Ambre' }, { hex: '#10B981', name: 'Émeraude' },
+  { hex: '#2563EB', name: 'Bleu' },
+  { hex: '#8B5CF6', name: 'Violet' },
+  { hex: '#EC4899', name: 'Rose' },
+  { hex: '#EF4444', name: 'Rouge' },
+  { hex: '#F59E0B', name: 'Ambre' },
+  { hex: '#10B981', name: 'Émeraude' },
   { hex: '#64748B', name: 'Gris' },
 ];
 
-function RoutingMachineReadOnly({ waypoints, color }: { waypoints: any[], color: string }) {
+function RoutingMachineReadOnly({
+  waypoints,
+  color,
+}: {
+  waypoints: any[];
+  color: string;
+}) {
   const map = useMap();
   const routingControlRef = useRef<any>(null);
 
   useEffect(() => {
     if (!map || !waypoints || waypoints.length === 0) return;
-    
+
     if (!routage()) {
       const loadLRM = async () => {
         if (!document.getElementById('lrm-css')) {
           const link = document.createElement('link');
           link.id = 'lrm-css';
           link.rel = 'stylesheet';
-          link.href = 'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css';
+          link.href =
+            'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css';
           document.head.appendChild(link);
         }
         if (!document.getElementById('lrm-js')) {
           const script = document.createElement('script');
           script.id = 'lrm-js';
-          script.src = 'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js';
+          script.src =
+            'https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js';
           script.onload = initRouting;
           document.head.appendChild(script);
         } else {
@@ -108,32 +140,36 @@ function RoutingMachineReadOnly({ waypoints, color }: { waypoints: any[], color:
     function initRouting() {
       if (!map || !routage()) return;
       try {
-        const control = routage().control({
-        waypoints: waypoints,
-        routeWhileDragging: false,
-        show: false,
-        addWaypoints: false,
-        fitSelectedRoutes: true,
-        lineOptions: {
-          styles: [{ color: color || '#2563EB', weight: 5, opacity: 0.8 }],
-          addWaypoints: false
-        },
-        createMarker: (i: number, wp: any, n: number) => {
-          const isStart = i === 0;
-          const isEnd = i === n - 1;
-          const markerColor = isStart ? 'green' : (isEnd ? 'red' : 'blue');
-          return L.marker(wp.latLng, {
-            draggable: false,
-            icon: new L.Icon({
-              iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${markerColor}.png`,
-              shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-              iconSize: [25, 41], iconAnchor: [12, 41]
-            })
-          });
-        }
-      }).addTo(map);
+        const control = routage()
+          .control({
+            waypoints: waypoints,
+            routeWhileDragging: false,
+            show: false,
+            addWaypoints: false,
+            fitSelectedRoutes: true,
+            lineOptions: {
+              styles: [{ color: color || '#2563EB', weight: 5, opacity: 0.8 }],
+              addWaypoints: false,
+            },
+            createMarker: (i: number, wp: any, n: number) => {
+              const isStart = i === 0;
+              const isEnd = i === n - 1;
+              const markerColor = isStart ? 'green' : isEnd ? 'red' : 'blue';
+              return L.marker(wp.latLng, {
+                draggable: false,
+                icon: new L.Icon({
+                  iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${markerColor}.png`,
+                  shadowUrl:
+                    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                }),
+              });
+            },
+          })
+          .addTo(map);
 
-      routingControlRef.current = control;
+        routingControlRef.current = control;
       } catch (e) {}
     }
   }, [map, waypoints, color]);
@@ -148,7 +184,7 @@ export default function Courses() {
   const [trajets, setTrajets] = useState<any[]>([]);
   const [carsList, setCarsList] = useState<any[]>([]);
   const [driversList, setDriversList] = useState<any[]>([]);
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -156,9 +192,16 @@ export default function Courses() {
   const [searchParams] = useSearchParams();
 
   const defaultForm = {
-    nom: '', description: '', statut: 'active', couleurCarte: '#2563EB',
-    heureDepart: '07:00', heureArrivee: '08:30', jours: ['L', 'M', 'Me', 'J', 'V'],
-    chauffeur: '', vehicule: '', trajetId: ''
+    nom: '',
+    description: '',
+    statut: 'active',
+    couleurCarte: '#2563EB',
+    heureDepart: '07:00',
+    heureArrivee: '08:30',
+    jours: ['L', 'M', 'Me', 'J', 'V'],
+    chauffeur: '',
+    vehicule: '',
+    trajetId: '',
   };
   const [formData, setFormData] = useState<any>(defaultForm);
 
@@ -173,23 +216,44 @@ export default function Courses() {
   // pré-remplit le trajet plutôt que de laisser un menu déroulant vide à
   // choisir soi-même — une fois les trajets chargés, pour pouvoir vérifier
   // que le trajetId reçu correspond bien à un trajet réel.
-  const [preRemplissageTrajetApplique, setPreRemplissageTrajetApplique] = useState(false);
+  const [preRemplissageTrajetApplique, setPreRemplissageTrajetApplique] =
+    useState(false);
   useEffect(() => {
     const trajetIdDepuisUrl = searchParams.get('trajetId');
-    if (preRemplissageTrajetApplique || !trajetIdDepuisUrl || trajets.length === 0) return;
+    if (
+      preRemplissageTrajetApplique ||
+      !trajetIdDepuisUrl ||
+      trajets.length === 0
+    )
+      return;
     if (trajets.some((t) => t.id === trajetIdDepuisUrl)) {
       setFormData((prev: any) => ({ ...prev, trajetId: trajetIdDepuisUrl }));
     }
     setPreRemplissageTrajetApplique(true);
   }, [trajets, searchParams, preRemplissageTrajetApplique]);
 
-  const fetchCarsList = async () => { try { const r = await api.get('/cars'); setCarsList(r.data); } catch {} };
-  const fetchDriversList = async () => { try { const r = await api.get('/drivers'); setDriversList(r.data); } catch {} };
-  const fetchTrajetsList = async () => { try { const data = await getTrajets(); setTrajets(Array.isArray(data) ? data : []); } catch {} };
-  
+  const fetchCarsList = async () => {
+    try {
+      const r = await api.get('/cars');
+      setCarsList(r.data);
+    } catch {}
+  };
+  const fetchDriversList = async () => {
+    try {
+      const r = await api.get('/drivers');
+      setDriversList(r.data);
+    } catch {}
+  };
+  const fetchTrajetsList = async () => {
+    try {
+      const data = await getTrajets();
+      setTrajets(Array.isArray(data) ? data : []);
+    } catch {}
+  };
+
   const fetchCourses = async () => {
-    try { 
-      const d = await getCourses(); 
+    try {
+      const d = await getCourses();
       if (Array.isArray(d)) setCourses(d);
       else if (d && Array.isArray(d.data)) setCourses(d.data);
       else setCourses([]);
@@ -198,17 +262,17 @@ export default function Courses() {
 
   const handleSelectCourse = (course: any) => {
     setSelectedCourseId(course.id);
-    setFormData({ 
-      nom: course.nom || '', 
-      description: course.description || '', 
-      statut: course.statut || 'active', 
-      couleurCarte: course.couleurCarte || '#2563EB', 
-      heureDepart: course.heureDepart || '07:00', 
-      heureArrivee: course.heureArrivee || '08:30', 
-      jours: course.joursExecution || [], 
-      chauffeur: course.driverId || '', 
-      vehicule: course.carId || '', 
-      trajetId: course.trajetId || '' 
+    setFormData({
+      nom: course.nom || '',
+      description: course.description || '',
+      statut: course.statut || 'active',
+      couleurCarte: course.couleurCarte || '#2563EB',
+      heureDepart: course.heureDepart || '07:00',
+      heureArrivee: course.heureArrivee || '08:30',
+      jours: course.joursExecution || [],
+      chauffeur: course.driverId || '',
+      vehicule: course.carId || '',
+      trajetId: course.trajetId || '',
     });
   };
 
@@ -220,7 +284,9 @@ export default function Courses() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.trajetId) {
-      toast.error("Veuillez sélectionner un trajet géographique pour cette course.");
+      toast.error(
+        'Veuillez sélectionner un trajet géographique pour cette course.',
+      );
       return;
     }
 
@@ -241,11 +307,13 @@ export default function Courses() {
 
       if (selectedCourseId) {
         const updated = await updateCourse(selectedCourseId, payload);
-        setCourses(c => c.map(x => x.id === selectedCourseId ? updated : x));
+        setCourses((c) =>
+          c.map((x) => (x.id === selectedCourseId ? updated : x)),
+        );
         toast.success('Course mise à jour !');
       } else {
         const created = await createCourse(payload);
-        setCourses(c => [created, ...c]);
+        setCourses((c) => [created, ...c]);
         setSelectedCourseId(created.id);
         toast.success('Course planifiée avec succès !');
       }
@@ -258,51 +326,73 @@ export default function Courses() {
 
   const handleDelete = async () => {
     if (!selectedCourseId) return;
-    if (!(await confirmer('Supprimer cette course ?', { danger: true }))) return;
+    if (!(await confirmer('Supprimer cette course ?', { danger: true })))
+      return;
     setIsDeleting(true);
     try {
       await deleteCourse(selectedCourseId);
-      setCourses(c => c.filter(x => x.id !== selectedCourseId));
+      setCourses((c) => c.filter((x) => x.id !== selectedCourseId));
       handleNewCourse();
-    } catch (e: any) { toast.error('Erreur suppression'); }
-    finally { setIsDeleting(false); }
+    } catch (e: any) {
+      toast.error('Erreur suppression');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
-  const handleJourToggle = (id: string) => setFormData((p: any) => ({ ...p, jours: p.jours.includes(id) ? p.jours.filter((j: any) => j !== id) : [...p.jours, id] }));
+  const handleJourToggle = (id: string) =>
+    setFormData((p: any) => ({
+      ...p,
+      jours: p.jours.includes(id)
+        ? p.jours.filter((j: any) => j !== id)
+        : [...p.jours, id],
+    }));
 
-  const filteredCourses = courses.filter(c =>
-    (c.nom?.toLowerCase() || '').includes(search.toLowerCase())
+  const filteredCourses = courses.filter((c) =>
+    (c.nom?.toLowerCase() || '').includes(search.toLowerCase()),
   );
 
-  const selectedCar = carsList.find(c => c.id === formData.vehicule);
+  const selectedCar = carsList.find((c) => c.id === formData.vehicule);
   const capacity = selectedCar?.capacity ?? 0;
-  
+
   // Find selected trajet to show distance/duration and waypoints
-  const selectedTrajet = trajets.find(t => t.id === formData.trajetId);
-  const distanceText = selectedTrajet?.distanceKm ? `${selectedTrajet.distanceKm.toFixed(1)} km` : '0 km';
-  const durationText = selectedTrajet?.dureeEstimative ? `${selectedTrajet.dureeEstimative} min` : '—';
+  const selectedTrajet = trajets.find((t) => t.id === formData.trajetId);
+  const distanceText = selectedTrajet?.distanceKm
+    ? `${selectedTrajet.distanceKm.toFixed(1)} km`
+    : '0 km';
+  const durationText = selectedTrajet?.dureeEstimative
+    ? `${selectedTrajet.dureeEstimative} min`
+    : '—';
   const waypoints = selectedTrajet?.waypoints || [];
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-[var(--bg-primary)] p-6 font-sans text-[var(--text-primary)]">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-[30px] lg:h-[calc(100vh-8rem)]">
-        
         {/* Colonne Gauche : Liste des courses */}
         <div className="lg:col-span-3 flex flex-col gap-4 overflow-hidden">
           <div className="bg-white rounded-[10px] p-5 shadow-sm border border-slate-100 shrink-0">
             <div className="flex items-baseline justify-between gap-2 mb-1">
-              <h2 className="text-[28px] font-bold text-slate-900 leading-tight">Courses</h2>
+              <h2 className="text-[28px] font-bold text-slate-900 leading-tight">
+                Courses
+              </h2>
               {courses.length > 0 && (
                 <span className="text-[13px] font-semibold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100 shrink-0">
                   {courses.length}
                 </span>
               )}
             </div>
-            <p className="text-[var(--text-secondary)] text-[14px] mb-4">Planification des horaires</p>
+            <p className="text-[var(--text-secondary)] text-[14px] mb-4">
+              Planification des horaires
+            </p>
 
             <div className="uiverse-search-group">
               <Search className="uiverse-search-icon" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." className="uiverse-search-input" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher..."
+                className="uiverse-search-input"
+              />
             </div>
           </div>
 
@@ -316,8 +406,8 @@ export default function Courses() {
                   Aucune course planifiée
                 </p>
                 <p className="text-[13px] text-slate-500">
-                  Renseignez le formulaire à droite pour créer la première. Un trajet est requis :
-                  créez-le d'abord dans « Trajets ».
+                  Renseignez le formulaire à droite pour créer la première. Un
+                  trajet est requis : créez-le d'abord dans « Trajets ».
                 </p>
               </div>
             )}
@@ -328,14 +418,23 @@ export default function Courses() {
               </p>
             )}
 
-            {filteredCourses.map(course => (
+            {filteredCourses.map((course) => (
               <label key={course.id} className="cir-radio__opt relative">
-                <input type="radio" checked={selectedCourseId === course.id} onChange={() => handleSelectCourse(course)} />
+                <input
+                  type="radio"
+                  checked={selectedCourseId === course.id}
+                  onChange={() => handleSelectCourse(course)}
+                />
                 <div className="cir-radio__dot"></div>
 
                 <div className="cir-radio__body pl-1">
                   <div className="cir-radio__t flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: course.couleurCarte || '#2563EB' }} />
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{
+                        backgroundColor: course.couleurCarte || '#2563EB',
+                      }}
+                    />
                     <span className="truncate">{course.nom}</span>
                     <span
                       className={`ml-auto text-[11px] px-2 py-0.5 rounded-full shrink-0 ${
@@ -349,7 +448,8 @@ export default function Courses() {
                   </div>
                   <div className="cir-radio__d text-xs mt-1 text-slate-500">
                     Départ: {course.heureDepart || '--:--'}
-                    {Array.isArray(course.joursExecution) && course.joursExecution.length > 0
+                    {Array.isArray(course.joursExecution) &&
+                    course.joursExecution.length > 0
                       ? ` · ${course.joursExecution.join(' ')}`
                       : ''}
                   </div>
@@ -361,15 +461,20 @@ export default function Courses() {
 
         {/* Contenu Principal */}
         <div className="lg:col-span-9 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-6 pr-2">
-          
           {/* Carte Passive OSRM */}
           <div className="bg-white rounded-[10px] shadow-sm border border-slate-200 flex flex-col overflow-hidden h-[50vh] min-h-[350px] shrink-0">
             <div className="p-4 border-b border-slate-100 bg-white flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Navigation size={18} className="text-[var(--accent-primary)]" />
+                <Navigation
+                  size={18}
+                  className="text-[var(--accent-primary)]"
+                />
                 <div>
                   <h3 className="text-[16px] font-bold text-slate-900">
-                    Aperçu du trajet <span className="font-normal text-slate-500">(lecture seule)</span>
+                    Aperçu du trajet{' '}
+                    <span className="font-normal text-slate-500">
+                      (lecture seule)
+                    </span>
                   </h3>
                   {/* L'écran prêtait à confusion : on cherchait à y placer des points
                       alors que le tracé se dessine dans Trajets. */}
@@ -385,15 +490,18 @@ export default function Courses() {
               )}
             </div>
             <div className="flex-1 relative z-0">
-              <MapContainer 
+              <MapContainer
                 key={formData.trajetId || 'empty'}
-                center={ABIDJAN} 
-                zoom={12} 
+                center={ABIDJAN}
+                zoom={12}
                 style={{ height: '100%', width: '100%' }}
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 {waypoints.length > 0 && (
-                  <RoutingMachineReadOnly waypoints={waypoints} color={formData.couleurCarte} />
+                  <RoutingMachineReadOnly
+                    waypoints={waypoints}
+                    color={formData.couleurCarte}
+                  />
                 )}
               </MapContainer>
             </div>
@@ -403,49 +511,94 @@ export default function Courses() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <div className="lg:col-span-8 bg-white rounded-md shadow-sm border border-slate-200 p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-2xl font-bold">{selectedCourseId ? formData.nom : 'Nouvelle Planification'}</h2>
+                <h2 className="text-2xl font-bold">
+                  {selectedCourseId ? formData.nom : 'Nouvelle Planification'}
+                </h2>
                 <div className="flex gap-2">
-                  {selectedCourseId && <button onClick={handleDelete} className="uiverse-delete-btn" type="button"><span className="button_top"><Trash2 size={16}/></span></button>}
-                  <button onClick={handleNewCourse} className="uiverse-new-btn"><span className="button_top"><Plus size={16}/> Nouveau</span></button>
+                  {selectedCourseId && (
+                    <button
+                      onClick={handleDelete}
+                      className="uiverse-delete-btn"
+                      type="button"
+                    >
+                      <span className="button_top">
+                        <Trash2 size={16} />
+                      </span>
+                    </button>
+                  )}
+                  <button onClick={handleNewCourse} className="uiverse-new-btn">
+                    <span className="button_top">
+                      <Plus size={16} /> Nouveau
+                    </span>
+                  </button>
                 </div>
               </div>
-              
+
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                
                 <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-2">
-                  <label className="font-bold text-slate-700 block mb-2">Trajet Géographique (Ligne)</label>
-                  <select required value={formData.trajetId} onChange={e => {
-                    const trajetId = e.target.value;
-                    const trajet = trajets.find(t => t.id === trajetId);
-                    setFormData((prev: any) => ({
-                      ...prev,
-                      trajetId,
-                      // Le trajet change de durée réelle (OSRM) : l'heure d'arrivée
-                      // ré-estimée avec lui, sinon elle resterait celle de l'ancien
-                      // trajet, sans rapport avec la nouvelle ligne sélectionnée.
-                      ...(trajet?.dureeEstimative && prev.heureDepart
-                        ? { heureArrivee: estimerHeureArrivee(prev.heureDepart, trajet.dureeEstimative) }
-                        : {}),
-                    }));
-                  }}
-                    className="w-full p-2 border border-slate-300 rounded-md bg-white">
-                    <option value="">-- Sélectionnez la ligne à desservir --</option>
-                    {trajets.map(t => <option key={t.id} value={t.id}>{t.nom} ({t.sens})</option>)}
+                  <label className="font-bold text-slate-700 block mb-2">
+                    Trajet Géographique (Ligne)
+                  </label>
+                  <select
+                    required
+                    value={formData.trajetId}
+                    onChange={(e) => {
+                      const trajetId = e.target.value;
+                      const trajet = trajets.find((t) => t.id === trajetId);
+                      setFormData((prev: any) => ({
+                        ...prev,
+                        trajetId,
+                        // Le trajet change de durée réelle (OSRM) : l'heure d'arrivée
+                        // ré-estimée avec lui, sinon elle resterait celle de l'ancien
+                        // trajet, sans rapport avec la nouvelle ligne sélectionnée.
+                        ...(trajet?.dureeEstimative && prev.heureDepart
+                          ? {
+                              heureArrivee: estimerHeureArrivee(
+                                prev.heureDepart,
+                                trajet.dureeEstimative,
+                              ),
+                            }
+                          : {}),
+                      }));
+                    }}
+                    className="w-full p-2 border border-slate-300 rounded-md bg-white"
+                  >
+                    <option value="">
+                      -- Sélectionnez la ligne à desservir --
+                    </option>
+                    {trajets.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.nom} ({t.sens})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="uiverse-flex-column">
                     <label>Nom de la course</label>
-                    <input required value={formData.nom} onChange={e => setFormData({...formData, nom: e.target.value})} className="uiverse-input mt-1" />
+                    <input
+                      required
+                      value={formData.nom}
+                      onChange={(e) =>
+                        setFormData({ ...formData, nom: e.target.value })
+                      }
+                      className="uiverse-input mt-1"
+                    />
                   </div>
                   <div className="uiverse-flex-column">
                     <label>Couleur</label>
                     <div className="uiverse-color-container mt-1">
                       {PRESET_COLORS.map(({ hex }) => (
-                        <button key={hex} type="button" onClick={() => setFormData({...formData, couleurCarte: hex})}
+                        <button
+                          key={hex}
+                          type="button"
+                          onClick={() =>
+                            setFormData({ ...formData, couleurCarte: hex })
+                          }
                           className={`uiverse-color-item ${formData.couleurCarte === hex ? 'selected' : ''}`}
-                          style={{ '--color': hex } as any} />
+                          style={{ '--color': hex } as any}
+                        />
                       ))}
                     </div>
                   </div>
@@ -454,52 +607,92 @@ export default function Courses() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="uiverse-flex-column">
                     <label>Heure de départ</label>
-                    <input type="time" required value={formData.heureDepart} onChange={e => {
-                      const heureDepart = e.target.value;
-                      setFormData((prev: any) => ({
-                        ...prev,
-                        heureDepart,
-                        // Ré-estime l'arrivée à chaque changement de départ, à
-                        // partir de la durée réelle OSRM du trajet sélectionné —
-                        // avant ce calcul, "Heure d'arrivée" restait figée à sa
-                        // valeur par défaut (08:30) sans lien avec le trajet.
-                        ...(selectedTrajet?.dureeEstimative
-                          ? { heureArrivee: estimerHeureArrivee(heureDepart, selectedTrajet.dureeEstimative) }
-                          : {}),
-                      }));
-                    }} className="uiverse-input mt-1" />
+                    <input
+                      type="time"
+                      required
+                      value={formData.heureDepart}
+                      onChange={(e) => {
+                        const heureDepart = e.target.value;
+                        setFormData((prev: any) => ({
+                          ...prev,
+                          heureDepart,
+                          // Ré-estime l'arrivée à chaque changement de départ, à
+                          // partir de la durée réelle OSRM du trajet sélectionné —
+                          // avant ce calcul, "Heure d'arrivée" restait figée à sa
+                          // valeur par défaut (08:30) sans lien avec le trajet.
+                          ...(selectedTrajet?.dureeEstimative
+                            ? {
+                                heureArrivee: estimerHeureArrivee(
+                                  heureDepart,
+                                  selectedTrajet.dureeEstimative,
+                                ),
+                              }
+                            : {}),
+                        }));
+                      }}
+                      className="uiverse-input mt-1"
+                    />
                   </div>
                   <div className="uiverse-flex-column">
                     <div className="flex items-center justify-between">
                       <label>Heure d'arrivée</label>
                       <button
                         type="button"
-                        disabled={!selectedTrajet?.dureeEstimative || !formData.heureDepart}
-                        onClick={() => setFormData((prev: any) => ({
-                          ...prev,
-                          heureArrivee: estimerHeureArrivee(prev.heureDepart, selectedTrajet.dureeEstimative),
-                        }))}
+                        disabled={
+                          !selectedTrajet?.dureeEstimative ||
+                          !formData.heureDepart
+                        }
+                        onClick={() =>
+                          setFormData((prev: any) => ({
+                            ...prev,
+                            heureArrivee: estimerHeureArrivee(
+                              prev.heureDepart,
+                              selectedTrajet.dureeEstimative,
+                            ),
+                          }))
+                        }
                         title="Ré-estimer à partir de la durée OSRM du trajet"
                         className="text-[11px] font-semibold text-blue-600 hover:text-blue-700 disabled:text-slate-300 disabled:cursor-not-allowed flex items-center gap-1"
                       >
                         <RefreshCw size={11} /> Estimer
                       </button>
                     </div>
-                    <input type="time" required value={formData.heureArrivee} onChange={e => setFormData({...formData, heureArrivee: e.target.value})} className="uiverse-input mt-1" />
+                    <input
+                      type="time"
+                      required
+                      value={formData.heureArrivee}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          heureArrivee: e.target.value,
+                        })
+                      }
+                      className="uiverse-input mt-1"
+                    />
                     <p className="text-[11px] text-slate-500 mt-1">
                       {selectedTrajet?.dureeEstimative
                         ? `Estimée via OSRM (${durationText}, sans trafic) — modifiable.`
-                        : "Sélectionnez un trajet avec un itinéraire calculé pour estimer automatiquement."}
+                        : 'Sélectionnez un trajet avec un itinéraire calculé pour estimer automatiquement.'}
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <label className="font-semibold block mb-2">Jours d'exécution</label>
+                  <label className="font-semibold block mb-2">
+                    Jours d'exécution
+                  </label>
                   <div className="flex gap-2 flex-wrap">
-                    {JOURS_SEMAINE.map(jour => (
-                      <button key={jour.id} type="button" onClick={() => handleJourToggle(jour.id)}
-                        className={formData.jours.includes(jour.id) ? 'uiverse-3d-btn' : 'uiverse-3d-btn-outline'}>
+                    {JOURS_SEMAINE.map((jour) => (
+                      <button
+                        key={jour.id}
+                        type="button"
+                        onClick={() => handleJourToggle(jour.id)}
+                        className={
+                          formData.jours.includes(jour.id)
+                            ? 'uiverse-3d-btn'
+                            : 'uiverse-3d-btn-outline'
+                        }
+                      >
                         {jour.label.substring(0, 3)}
                       </button>
                     ))}
@@ -508,24 +701,56 @@ export default function Courses() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="font-semibold block mb-1">Véhicule (Optionnel)</label>
-                    <select value={formData.vehicule} onChange={e => setFormData({...formData, vehicule: e.target.value})} className="w-full p-2 border rounded-md">
+                    <label className="font-semibold block mb-1">
+                      Véhicule (Optionnel)
+                    </label>
+                    <select
+                      value={formData.vehicule}
+                      onChange={(e) =>
+                        setFormData({ ...formData, vehicule: e.target.value })
+                      }
+                      className="w-full p-2 border rounded-md"
+                    >
                       <option value="">Non assigné</option>
-                      {carsList.map((c: any) => <option key={c.id} value={c.id}>{c.plateNumber}</option>)}
+                      {carsList.map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.plateNumber}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
-                    <label className="font-semibold block mb-1">Chauffeur (Optionnel)</label>
-                    <select value={formData.chauffeur} onChange={e => setFormData({...formData, chauffeur: e.target.value})} className="w-full p-2 border rounded-md">
+                    <label className="font-semibold block mb-1">
+                      Chauffeur (Optionnel)
+                    </label>
+                    <select
+                      value={formData.chauffeur}
+                      onChange={(e) =>
+                        setFormData({ ...formData, chauffeur: e.target.value })
+                      }
+                      className="w-full p-2 border rounded-md"
+                    >
                       <option value="">Non assigné</option>
-                      {driversList.map((d: any) => <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>)}
+                      {driversList.map((d: any) => (
+                        <option key={d.id} value={d.id}>
+                          {d.firstName} {d.lastName}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
                 <div className="mt-4 flex gap-3">
-                  <button type="submit" disabled={isSaving} className="uiverse-btn-submit flex-1">
-                    {isSaving ? '...' : (selectedCourseId ? 'Enregistrer les modifications' : 'Planifier la course')}
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="uiverse-btn-submit flex-1"
+                  >
+                    {isSaving
+                      ? '...'
+                      : selectedCourseId
+                        ? 'Enregistrer les modifications'
+                        : 'Planifier la course'}
                   </button>
                 </div>
               </form>
@@ -533,19 +758,33 @@ export default function Courses() {
 
             {/* Stats */}
             <div className="lg:col-span-4 bg-white rounded-[10px] shadow-sm border border-slate-200 p-6 flex flex-col gap-6">
-              <h3 className="font-bold text-slate-900 border-b pb-2">Informations OSRM</h3>
+              <h3 className="font-bold text-slate-900 border-b pb-2">
+                Informations OSRM
+              </h3>
               <div>
-                <span className="block text-[13px] text-slate-500 mb-1">Durée Théorique (sans trafic)</span>
-                <span className="text-[24px] font-bold text-slate-900">{durationText}</span>
+                <span className="block text-[13px] text-slate-500 mb-1">
+                  Durée Théorique (sans trafic)
+                </span>
+                <span className="text-[24px] font-bold text-slate-900">
+                  {durationText}
+                </span>
               </div>
               <div>
-                <span className="block text-[13px] text-slate-500 mb-1">Distance Route</span>
-                <span className="text-[24px] font-bold text-slate-900">{distanceText}</span>
+                <span className="block text-[13px] text-slate-500 mb-1">
+                  Distance Route
+                </span>
+                <span className="text-[24px] font-bold text-slate-900">
+                  {distanceText}
+                </span>
               </div>
               {selectedCar && (
                 <div className="border-t pt-4">
-                  <span className="block text-[13px] text-slate-500 mb-1">Capacité du véhicule</span>
-                  <span className="text-md font-bold text-slate-900">{capacity} places</span>
+                  <span className="block text-[13px] text-slate-500 mb-1">
+                    Capacité du véhicule
+                  </span>
+                  <span className="text-md font-bold text-slate-900">
+                    {capacity} places
+                  </span>
                 </div>
               )}
             </div>

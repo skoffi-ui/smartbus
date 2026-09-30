@@ -1,17 +1,37 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Building2, Users, Calendar, Settings, Network, MapPin } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Building2,
+  Users,
+  Calendar,
+  Settings,
+  Network,
+  MapPin,
+} from 'lucide-react';
 import { useI18n } from '../i18n';
 
 export default function Sidebar() {
   const { t } = useI18n();
 
   const liens = [
-    { nom: t('sidebar.dashboard'), chemin: '/dashboard', icone: LayoutDashboard },
+    {
+      nom: t('sidebar.dashboard'),
+      chemin: '/dashboard',
+      icone: LayoutDashboard,
+    },
     { nom: t('sidebar.ecoles'), chemin: '/ecoles', icone: Building2 },
     { nom: t('sidebar.equipe'), chemin: '/users', icone: Users },
-    { nom: t('sidebar.abonnements'), chemin: '/subscriptions', icone: Calendar },
+    {
+      nom: t('sidebar.abonnements'),
+      chemin: '/subscriptions',
+      icone: Calendar,
+    },
     { nom: t('sidebar.centrale'), chemin: '/biotime-centrale', icone: Network },
-    { nom: t('sidebar.vehicules_gps'), chemin: '/vehicules-gps', icone: MapPin },
+    {
+      nom: t('sidebar.vehicules_gps'),
+      chemin: '/vehicules-gps',
+      icone: MapPin,
+    },
     { nom: t('sidebar.parametres'), chemin: '/settings', icone: Settings },
   ];
 
@@ -25,8 +45,12 @@ export default function Sidebar() {
           S
         </div>
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white">SMARTBUS</h1>
-          <p className="text-xs text-brand-300 uppercase tracking-widest font-semibold">Super Admin</p>
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            SMARTBUS
+          </h1>
+          <p className="text-xs text-brand-300 uppercase tracking-widest font-semibold">
+            Super Admin
+          </p>
         </div>
       </div>
 
@@ -44,7 +68,9 @@ export default function Sidebar() {
                     : 'text-navy-300 hover:bg-white/5 hover:text-white'
                 }`
               }
-              style={({ isActive }) => (isActive ? { color: '#fff' } : undefined)}
+              style={({ isActive }) =>
+                isActive ? { color: '#fff' } : undefined
+              }
             >
               <Icone size={20} className="shrink-0" />
               {lien.nom}
@@ -55,9 +81,13 @@ export default function Sidebar() {
 
       <div className="mt-auto">
         <div className="glass-panel p-4 text-center">
-          <p className="text-sm font-medium text-white mb-1">{t('sidebar.aide')}</p>
+          <p className="text-sm font-medium text-white mb-1">
+            {t('sidebar.aide')}
+          </p>
           <p className="text-xs text-navy-300 mb-3">{t('sidebar.aide_desc')}</p>
-          <button className="btn-secondary w-full text-xs">{t('sidebar.documentation')}</button>
+          <button className="btn-secondary w-full text-xs">
+            {t('sidebar.documentation')}
+          </button>
         </div>
       </div>
     </div>

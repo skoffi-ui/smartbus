@@ -52,14 +52,18 @@ export class OrganisationsController {
   // "mon-ecole" comme si c'était un `:id` (premier enregistré = prioritaire).
   @Get('mon-ecole')
   @Roles(UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Récupérer les informations de ma propre école (directeur)" })
+  @ApiOperation({
+    summary: 'Récupérer les informations de ma propre école (directeur)',
+  })
   findMine(@CurrentUser() user: User) {
     return this.service.findMine(user.organisationId);
   }
 
   @Patch('mon-ecole')
   @Roles(UserRole.SCHOOL_ADMIN)
-  @ApiOperation({ summary: "Modifier les informations de ma propre école (directeur)" })
+  @ApiOperation({
+    summary: 'Modifier les informations de ma propre école (directeur)',
+  })
   updateMine(@CurrentUser() user: User, @Body() dto: UpdateMySchoolDto) {
     return this.service.updateMine(user.organisationId, dto);
   }

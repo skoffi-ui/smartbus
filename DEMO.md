@@ -15,9 +15,9 @@ docker compose up -d
 Le fichier `.env` doit exister à la racine. Deux variables refusent désormais
 toute valeur par défaut, et un service sans elles ne démarre pas :
 
-| Variable | Rôle |
-|---|---|
-| `JWT_SECRET` | Signature des jetons. 32 caractères minimum. |
+| Variable           | Rôle                                                 |
+| ------------------ | ---------------------------------------------------- |
+| `JWT_SECRET`       | Signature des jetons. 32 caractères minimum.         |
 | `INTERNAL_API_KEY` | Secret des appels entre la super-app et l'app école. |
 
 ## 1. Démarrer les services
@@ -82,7 +82,7 @@ coup les écrans (Réglages École, Gestion BioTime centralisée) sans repasser
 par chaque élève un par un. Tout ce qu'il crée est visiblement préfixé
 `[DÉMO]`/`DEMO-`.
 
-Pour toute action faite *pendant* la démo (créer une école, ajouter un
+Pour toute action faite _pendant_ la démo (créer une école, ajouter un
 élève...), c'est le serveur fictif de la fenêtre 1 qui répond réellement,
 en HTTP, comme le ferait le vrai serveur — à dire clairement si la question
 vient : les identifiants BioTime qui s'affichent alors sont fictifs, mais le
@@ -125,13 +125,13 @@ L'ordre compte : il raconte le produit du général au détail.
    moment fort ; laissez la carte respirer quelques secondes.
 3. **Trajets** — choisissez « Aller Matin — Riviera / Cocody » dans le menu
    déroulant. Les points typés s'affichent avec le tracé et les statistiques.
-   *La page s'ouvre en mode création : sans sélection, elle montre 0 km, ce qui
-   est normal.*
+   _La page s'ouvre en mode création : sans sélection, elle montre 0 km, ce qui
+   est normal._
 4. **Courses** — la planification qui relie un trajet, un véhicule et un
    chauffeur, avec ses horaires et ses jours.
 5. **Affectation des élèves** — choisissez une course, puis un arrêt, pour
-   montrer qui monte où. *Deux étapes obligatoires : le panneau de droite reste
-   vide jusqu'à la sélection d'un arrêt.*
+   montrer qui monte où. _Deux étapes obligatoires : le panneau de droite reste
+   vide jusqu'à la sélection d'un arrêt._
 6. **Suivi des montées** — l'historique réel, avec les badgeages refusés.
 7. **Centre d'Alertes** — les anomalies détectées : mauvais arrêt, mauvais
    véhicule, badgeage hors horaire.

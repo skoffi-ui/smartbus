@@ -1,8 +1,24 @@
 import {
-  Controller, Get, Post, Put, Delete, Patch,
-  Param, Body, UseGuards, ParseUUIDPipe, HttpCode, HttpStatus, Query,
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  ParseUUIDPipe,
+  HttpCode,
+  HttpStatus,
+  Query,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { JwtAuthGuard, FeaturesGuard, RequireFeature } from '@app/common';
 import { PointsRecuperationService } from './points-recuperation.service';
 import { CreatePointDto } from './dto/create-point.dto';
@@ -17,8 +33,14 @@ export class PointsRecuperationController {
   constructor(private readonly pointsService: PointsRecuperationService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Liste les points de récupération, filtrables par trajet' })
-  @ApiQuery({ name: 'trajetId', required: false, description: 'Filtrer par UUID du trajet' })
+  @ApiOperation({
+    summary: 'Liste les points de récupération, filtrables par trajet',
+  })
+  @ApiQuery({
+    name: 'trajetId',
+    required: false,
+    description: 'Filtrer par UUID du trajet',
+  })
   @ApiQuery({
     name: 'pourAffectation',
     required: false,
@@ -28,8 +50,14 @@ export class PointsRecuperationController {
   // Aussi utilisé par AffectationEleves.tsx (lister les arrêts d'une course à affecter)
   // et LiveTracking.tsx (afficher les arrêts sur la carte en direct).
   @RequireFeature('trajets', 'affectation', 'live')
-  findByTrajet(@Query('trajetId') trajetId?: string, @Query('pourAffectation') pourAffectation?: string) {
-    return this.pointsService.findByTrajet(trajetId, pourAffectation === 'true');
+  findByTrajet(
+    @Query('trajetId') trajetId?: string,
+    @Query('pourAffectation') pourAffectation?: string,
+  ) {
+    return this.pointsService.findByTrajet(
+      trajetId,
+      pourAffectation === 'true',
+    );
   }
 
   @Get(':id')
@@ -39,21 +67,27 @@ export class PointsRecuperationController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Crée un nouveau point de récupération (arrêt de bus)' })
+  @ApiOperation({
+    summary: 'Crée un nouveau point de récupération (arrêt de bus)',
+  })
   create(@Body() dto: CreatePointDto) {
     return this.pointsService.create(dto);
   }
 
   @Put(':id')
   @ApiOperation({ summary: 'Met à jour un point de récupération' })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: Partial<CreatePointDto>) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: Partial<CreatePointDto>,
+  ) {
     return this.pointsService.update(id, dto);
   }
 
   @Patch('reorder')
   @ApiOperation({
-    summary: 'Réordonne les points d\'un trajet',
-    description: 'Reçoit un tableau d\'UUIDs dans l\'ordre souhaité et met à jour ordrePassage.',
+    summary: "Réordonne les points d'un trajet",
+    description:
+      "Reçoit un tableau d'UUIDs dans l'ordre souhaité et met à jour ordrePassage.",
   })
   reorder(@Body('pointIds') pointIds: string[]) {
     return this.pointsService.reorder(pointIds);

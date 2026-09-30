@@ -27,7 +27,9 @@ export class UpdateOrganisationBiotime1727100000001 implements MigrationInterfac
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX IF EXISTS "idx_organisations_biotime_dept"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "idx_organisations_biotime_dept"`,
+    );
     await queryRunner.query(`
       ALTER TABLE "organisations"
       DROP COLUMN IF EXISTS "biotime_department_name",

@@ -48,7 +48,10 @@ export default function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.contenu} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.contenu}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.logo}>🚌</Text>
         <Text style={styles.titre}>SMARTBUS Parent</Text>
         <Text style={styles.sousTitre}>Suivez le trajet de votre enfant</Text>
@@ -111,10 +114,26 @@ const styles = StyleSheet.create({
   conteneur: { flex: 1, backgroundColor: '#fff' },
   contenu: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   logo: { fontSize: 56, textAlign: 'center', marginBottom: 8 },
-  titre: { fontSize: 26, fontWeight: '800', textAlign: 'center', color: '#1e1b4b' },
-  sousTitre: { fontSize: 14, color: '#64748b', textAlign: 'center', marginTop: 4, marginBottom: 32 },
+  titre: {
+    fontSize: 26,
+    fontWeight: '800',
+    textAlign: 'center',
+    color: '#1e1b4b',
+  },
+  sousTitre: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 32,
+  },
   champ: { marginBottom: 16 },
-  etiquette: { fontSize: 13, fontWeight: '600', color: '#334155', marginBottom: 6 },
+  etiquette: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 6,
+  },
   saisie: {
     borderWidth: 1,
     borderColor: '#e2e8f0',

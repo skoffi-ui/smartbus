@@ -8,7 +8,9 @@ import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
  * concernée (voir `token`, qui porte uniquement l'organisationId).
  */
 export class InscriptionDirecteurDto {
-  @ApiProperty({ description: "Jeton d'invitation reçu (porte l'école concernée)" })
+  @ApiProperty({
+    description: "Jeton d'invitation reçu (porte l'école concernée)",
+  })
   @IsString()
   @IsNotEmpty()
   token: string;
@@ -30,7 +32,9 @@ export class InscriptionDirecteurDto {
 
   @ApiProperty({ minLength: 8 })
   @IsString()
-  @MinLength(8, { message: 'Le mot de passe doit contenir au moins 8 caractères' })
+  @MinLength(8, {
+    message: 'Le mot de passe doit contenir au moins 8 caractères',
+  })
   @IsNotEmpty()
   password: string;
 }

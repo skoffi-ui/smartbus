@@ -23,7 +23,12 @@ export class PlanTarif extends BaseEntityModel {
   // fait planter super-app au démarrage (DROP TYPE bloqué : les deux tables
   // dépendent du même type pendant l'opération). Ce nom doit rester
   // identique à celui de `Subscription.plan`.
-  @Column({ type: 'enum', enum: SubscriptionPlan, enumName: 'subscriptions_plan_enum', unique: true })
+  @Column({
+    type: 'enum',
+    enum: SubscriptionPlan,
+    enumName: 'subscriptions_plan_enum',
+    unique: true,
+  })
   plan: SubscriptionPlan;
 
   @Column({ name: 'label', length: 100 })
@@ -42,7 +47,10 @@ export class PlanTarif extends BaseEntityModel {
     type: 'decimal',
     precision: 10,
     scale: 2,
-    transformer: { to: (v: number) => v, from: (v: string | null) => (v === null ? null : parseFloat(v)) },
+    transformer: {
+      to: (v: number) => v,
+      from: (v: string | null) => (v === null ? null : parseFloat(v)),
+    },
   })
   pricePerMonth: number;
 

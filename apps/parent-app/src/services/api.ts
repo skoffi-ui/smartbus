@@ -7,7 +7,8 @@ import * as stockage from './storage';
  * `localhost` : Expo Go tourne sur un appareil/émulateur séparé qui ne peut
  * pas résoudre le `localhost` de la machine de développement.
  */
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3002/api/v1';
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3002/api/v1';
 
 export const TOKEN_KEY = 'smartbus_parent_token';
 
@@ -49,7 +50,10 @@ api.interceptors.response.use(
  * Message affichable à l'écran. Même esprit que `messageFromError` côté
  * school-web : ne jamais afficher une erreur technique brute à un parent.
  */
-export function messageFromError(error: unknown, fallback = 'Une erreur est survenue.'): string {
+export function messageFromError(
+  error: unknown,
+  fallback = 'Une erreur est survenue.',
+): string {
   const err = error as AxiosError<{ message?: string }>;
   if (!err?.response) {
     return 'Le serveur est injoignable. Vérifiez votre connexion réseau.';

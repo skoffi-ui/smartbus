@@ -22,7 +22,10 @@ import { Montee, Alerte } from '@app/database';
 export class MonteesService {
   constructor(private readonly tenantService: TenantService) {}
 
-  private async getRepo<T extends object>(entity: new () => T, tenantId?: string): Promise<Repository<T>> {
+  private async getRepo<T extends object>(
+    entity: new () => T,
+    tenantId?: string,
+  ): Promise<Repository<T>> {
     const ds = await this.tenantService.getDataSource(tenantId);
     return ds.getRepository<T>(entity as any);
   }

@@ -1,5 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { Search, Bell, LogOut, Sun, Moon, Settings, User, Shield, Building2 } from 'lucide-react';
+import {
+  Search,
+  Bell,
+  LogOut,
+  Sun,
+  Moon,
+  Settings,
+  User,
+  Shield,
+  Building2,
+} from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getInitialTheme, setTheme, type Theme } from '../theme';
 import { useI18n } from '../i18n';
@@ -43,14 +53,19 @@ export default function AdminNavbar() {
   // qu'on y tapait. `GET /organisations?search=` filtre déjà nom/code côté
   // serveur (voir `OrganisationsService.findAll`) : rien à ajouter côté API.
   const [requeteRecherche, setRequeteRecherche] = useState('');
-  const [resultatsRecherche, setResultatsRecherche] = useState<ResultatRecherche[]>([]);
+  const [resultatsRecherche, setResultatsRecherche] = useState<
+    ResultatRecherche[]
+  >([]);
   const [rechercheOuverte, setRechercheOuverte] = useState(false);
   const [rechercheEnCours, setRechercheEnCours] = useState(false);
   const refRecherche = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const gererClic = (e: MouseEvent) => {
-      if (refRecherche.current && !refRecherche.current.contains(e.target as Node)) {
+      if (
+        refRecherche.current &&
+        !refRecherche.current.contains(e.target as Node)
+      ) {
         setRechercheOuverte(false);
       }
     };
@@ -70,7 +85,11 @@ export default function AdminNavbar() {
     const minuteur = setTimeout(() => {
       api
         .get('/organisations', { params: { search: terme, limit: 6 } })
-        .then((res) => setResultatsRecherche(Array.isArray(res.data?.data) ? res.data.data : []))
+        .then((res) =>
+          setResultatsRecherche(
+            Array.isArray(res.data?.data) ? res.data.data : [],
+          ),
+        )
         .catch(() => setResultatsRecherche([]))
         .finally(() => setRechercheEnCours(false));
     }, 300); // Anti-rafale : une requête par frappe saturerait l'API sans utilité.
@@ -107,9 +126,15 @@ export default function AdminNavbar() {
     <nav className="sticky top-4 z-40 flex flex-row flex-wrap items-center justify-between rounded-2xl glass-panel p-3 backdrop-blur-xl mb-6 mx-4 md:mx-8">
       <div className="ml-[6px]">
         <div className="h-6 w-[224px] pt-1">
-          <a className="text-sm font-normal text-navy-300 hover:underline" href=" ">
+          <a
+            className="text-sm font-normal text-navy-300 hover:underline"
+            href=" "
+          >
             {t('pages')}
-            <span className="mx-1 text-sm text-navy-300 hover:text-white"> / </span>
+            <span className="mx-1 text-sm text-navy-300 hover:text-white">
+              {' '}
+              /{' '}
+            </span>
           </a>
           <span className="text-sm font-normal capitalize text-white hover:underline">
             {cheminActuel}
@@ -138,11 +163,18 @@ export default function AdminNavbar() {
           </div>
 
           {rechercheOuverte && requeteRecherche.trim().length >= 2 && (
-            <div className="absolute left-0 mt-2 w-72 rounded-xl glass-panel shadow-lg border border-white/10 overflow-hidden" style={{ zIndex: 50 }}>
+            <div
+              className="absolute left-0 mt-2 w-72 rounded-xl glass-panel shadow-lg border border-white/10 overflow-hidden"
+              style={{ zIndex: 50 }}
+            >
               {rechercheEnCours ? (
-                <div className="px-4 py-3 text-sm text-navy-300">{t('recherche.chargement')}</div>
+                <div className="px-4 py-3 text-sm text-navy-300">
+                  {t('recherche.chargement')}
+                </div>
               ) : resultatsRecherche.length === 0 ? (
-                <div className="px-4 py-3 text-sm text-navy-300">{t('recherche.aucun_resultat')}</div>
+                <div className="px-4 py-3 text-sm text-navy-300">
+                  {t('recherche.aucun_resultat')}
+                </div>
               ) : (
                 resultatsRecherche.map((org) => (
                   <button
@@ -152,7 +184,9 @@ export default function AdminNavbar() {
                   >
                     <Building2 size={16} className="shrink-0" />
                     <span className="flex-1 truncate">{org.name}</span>
-                    <span className="font-mono text-xs text-navy-400">{org.code}</span>
+                    <span className="font-mono text-xs text-navy-400">
+                      {org.code}
+                    </span>
                   </button>
                 ))
               )}
@@ -163,7 +197,9 @@ export default function AdminNavbar() {
         <button
           onClick={basculerTheme}
           className="h-12 w-12 flex items-center justify-center rounded-full text-navy-300 hover:text-white hover:bg-white/5 transition-colors"
-          title={theme === 'dark' ? t('nav.theme_clair') : t('nav.theme_sombre')}
+          title={
+            theme === 'dark' ? t('nav.theme_clair') : t('nav.theme_sombre')
+          }
         >
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
@@ -183,23 +219,35 @@ export default function AdminNavbar() {
           </button>
 
           {menuOuvert && (
-            <div className="absolute right-0 mt-2 w-56 rounded-xl glass-panel shadow-lg border border-white/10 overflow-hidden" style={{ zIndex: 50 }}>
+            <div
+              className="absolute right-0 mt-2 w-56 rounded-xl glass-panel shadow-lg border border-white/10 overflow-hidden"
+              style={{ zIndex: 50 }}
+            >
               <button
-                onClick={() => { setMenuOuvert(false); naviguer('/settings'); }}
+                onClick={() => {
+                  setMenuOuvert(false);
+                  naviguer('/settings');
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-navy-300 hover:bg-white/5 hover:text-white transition-colors"
               >
                 <User size={16} />
                 {t('nav.profil')}
               </button>
               <button
-                onClick={() => { setMenuOuvert(false); naviguer('/settings'); }}
+                onClick={() => {
+                  setMenuOuvert(false);
+                  naviguer('/settings');
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-navy-300 hover:bg-white/5 hover:text-white transition-colors"
               >
                 <Settings size={16} />
                 {t('nav.parametres')}
               </button>
               <button
-                onClick={() => { setMenuOuvert(false); naviguer('/settings'); }}
+                onClick={() => {
+                  setMenuOuvert(false);
+                  naviguer('/settings');
+                }}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-navy-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/10"
               >
                 <Shield size={16} />

@@ -34,7 +34,12 @@ export class Driver extends SoftDeleteEntityModel {
   photoUrl: string;
 
   // PIN hashé (bcrypt) pour authentification sur la tablette
-  @Column({ name: 'pin_code_hash', type: 'varchar', nullable: true, select: false })
+  @Column({
+    name: 'pin_code_hash',
+    type: 'varchar',
+    nullable: true,
+    select: false,
+  })
   pinCodeHash: string;
 
   @Column({ type: 'enum', enum: DriverStatus, default: DriverStatus.ACTIVE })

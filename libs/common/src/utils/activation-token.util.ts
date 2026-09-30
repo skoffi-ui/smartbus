@@ -28,7 +28,9 @@ export interface JetonActivation {
  * `forgotPassword()`, qu'il s'agisse d'une première activation ou d'une
  * réinitialisation.
  */
-export function genererJetonActivation(dureeValiditeMs = 7 * 24 * 60 * 60 * 1000): JetonActivation {
+export function genererJetonActivation(
+  dureeValiditeMs = 7 * 24 * 60 * 60 * 1000,
+): JetonActivation {
   const rawToken = crypto.randomBytes(32).toString('hex');
   const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
   const expires = new Date(Date.now() + dureeValiditeMs);

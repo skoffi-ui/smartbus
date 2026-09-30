@@ -82,7 +82,7 @@ describe('Organisations API (e2e)', () => {
       contactPhone: '+225012345680',
       address: '123 Rue de Test',
       city: 'Abidjan',
-      country: 'Côte d\'Ivoire',
+      country: "Côte d'Ivoire",
     };
 
     it('should create a new organisation', () => {

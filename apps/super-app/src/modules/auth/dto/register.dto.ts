@@ -25,12 +25,19 @@ export class RegisterDto {
   @IsEmail()
   email: string;
 
-  @ApiProperty({ example: '+22670000000', description: 'Numéro de téléphone', required: false })
+  @ApiProperty({
+    example: '+22670000000',
+    description: 'Numéro de téléphone',
+    required: false,
+  })
   @IsString()
   @IsOptional()
   phoneNumber?: string;
 
-  @ApiProperty({ example: 'Password123!', description: 'Mot de passe (min 8 caractères)' })
+  @ApiProperty({
+    example: 'Password123!',
+    description: 'Mot de passe (min 8 caractères)',
+  })
   @IsString()
   @MinLength(8)
   password: string;
@@ -38,14 +45,14 @@ export class RegisterDto {
   @ApiProperty({
     enum: UserRole,
     default: UserRole.PARENT,
-    description: 'Rôle de l\'utilisateur',
+    description: "Rôle de l'utilisateur",
     required: false,
   })
   @IsEnum(UserRole)
   @IsOptional()
   role?: UserRole;
 
-  @ApiProperty({ description: 'ID de l\'organisation', required: false })
+  @ApiProperty({ description: "ID de l'organisation", required: false })
   @IsUUID()
   @IsOptional()
   organisationId?: string;

@@ -27,11 +27,24 @@ const ICONES: Record<TypeToast, React.ComponentType<{ size?: number }>> = {
   info: Info,
 };
 
-const STYLES: Record<TypeToast, { bg: string; border: string; color: string }> = {
-  success: { bg: 'var(--success-tint)', border: 'var(--success-border-tint)', color: 'var(--success)' },
-  error: { bg: 'var(--danger-tint)', border: 'var(--danger-border-tint)', color: 'var(--danger)' },
-  info: { bg: 'var(--accent-tint)', border: 'var(--accent-border-tint)', color: 'var(--accent-primary)' },
-};
+const STYLES: Record<TypeToast, { bg: string; border: string; color: string }> =
+  {
+    success: {
+      bg: 'var(--success-tint)',
+      border: 'var(--success-border-tint)',
+      color: 'var(--success)',
+    },
+    error: {
+      bg: 'var(--danger-tint)',
+      border: 'var(--danger-border-tint)',
+      color: 'var(--danger)',
+    },
+    info: {
+      bg: 'var(--accent-tint)',
+      border: 'var(--accent-border-tint)',
+      color: 'var(--accent-primary)',
+    },
+  };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -39,7 +52,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const empiler = useCallback((type: TypeToast, message: string) => {
     const id = Date.now() + Math.random();
     setToasts((prev) => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts((prev) => prev.filter((toast) => toast.id !== id)), 4500);
+    setTimeout(
+      () => setToasts((prev) => prev.filter((toast) => toast.id !== id)),
+      4500,
+    );
   }, []);
 
   const api: ToastApi = {
@@ -96,6 +112,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 export function useToast(): ToastApi {
   const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast() doit être utilisé sous <ToastProvider>');
+  if (!ctx)
+    throw new Error('useToast() doit être utilisé sous <ToastProvider>');
   return ctx;
 }

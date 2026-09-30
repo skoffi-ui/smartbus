@@ -13,8 +13,8 @@ async function checkPunches() {
     const res = await pool.query(`
       SELECT gps_device_id FROM cars WHERE gps_device_id IS NOT NULL;
     `);
-    console.log("Cars with GPS:", res.rows);
-    
+    console.log('Cars with GPS:', res.rows);
+
     // Also let's check the logic in BiotimeService that transforms states into "MONTÉE" or "DESCENTE"
     // Because the state might just be 1 or 5 or whatever.
     const res2 = await pool.query(`
@@ -26,9 +26,8 @@ async function checkPunches() {
       WHERE DATE(punch_time) = '2026-07-10'
       ORDER BY child_id, punch_time;
     `);
-    
-    // console.log("Raw punches:", res2.rows);
 
+    // console.log("Raw punches:", res2.rows);
   } catch (err) {
     console.error(err);
   } finally {

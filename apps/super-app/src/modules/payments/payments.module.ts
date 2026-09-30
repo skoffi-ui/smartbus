@@ -7,7 +7,10 @@ import { CinetpayService } from './cinetpay.service';
 import { PlanTarifsModule } from '../plan-tarifs/plan-tarifs.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Payment, Subscription, Organisation]), PlanTarifsModule],
+  imports: [
+    TypeOrmModule.forFeature([Payment, Subscription, Organisation]),
+    PlanTarifsModule,
+  ],
   controllers: [PaymentsController],
   providers: [PaymentsService, CinetpayService],
 })

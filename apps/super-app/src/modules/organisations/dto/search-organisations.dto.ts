@@ -13,7 +13,9 @@ import { PaginationDto } from '@app/common';
  * deux règle le problème à la racine.
  */
 export class SearchOrganisationsDto extends PaginationDto {
-  @ApiPropertyOptional({ description: 'Recherche libre sur le nom ou le code de l\'organisation' })
+  @ApiPropertyOptional({
+    description: "Recherche libre sur le nom ou le code de l'organisation",
+  })
   @IsOptional()
   @IsString()
   search?: string;

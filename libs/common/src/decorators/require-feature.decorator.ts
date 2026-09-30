@@ -18,4 +18,5 @@ export const REQUIRE_FEATURE_KEY = 'requireFeature';
  * @example @RequireFeature('cars')
  * @example @RequireFeature('children', 'affectation')
  */
-export const RequireFeature = (...features: SchoolFeature[]) => SetMetadata(REQUIRE_FEATURE_KEY, features);
+export const RequireFeature = (...features: SchoolFeature[]) =>
+  SetMetadata(REQUIRE_FEATURE_KEY, features);

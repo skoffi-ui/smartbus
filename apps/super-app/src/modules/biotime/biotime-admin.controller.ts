@@ -1,7 +1,27 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+} from '@nestjs/swagger';
 import { BiotimeCentralService } from './biotime-central.service';
-import { AssignTerminalDto, CreateDepartmentDto, SyncTerminalsResponseDto } from './dto';
+import {
+  AssignTerminalDto,
+  CreateDepartmentDto,
+  SyncTerminalsResponseDto,
+} from './dto';
 import { JwtAuthGuard, RolesGuard, Roles } from '@app/common';
 import { UserRole } from '@app/database';
 
@@ -26,13 +46,19 @@ export class BiotimeAdminController {
   @Post('departments/create')
   @ApiOperation({
     summary: 'Créer un département BioTime pour une organisation',
-    description: 'Crée un département sur le serveur BioTime central et l\'associe à l\'organisation. 1 organisation = 1 département BioTime.',
+    description:
+      "Crée un département sur le serveur BioTime central et l'associe à l'organisation. 1 organisation = 1 département BioTime.",
   })
   @ApiResponse({ status: 201, description: 'Département créé avec succès' })
-  @ApiResponse({ status: 400, description: 'L\'organisation a déjà un département ou erreur BioTime' })
+  @ApiResponse({
+    status: 400,
+    description: "L'organisation a déjà un département ou erreur BioTime",
+  })
   @ApiResponse({ status: 404, description: 'Organisation non trouvée' })
   async createDepartment(@Body() dto: CreateDepartmentDto) {
-    const org = await this.biotimeService.createDepartmentForOrganisation(dto.organisationId);
+    const org = await this.biotimeService.createDepartmentForOrganisation(
+      dto.organisationId,
+    );
     return {
       message: 'Department created successfully',
       organisation: {
@@ -47,7 +73,8 @@ export class BiotimeAdminController {
   @Get('departments')
   @ApiOperation({
     summary: 'Lister tous les départements du serveur BioTime',
-    description: 'Récupère la liste complète des départements disponibles sur le serveur BioTime central.',
+    description:
+      'Récupère la liste complète des départements disponibles sur le serveur BioTime central.',
   })
   @ApiResponse({ status: 200, description: 'Liste des départements récupérée' })
   async getAllDepartments() {
@@ -59,9 +86,13 @@ export class BiotimeAdminController {
   @Get('terminals')
   @ApiOperation({
     summary: 'Lister tous les terminaux connus localement',
-    description: "Retourne tous les terminaux enregistrés dans notre base (assignés ou non), avec leur école le cas échéant. Ne dépend pas du serveur BioTime central.",
+    description:
+      'Retourne tous les terminaux enregistrés dans notre base (assignés ou non), avec leur école le cas échéant. Ne dépend pas du serveur BioTime central.',
   })
-  @ApiResponse({ status: 200, description: 'Liste complète des terminaux locaux' })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste complète des terminaux locaux',
+  })
   async getAllTerminals() {
     return await this.biotimeService.getAllTerminals();
   }
@@ -69,7 +100,8 @@ export class BiotimeAdminController {
   @Get('terminals/available')
   @ApiOperation({
     summary: 'Lister les terminaux disponibles (non assignés)',
-    description: 'Retourne tous les terminaux qui ne sont pas encore assignés à une organisation et qui sont disponibles pour affectation.',
+    description:
+      'Retourne tous les terminaux qui ne sont pas encore assignés à une organisation et qui sont disponibles pour affectation.',
   })
   @ApiResponse({ status: 200, description: 'Liste des terminaux disponibles' })
   async getAvailableTerminals() {
@@ -79,9 +111,13 @@ export class BiotimeAdminController {
   @Get('terminals/all-from-server')
   @ApiOperation({
     summary: 'Récupérer tous les terminaux du serveur BioTime central',
-    description: 'Interroge directement le serveur BioTime pour obtenir la liste complète des terminaux enregistrés.',
+    description:
+      'Interroge directement le serveur BioTime pour obtenir la liste complète des terminaux enregistrés.',
   })
-  @ApiResponse({ status: 200, description: 'Liste des terminaux du serveur BioTime' })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des terminaux du serveur BioTime',
+  })
   async fetchAllTerminalsFromServer() {
     return await this.biotimeService.fetchAllTerminalsFromBiotime();
   }
@@ -89,7 +125,8 @@ export class BiotimeAdminController {
   @Post('terminals/sync')
   @ApiOperation({
     summary: 'Synchroniser les terminaux depuis le serveur BioTime',
-    description: 'Récupère tous les terminaux du serveur BioTime et met à jour la base de données locale. Crée les nouveaux terminaux et met à jour les existants.',
+    description:
+      'Récupère tous les terminaux du serveur BioTime et met à jour la base de données locale. Crée les nouveaux terminaux et met à jour les existants.',
   })
   @ApiResponse({
     status: 200,
@@ -103,10 +140,14 @@ export class BiotimeAdminController {
   @Post('terminals/assign')
   @ApiOperation({
     summary: 'Assigner un terminal à une organisation',
-    description: 'Affecte un terminal (badgeuse) à une organisation (école) spécifique. Le terminal devient exclusif à cette école.',
+    description:
+      'Affecte un terminal (badgeuse) à une organisation (école) spécifique. Le terminal devient exclusif à cette école.',
   })
   @ApiResponse({ status: 200, description: 'Terminal assigné avec succès' })
-  @ApiResponse({ status: 404, description: 'Terminal ou organisation non trouvé(e)' })
+  @ApiResponse({
+    status: 404,
+    description: 'Terminal ou organisation non trouvé(e)',
+  })
   async assignTerminal(@Body() dto: AssignTerminalDto) {
     const terminal = await this.biotimeService.assignTerminalToOrganisation(
       dto.serialNumber,
@@ -130,7 +171,8 @@ export class BiotimeAdminController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Désassigner un terminal',
-    description: 'Libère un terminal pour le rendre disponible pour affectation à une autre organisation.',
+    description:
+      'Libère un terminal pour le rendre disponible pour affectation à une autre organisation.',
   })
   @ApiParam({ name: 'id', description: 'ID du terminal à désassigner' })
   @ApiResponse({ status: 200, description: 'Terminal désassigné avec succès' })
@@ -142,11 +184,15 @@ export class BiotimeAdminController {
 
   @Get('organisations/:orgId/terminals')
   @ApiOperation({
-    summary: 'Lister les terminaux d\'une organisation',
-    description: 'Retourne tous les terminaux assignés à une organisation (école) spécifique.',
+    summary: "Lister les terminaux d'une organisation",
+    description:
+      'Retourne tous les terminaux assignés à une organisation (école) spécifique.',
   })
-  @ApiParam({ name: 'orgId', description: 'ID de l\'organisation' })
-  @ApiResponse({ status: 200, description: 'Liste des terminaux de l\'organisation' })
+  @ApiParam({ name: 'orgId', description: "ID de l'organisation" })
+  @ApiResponse({
+    status: 200,
+    description: "Liste des terminaux de l'organisation",
+  })
   async getOrganisationTerminals(@Param('orgId') orgId: string) {
     return await this.biotimeService.getOrganisationTerminals(orgId);
   }
@@ -154,9 +200,13 @@ export class BiotimeAdminController {
   @Get('terminals/:serialNumber')
   @ApiOperation({
     summary: 'Récupérer un terminal par son numéro de série',
-    description: 'Retourne les détails d\'un terminal spécifique, y compris son organisation assignée.',
+    description:
+      "Retourne les détails d'un terminal spécifique, y compris son organisation assignée.",
   })
-  @ApiParam({ name: 'serialNumber', description: 'Numéro de série du terminal' })
+  @ApiParam({
+    name: 'serialNumber',
+    description: 'Numéro de série du terminal',
+  })
   @ApiResponse({ status: 200, description: 'Détails du terminal' })
   @ApiResponse({ status: 404, description: 'Terminal non trouvé' })
   async getTerminalBySerialNumber(@Param('serialNumber') serialNumber: string) {
@@ -167,13 +217,20 @@ export class BiotimeAdminController {
 
   @Get('organisations/:orgId/transactions/recent')
   @ApiOperation({
-    summary: 'Récupérer les transactions récentes d\'une organisation',
-    description: 'Retourne les 100 dernières transactions (pointages) d\'une organisation, filtrées automatiquement par son département BioTime.',
+    summary: "Récupérer les transactions récentes d'une organisation",
+    description:
+      "Retourne les 100 dernières transactions (pointages) d'une organisation, filtrées automatiquement par son département BioTime.",
   })
-  @ApiParam({ name: 'orgId', description: 'ID de l\'organisation' })
+  @ApiParam({ name: 'orgId', description: "ID de l'organisation" })
   @ApiResponse({ status: 200, description: 'Liste des transactions récentes' })
-  @ApiResponse({ status: 404, description: 'Organisation non trouvée ou sans département BioTime' })
+  @ApiResponse({
+    status: 404,
+    description: 'Organisation non trouvée ou sans département BioTime',
+  })
   async getRecentTransactions(@Param('orgId') orgId: string) {
-    return await this.biotimeService.getRecentOrganisationTransactions(orgId, 100);
+    return await this.biotimeService.getRecentOrganisationTransactions(
+      orgId,
+      100,
+    );
   }
 }
