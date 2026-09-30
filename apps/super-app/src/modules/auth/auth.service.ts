@@ -275,6 +275,9 @@ export class AuthService {
    * Déconnexion – suppression du refresh token
    */
   async logout(userId: string): Promise<void> {
+    if (!userId) {
+      throw new BadRequestException('Identifiant utilisateur manquant');
+    }
     await this.userRepository.update(userId, { refreshToken: null as unknown as string });
   }
 
