@@ -1,11 +1,16 @@
 import { Controller, Post, Get, Body, UseGuards, HttpCode, HttpStatus, Param } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiHeader, ApiResponse, ApiSecurity, ApiProperty } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { CinetpayService } from './cinetpay.service';
 import { JwtAuthGuard, RolesGuard, Roles, CurrentUser, UserRole } from '@app/common';
 import { SubscriptionPlan } from '@app/database';
-import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { CinetpayWebhookDto } from './dto/cinetpay-webhook.dto';
+import { PaymentWebhookGuard } from './payment-webhook.guard';
+import {
+  CINETPAY_WEBHOOK_SECRET_HEADER,
+  CINETPAY_WEBHOOK_SECURITY_SCHEME,
+} from './payment-webhook.constants';
 
 export class CheckoutDto {
   @ApiProperty({ 
@@ -61,8 +66,27 @@ export class PaymentsController {
 
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Webhook de notification CinetPay (Public)' })
-  async webhook(@Body() body: { paymentId: string; status: string; transactionId: string }) {
+  @UseGuards(PaymentWebhookGuard)
+  @ApiSecurity(CINETPAY_WEBHOOK_SECURITY_SCHEME)
+  @ApiHeader({
+    name: CINETPAY_WEBHOOK_SECRET_HEADER,
+    required: true,
+    description:
+      'Secret partagé (CINETPAY_WEBHOOK_SECRET), comparé en temps constant. Distinct du JWT utilisateur. Aucun paramètre d\'URL n\'est accepté.',
+  })
+  @ApiOperation({
+    summary: 'Notification CinetPay (secret partagé, sans JWT)',
+    description:
+      'Route sans JWT : l\'appelant est le prestataire ou le simulateur. ' +
+      'Le corps est validé, le montant et la devise sont confrontés au paiement PENDING, ' +
+      'et une transaction déjà traitée est refusée (409) sans prolonger l\'abonnement une seconde fois.',
+  })
+  @ApiResponse({ status: 200, description: 'Notification acceptée. L\'abonnement n\'est prolongé que si le paiement était encore PENDING.' })
+  @ApiResponse({ status: 400, description: 'Corps invalide, ou montant/devise différents du paiement PENDING.' })
+  @ApiResponse({ status: 401, description: `Secret absent ou invalide (en-tête ${CINETPAY_WEBHOOK_SECRET_HEADER}).` })
+  @ApiResponse({ status: 404, description: 'Paiement introuvable.' })
+  @ApiResponse({ status: 409, description: 'Transaction déjà traitée : l\'abonnement n\'est pas prolongé une seconde fois.' })
+  async webhook(@Body() body: CinetpayWebhookDto) {
     return this.cinetpayService.handleWebhook(body);
   }
 

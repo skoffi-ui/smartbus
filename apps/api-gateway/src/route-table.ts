@@ -77,6 +77,9 @@ const PUBLIC_ROUTES = new Set([
   // jeton d'invitation lui-même (voir AuthController.rejoindreEcole), pas par le JWT.
   'POST auth/rejoindre-ecole',
   'POST auth/parent/login',
+  // Pas de JWT utilisateur : l'appelant est le prestataire de paiement.
+  // L'authenticité est vérifiée dans la super-app (PaymentWebhookGuard,
+  // en-tête x-cinetpay-webhook-secret / CINETPAY_WEBHOOK_SECRET).
   'POST payments/webhook',
   // Ingestion depuis les appareils (badgeuse BioTime, trackers GPS)
   'POST biotime/webhook',
