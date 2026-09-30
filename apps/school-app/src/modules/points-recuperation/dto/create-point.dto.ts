@@ -47,7 +47,7 @@ export class CreatePointDto {
   trajetId?: string;
 
   @ApiPropertyOptional({
-    description: 'Rayon de détection GPS en mètres (défaut: 30)',
+    description: 'Rayon de détection GPS en mètres (défaut: 100)',
   })
   @IsOptional()
   @IsNumber()
