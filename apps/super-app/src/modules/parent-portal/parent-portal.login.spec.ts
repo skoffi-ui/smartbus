@@ -1,5 +1,6 @@
 import {
   INestApplication,
+  Logger,
   ValidationPipe,
   VersioningType,
 } from '@nestjs/common';
@@ -234,17 +235,88 @@ describe('POST /api/v1/auth/parent/login (supertest)', () => {
       expect(findEcoles).not.toHaveBeenCalled();
     });
 
-    it('refuse un PIN encore stocké en clair', async () => {
+    it('refuse un PIN encore stocké en clair, avec le même corps qu’un mauvais PIN', async () => {
       stockage.pinCode = PIN;
-
-      const reponse = await connexion({
-        emailOrPhone: EMAIL,
+      const clair = await connexion({
+        emailOrPhone: 'clair@ecole.ci',
         pinCode: PIN,
         schoolCode: ECOLE,
       });
 
-      expect(reponse.status).toBe(401);
       stockage.pinCode = hashPin;
+      const mauvais = await connexion({
+        emailOrPhone: 'mauvais-clair@ecole.ci',
+        pinCode: PIN_FAUX,
+        schoolCode: ECOLE,
+      });
+
+      expect(stockage.pinCode).not.toBe(PIN);
+      expect(clair.status).toBe(401);
+      expect(clair.body).toEqual(mauvais.body);
+      expect(lireCorps(clair).token).toBeUndefined();
+      expect(JSON.stringify(clair.body)).not.toContain(PIN);
+      expect(JSON.stringify(clair.body)).not.toMatch(/\$2[aby]\$/);
+    });
+
+    it('répond pareil pour un parent inconnu et un mauvais PIN', async () => {
+      stockage.pinCode = hashPin;
+      const inconnu = await connexion({
+        emailOrPhone: 'personne@ecole.ci',
+        pinCode: PIN,
+        schoolCode: ECOLE,
+      });
+      const mauvais = await connexion({
+        emailOrPhone: 'existe@ecole.ci',
+        pinCode: PIN_FAUX,
+        schoolCode: ECOLE,
+      });
+
+      expect(inconnu.status).toBe(401);
+      expect(inconnu.status).toBe(mauvais.status);
+      expect(inconnu.body).toEqual(mauvais.body);
+      expect(lireCorps(inconnu).token).toBeUndefined();
+      expect(JSON.stringify(inconnu.body)).not.toContain(PIN);
+    });
+
+    it('ne journalise pas le PIN', async () => {
+      stockage.pinCode = hashPin;
+      const messages: string[] = [];
+      const capter = (...args: unknown[]) => {
+        messages.push(
+          args
+            .map((arg) => (typeof arg === 'string' ? arg : JSON.stringify(arg)))
+            .join(' '),
+        );
+      };
+      const methodes = ['log', 'warn', 'error', 'debug', 'verbose'] as const;
+      const espions = methodes.map((methode) =>
+        jest.spyOn(Logger.prototype, methode).mockImplementation(capter),
+      );
+
+      try {
+        const echec = await connexion({
+          emailOrPhone: 'journal-echec@ecole.ci',
+          pinCode: PIN_FAUX,
+          schoolCode: ECOLE,
+        });
+        const succes = await connexion({
+          emailOrPhone: EMAIL,
+          pinCode: PIN,
+          schoolCode: ECOLE,
+        });
+
+        expect(echec.status).toBe(401);
+        expect(succes.status).toBe(200);
+        expect(
+          messages.some((ligne) => ligne.includes('Connexion réussie')),
+        ).toBe(true);
+        const journal = messages.join('\n');
+        expect(journal).not.toContain(PIN);
+        expect(journal).not.toContain(PIN_FAUX);
+        expect(journal).not.toContain(hashPin);
+      } finally {
+        espions.forEach((espion) => espion.mockRestore());
+      }
     });
 
     it('verrouille l’identifiant après N essais, y compris avec le bon PIN', async () => {
@@ -364,6 +436,36 @@ describe('POST /api/v1/auth/parent/login (supertest)', () => {
       await app.close();
     });
 
+    it('dure 12 h par défaut (exp − iat = 43200), sans reprendre JWT_EXPIRES_IN', async () => {
+      const monte = await monterApplication({
+        config: {
+          JWT_SECRET: SECRET,
+          JWT_EXPIRES_IN: '7d',
+          PARENT_PIN_MAX_ATTEMPTS: '5',
+          PARENT_PIN_LOCK_STEPS_SEC: '60',
+        },
+        limiteIdentifiant: 100,
+        limiteIp: 100,
+      });
+      monte.stockage.pinCode = await hasherPinParent(PIN);
+
+      try {
+        const reponse = await request(monte.app.getHttpServer())
+          .post('/api/v1/auth/parent/login')
+          .send({ emailOrPhone: EMAIL, pinCode: PIN, schoolCode: ECOLE });
+
+        expect(reponse.status).toBe(200);
+        const jeton = lireCorps(reponse).token ?? '';
+        const payload: JetonParent = await monte.app
+          .get(JwtService)
+          .verifyAsync(jeton, { secret: SECRET });
+        expect(payload.exp - payload.iat).toBe(43200);
+        expect(payload.role).toBe('PARENT');
+      } finally {
+        await monte.app.close();
+      }
+    });
+
     it("plafond par identifiant avant même d'atteindre le verrouillage", async () => {
       const corps = {
         emailOrPhone: 'debit@ecole.ci',
@@ -382,6 +484,53 @@ describe('POST /api/v1/auth/parent/login (supertest)', () => {
       expect(bloque.status).toBe(429);
       expect(lireCorps(bloque).code).toBeUndefined();
       expect(messageDe(bloque)).toMatch(/Trop de requêtes/);
+    });
+  });
+
+  describe('plafond par IP', () => {
+    let app: INestApplication;
+
+    beforeAll(async () => {
+      const monte = await monterApplication({
+        config: {
+          JWT_SECRET: SECRET,
+          PARENT_JWT_EXPIRES_IN: '15m',
+          PARENT_PIN_MAX_ATTEMPTS: '100',
+          PARENT_PIN_LOCK_STEPS_SEC: '60',
+        },
+        limiteIdentifiant: 100,
+        limiteIp: 2,
+      });
+      app = monte.app;
+      monte.stockage.pinCode = await hasherPinParent(PIN);
+    });
+
+    afterAll(async () => {
+      await app.close();
+    });
+
+    it('bloque la troisième requête de la même IP, pas une autre', async () => {
+      const poster = (email: string, xff: string) =>
+        request(app.getHttpServer())
+          .post('/api/v1/auth/parent/login')
+          .set('X-Forwarded-For', xff)
+          .send({
+            emailOrPhone: email,
+            pinCode: PIN_FAUX,
+            schoolCode: ECOLE,
+          });
+
+      const memeIp = '10.0.0.1, 203.0.113.10';
+      expect((await poster('ip-a@ecole.ci', memeIp)).status).toBe(401);
+      expect((await poster('ip-b@ecole.ci', memeIp)).status).toBe(401);
+      const bloque = await poster('ip-c@ecole.ci', memeIp);
+
+      expect(bloque.status).toBe(429);
+      expect(lireCorps(bloque).code).toBeUndefined();
+      expect(messageDe(bloque)).toMatch(/Trop de requêtes/);
+
+      const autreIp = await poster('ip-d@ecole.ci', '10.0.0.1, 203.0.113.11');
+      expect(autreIp.status).toBe(401);
     });
   });
 });

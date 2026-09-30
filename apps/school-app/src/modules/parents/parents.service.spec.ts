@@ -87,4 +87,24 @@ describe('ParentsService — PIN hashé', () => {
     expect(await bcrypt.compare('5678', stocke)).toBe(true);
     expect(resultat.pinCode).toBeUndefined();
   });
+
+  it('régénère un hash bcrypt et ne renvoie le PIN en clair qu’une fois', async () => {
+    const ancien = await bcrypt.hash('1111', 12);
+    findOne.mockResolvedValue({
+      id: 'parent-1',
+      phone: '+22501020304',
+      pinCode: ancien,
+    });
+
+    const resultat = await service.regeneratePin('parent-1');
+
+    const clair = resultat.pinCode ?? '';
+    const stocke = save.mock.calls[0][0].pinCode ?? '';
+    expect(clair).toMatch(/^\d{4}$/);
+    expect(clair).not.toBe('0000');
+    expect(stocke).not.toBe(clair);
+    expect(stocke.startsWith('$2b$12$')).toBe(true);
+    expect(await bcrypt.compare(clair, stocke)).toBe(true);
+    expect(await bcrypt.compare('1111', stocke)).toBe(false);
+  });
 });

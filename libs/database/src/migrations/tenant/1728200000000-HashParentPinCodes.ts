@@ -1,41 +1,13 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-import {
-  estHashBcrypt,
-  hasherPinParent,
-} from '../../../../common/src/security/parent-pin';
+import { rehasherPinsParents } from '../../tenant-pin/rehasher-pins-parents';
 
 /**
- * Re-hashe les PIN parents encore en clair (bcrypt, coût 12) sans les
- * invalider : le parent garde le même code, seule la colonne change.
- * Les valeurs déjà au format bcrypt sont laissées telles quelles, pour
- * qu'une reprise après échec ne les hashe pas une seconde fois.
- *
+ * Re-hashe les PIN parents encore en clair (bcrypt, coût 12).
  * Irréversible : `down` ne peut pas retrouver le PIN.
+ *
+ * Ce fichier n'exporte que la classe : TypeORM instancie chaque export
+ * du dossier des migrations.
  */
-export async function rehasherPinsParents(
-  query: (sql: string, parameters?: unknown[]) => Promise<unknown>,
-): Promise<number> {
-  const brut = await query(
-    `SELECT "id", "pin_code" FROM "parents" WHERE "pin_code" IS NOT NULL AND "pin_code" <> ''`,
-  );
-  const lignes = Array.isArray(brut)
-    ? (brut as Array<{ id: string; pin_code: string }>)
-    : [];
-  let rehashes = 0;
-
-  for (const ligne of lignes) {
-    if (!ligne?.pin_code || estHashBcrypt(ligne.pin_code)) continue;
-    const hash = await hasherPinParent(ligne.pin_code);
-    await query(
-      `UPDATE "parents" SET "pin_code" = $1, "updated_at" = now() WHERE "id" = $2`,
-      [hash, ligne.id],
-    );
-    rehashes++;
-  }
-
-  return rehashes;
-}
-
 export class HashParentPinCodes1728200000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // varchar(4) ne peut pas contenir un hash bcrypt (60 caractères).
