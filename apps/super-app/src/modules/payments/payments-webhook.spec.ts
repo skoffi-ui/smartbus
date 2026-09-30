@@ -13,6 +13,7 @@ import {
   Subscription,
   SubscriptionStatus,
 } from '@app/database';
+import * as crypto from 'crypto';
 import { createRequire } from 'node:module';
 import type { Response } from 'supertest';
 import { CinetpayService } from './cinetpay.service';
@@ -23,8 +24,9 @@ import { PaymentWebhookGuard } from './payment-webhook.guard';
 
 // supertest est CommonJS. Sans esModuleInterop, `import request from` se compile
 // en `.default` et n'est pas une fonction à l'exécution.
-interface AppelHttp {
+interface AppelHttp extends PromiseLike<Response> {
   set(nom: string, valeur: string): AppelHttp;
+  query(params: Record<string, string>): AppelHttp;
   send(corps: Record<string, unknown>): AppelHttp;
   expect(statut: number): Promise<Response>;
 }
@@ -35,11 +37,31 @@ const request = charger('supertest') as (serveur: object) => {
 };
 
 function messageDe(corps: unknown): string {
+  const messages = messagesDe(corps);
+  return messages.length === 1 ? messages[0] : '';
+}
+
+function messagesDe(corps: unknown): string[] {
   if (typeof corps !== 'object' || corps === null || !('message' in corps)) {
-    return '';
+    return [];
   }
   const message = corps.message;
-  return typeof message === 'string' ? message : '';
+  if (typeof message === 'string') return [message];
+  if (!Array.isArray(message)) return [];
+  const textes: string[] = [];
+  for (const item of message) {
+    if (typeof item !== 'string') return [];
+    textes.push(item);
+  }
+  return textes;
+}
+
+function codeDe(corps: unknown): number | undefined {
+  if (typeof corps !== 'object' || corps === null || !('statusCode' in corps)) {
+    return undefined;
+  }
+  const code = corps.statusCode;
+  return typeof code === 'number' ? code : undefined;
 }
 
 const SECRET = 'a'.repeat(48);
@@ -237,9 +259,18 @@ describe('POST /api/v1/payments/webhook (TD-002)', () => {
       SECRET,
     ).expect(400);
 
-    expect(messageDe(reponse.body)).toMatch(/montant ou la devise/);
+    expect(reponse.status).toBe(400);
+    expect(codeDe(reponse.body)).toBe(400);
+    expect(messageDe(reponse.body)).toBe(
+      'Le montant ou la devise ne correspond pas au paiement en attente.',
+    );
+    expect(transaction).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
     expect(paiement.status).toBe(SandboxPaymentStatus.PENDING);
+    expect(paiement.externalReference).toBe('OMN_ABC');
+    expect(abonnement.status).toBe(SubscriptionStatus.PENDING);
     expect(abonnement.endDate.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+    expect(organisation.status).toBe(OrganisationStatus.SUSPENDED);
   });
 
   it("enregistre un échec notifié sans réactiver l'école", async () => {
@@ -280,5 +311,129 @@ describe('POST /api/v1/payments/webhook (TD-002)', () => {
     expect(abonnement.startDate.getTime()).toBe(debutApresPremiere);
     expect(organisation.status).toBe(OrganisationStatus.ACTIVE);
     expect(paiement.status).toBe(SandboxPaymentStatus.SUCCESS);
+  });
+
+  it("refuse le secret passé en query string à la place de l'en-tête", async () => {
+    const serveur: object = app.getHttpServer() as object;
+    const reponse = await request(serveur)
+      .post('/api/v1/payments/webhook')
+      .query({
+        'x-cinetpay-webhook-secret': SECRET,
+        key: SECRET,
+      })
+      .send(corpsConforme())
+      .expect(401);
+
+    expect(reponse.status).toBe(401);
+    expect(codeDe(reponse.body)).toBe(401);
+    expect(messageDe(reponse.body)).toBe('Webhook de paiement non autorisé.');
+    expect(findOne).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(paiement.status).toBe(SandboxPaymentStatus.PENDING);
+    expect(organisation.status).toBe(OrganisationStatus.SUSPENDED);
+  });
+
+  it('refuse un secret de longueur différente sans appeler timingSafeEqual', async () => {
+    const espion = jest.spyOn(crypto, 'timingSafeEqual');
+    const originale = transaction.getMockImplementation();
+    try {
+      await notifier(corpsConforme(), 'b'.repeat(SECRET.length)).expect(401);
+      expect(espion).toHaveBeenCalledTimes(1);
+      espion.mockClear();
+
+      const reponse = await notifier(
+        corpsConforme(),
+        SECRET.slice(0, -1),
+      ).expect(401);
+
+      expect(reponse.status).toBe(401);
+      expect(codeDe(reponse.body)).toBe(401);
+      expect(messageDe(reponse.body)).toBe('Webhook de paiement non autorisé.');
+      expect(espion).not.toHaveBeenCalled();
+      expect(findOne).not.toHaveBeenCalled();
+      expect(transaction).not.toHaveBeenCalled();
+      expect(save).not.toHaveBeenCalled();
+    } finally {
+      espion.mockRestore();
+      if (originale) transaction.mockImplementation(originale);
+    }
+  });
+
+  it('répond 404 lorsque le paiement est introuvable', async () => {
+    findOne.mockResolvedValueOnce(null);
+
+    const reponse = await notifier(corpsConforme(), SECRET).expect(404);
+
+    expect(reponse.status).toBe(404);
+    expect(codeDe(reponse.body)).toBe(404);
+    expect(messageDe(reponse.body)).toBe('Paiement introuvable');
+    expect(transaction).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(paiement.status).toBe(SandboxPaymentStatus.PENDING);
+    expect(abonnement.status).toBe(SubscriptionStatus.PENDING);
+    expect(organisation.status).toBe(OrganisationStatus.SUSPENDED);
+  });
+
+  // Statut hors `success` / `failed` : rejeté par le DTO (@IsIn) avant le
+  // service. Le paiement n'est ni soldé ni marqué en échec. class-validator
+  // renvoie son message anglais par défaut (pas de factory Nest personnalisée).
+  it('refuse un statut hors success et failed', async () => {
+    const reponse = await notifier(
+      corpsConforme({ status: 'cancelled' }),
+      SECRET,
+    ).expect(400);
+
+    expect(reponse.status).toBe(400);
+    expect(codeDe(reponse.body)).toBe(400);
+    expect(messagesDe(reponse.body)).toEqual([
+      'status must be one of the following values: success, failed',
+    ]);
+    expect(findOne).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+    expect(paiement.status).toBe(SandboxPaymentStatus.PENDING);
+    expect(abonnement.status).toBe(SubscriptionStatus.PENDING);
+    expect(organisation.status).toBe(OrganisationStatus.SUSPENDED);
+  });
+
+  // Les deux appels observent encore PENDING, puis la mise à jour conditionnelle
+  // (`status = PENDING`) n'en laisse passer qu'une. L'autre reçoit 409.
+  it('ne prolonge qu’une fois lorsque deux webhooks identiques arrivent ensemble', async () => {
+    type Travail = (em: unknown) => Promise<void>;
+    const originale = transaction.getMockImplementation() as
+      | ((travail: Travail) => Promise<void>)
+      | undefined;
+    transaction.mockImplementation(
+      (travail: Travail): Promise<void> =>
+        new Promise<void>((resoudre) => {
+          setImmediate(resoudre);
+        }).then(() => originale?.(travail) ?? Promise.resolve()),
+    );
+
+    try {
+      const [gauche, droite] = await Promise.all([
+        notifier(corpsConforme(), SECRET),
+        notifier(corpsConforme(), SECRET),
+      ]);
+      const statuts = [gauche.status, droite.status].sort((a, b) => a - b);
+      const gagnant = gauche.status === 200 ? gauche : droite;
+      const perdant = gauche.status === 409 ? gauche : droite;
+
+      expect(statuts).toEqual([200, 409]);
+      expect(gagnant.body).toEqual({ success: true });
+      expect(perdant.status).toBe(409);
+      expect(codeDe(perdant.body)).toBe(409);
+      expect(messageDe(perdant.body)).toBe(
+        "Cette transaction a déjà été traitée : l'abonnement n'est pas prolongé une seconde fois.",
+      );
+      expect(save).toHaveBeenCalledTimes(2);
+      expect(paiement.status).toBe(SandboxPaymentStatus.SUCCESS);
+      expect(paiement.externalReference).toBe(TRANSACTION_ID);
+      expect(abonnement.status).toBe(SubscriptionStatus.ACTIVE);
+      expect(organisation.status).toBe(OrganisationStatus.ACTIVE);
+    } finally {
+      if (originale) transaction.mockImplementation(originale);
+    }
   });
 });
