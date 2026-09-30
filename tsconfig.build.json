@@ -7,6 +7,8 @@
     "**/*spec.ts",
     "apps/super-admin-web",
     "apps/school-web",
+    "apps/parent-app",
+    "eslint.config.mjs",
     "scripts"
   ]
 }

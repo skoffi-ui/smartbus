@@ -166,8 +166,8 @@ function GraphiqueParEcole({
             />
             <Tooltip
               {...STYLE_TOOLTIP}
-              formatter={(value: number) => [`${value} ${unite}`, undefined]}
-              labelFormatter={(label: string) => label}
+              formatter={(value) => [`${value ?? 0} ${unite}`, undefined]}
+              labelFormatter={(label) => String(label ?? '')}
             />
             <Bar dataKey="valeur" fill={couleur} radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -215,7 +215,7 @@ function GraphiqueDonut({
           </Pie>
           <Tooltip
             {...STYLE_TOOLTIP}
-            formatter={(value: number, nom: string) => [value, nom]}
+            formatter={(value, nom) => [Number(value ?? 0), String(nom ?? '')]}
           />
           <Legend
             layout="vertical"

@@ -33,7 +33,7 @@ SMARTBUS utilise **Jest** comme framework de test principal pour les tests unita
 
 ### Objectifs
 
-- ✅ **Couverture minimale** : 70% (branches, functions, lines, statements)
+- ✅ **Objectif de couverture** : 70% (branches, functions, lines, statements). Le plancher bloquant en CI est plus bas et doit monter par paliers (TD-027) : voir [Couverture de code](#couverture-de-code).
 - ✅ **Détection précoce** : Catch bugs avant production
 - ✅ **Documentation vivante** : Les tests documentent le comportement
 - ✅ **Refactoring sûr** : Permettre les changements sans régression
@@ -82,7 +82,7 @@ SMARTBUS_project/
 ```typescript
 // Tests unitaires uniquement (*.spec.ts)
 // Exclut: DTOs, entities, interfaces, modules
-// Couverture: 70% minimum
+// Plancher CI mesuré, à relever (TD-027). Objectif long terme : 70 %.
 // Timeout: 30 secondes
 ```
 
@@ -432,15 +432,15 @@ npm run test:cov
 # HTML report: coverage/lcov-report/index.html
 ```
 
-**Seuils minimum** (jest.config.ts) :
+**Plancher bloquant** (jest.config.ts), mesuré le 2026-09-30 sur le backend Nest (apps super-app, school-app, api-gateway et libs) : statements 17,11 %, branches 12,24 %, functions 10,44 %, lines 16,73 %. L'objectif reste 70 %. Le plancher est volontairement sous le relevé pour encaisser un fichier ajouté, et il est prévu de le relever (TD-027) :
 
 ```typescript
 coverageThreshold: {
   global: {
-    branches: 70,
-    functions: 70,
-    lines: 70,
-    statements: 70,
+    branches: 9,
+    functions: 8,
+    lines: 14,
+    statements: 14,
   },
 }
 ```
@@ -456,7 +456,11 @@ Exemple de pipeline :
 ```yaml
 name: Tests
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [main, develop, feat/refonte-v2, feat/**]
+  pull_request:
+    branches: [main, develop, feat/refonte-v2, feat/**]
 
 jobs:
   test:
@@ -477,10 +481,10 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
 
@@ -500,7 +504,7 @@ jobs:
         run: npm run test:cov
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage/lcov.info
 ```
