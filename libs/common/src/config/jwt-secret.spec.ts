@@ -111,6 +111,24 @@ describe('secretsJwtAuDemarrage', () => {
     ).toBe(ACCES);
   });
 
+  it('refuse le démarrage si JWT_REFRESH_SECRET est identique à JWT_SECRET', () => {
+    const identique = 'c'.repeat(64);
+    let message = '';
+    try {
+      secretsJwtAuDemarrage(
+        configVars({
+          JWT_SECRET: identique,
+          JWT_REFRESH_SECRET: identique,
+        }),
+      );
+    } catch (erreur) {
+      message = erreur instanceof Error ? erreur.message : String(erreur);
+    }
+
+    expect(message).toMatch(/JWT_REFRESH_SECRET doit être distinct de JWT_SECRET/);
+    expect(message).not.toContain(identique);
+  });
+
   it("refuse le démarrage du module d'auth si JWT_REFRESH_SECRET manque", () => {
     expect(() =>
       secretsJwtAuDemarrage(configVars({ JWT_SECRET: ACCES })),

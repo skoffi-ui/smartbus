@@ -73,10 +73,19 @@ export function jwtRefreshSecretRequis(config: ConfigService): string {
 
 /**
  * Contrôle de démarrage du module qui émet les sessions (super-app).
- * Les deux secrets sont obligatoires. La valeur renvoyée est celle des
- * jetons d'accès, attendue par `JwtModule`.
+ * Les deux secrets sont obligatoires et distincts : le même secret signerait
+ * à la fois les jetons d'accès et les refresh tokens. La valeur renvoyée est
+ * celle des jetons d'accès, attendue par `JwtModule`.
  */
 export function secretsJwtAuDemarrage(config: ConfigService): string {
-  jwtRefreshSecretRequis(config);
-  return jwtSecretRequis(config);
+  const refresh = jwtRefreshSecretRequis(config);
+  const acces = jwtSecretRequis(config);
+
+  if (refresh === acces) {
+    throw new Error(
+      'JWT_REFRESH_SECRET doit être distinct de JWT_SECRET : le même secret signerait les jetons d\'accès et de rafraîchissement.',
+    );
+  }
+
+  return acces;
 }
