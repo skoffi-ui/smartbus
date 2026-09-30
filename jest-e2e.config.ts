@@ -8,6 +8,8 @@ const config: Config = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
+  // uuid >= 12 est distribué uniquement en ESM (même raison que jest.config.ts).
+  transformIgnorePatterns: ['/node_modules/(?!uuid/)'],
   moduleNameMapper: {
     '^@app/common(|/.*)$': '<rootDir>/libs/common/src/$1',
     '^@app/database(|/.*)$': '<rootDir>/libs/database/src/$1',

@@ -35,25 +35,16 @@ function logout(): void {
  */
 let refreshingPromise: Promise<string> | null = null;
 
-function decoderUserId(accessToken: string): string | null {
-  try {
-    return JSON.parse(atob(accessToken.split('.')[1])).sub ?? null;
-  } catch {
-    return null;
-  }
-}
-
 async function rafraichirJeton(): Promise<string> {
-  const accessTokenActuel = localStorage.getItem('accessToken');
   const refreshToken = localStorage.getItem('refreshToken');
-  const userId = accessTokenActuel ? decoderUserId(accessTokenActuel) : null;
 
-  if (!refreshToken || !userId) {
+  if (!refreshToken) {
     throw new Error('Pas de jeton de rafraîchissement disponible.');
   }
 
   // `axios` brut, pas `api` : éviter de redéclencher cet intercepteur en boucle.
-  const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { userId, refreshToken });
+  // L'identifiant est dans le jeton vérifié côté serveur : le corps ne porte que le refresh token.
+  const response = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
   localStorage.setItem('accessToken', response.data.accessToken);
   localStorage.setItem('refreshToken', response.data.refreshToken);
   return response.data.accessToken;

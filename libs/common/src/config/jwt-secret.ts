@@ -13,6 +13,8 @@ const LONGUEUR_MINIMALE = 32;
 const VALEURS_COMPROMISES = new Set([
   'secret',
   'your_super_secret_jwt_key_change_in_production',
+  // Ancien exemple de `.env.example` pour JWT_REFRESH_SECRET : publié dans le dépôt.
+  'your_super_secret_refresh_key_change_in_production',
   'changeme',
   'default',
 ]);
@@ -22,34 +24,68 @@ const VALEURS_COMPROMISES = new Set([
  *
  * Chaque module d'authentification lisait `JWT_SECRET` avec une valeur de repli :
  * `'secret'` dans la super-app, `'your_super_secret_jwt_key_change_in_production'`
- * dans l'app école. Une variable d'environnement oubliée en production ne
- * provoquait donc aucune erreur : les services signaient les jetons avec une
- * chaîne publique, connue de quiconque lit ce dépôt — il suffisait de forger un
- * jeton `SUPER_ADMIN` pour prendre la main sur toutes les écoles.
+ * dans l'app école. Le refresh token retombait de même sur `'secret'`
+ * (`JWT_REFRESH_SECRET`). Une variable oubliée en production ne provoquait
+ * donc aucune erreur : les services signaient avec une chaîne publique.
  *
  * Il n'existe pas de repli sûr pour un secret de signature. Mieux vaut un service
  * qui refuse de démarrer qu'un service qui démarre en acceptant de faux jetons.
  */
-export function jwtSecretRequis(config: ConfigService): string {
-  const secret = config.get<string>('JWT_SECRET');
+function secretDeSignatureRequis(
+  config: ConfigService,
+  variable: 'JWT_SECRET' | 'JWT_REFRESH_SECRET',
+): string {
+  const secret = config.get<string>(variable);
 
   if (!secret) {
     throw new Error(
-      'JWT_SECRET est requis : aucun service ne peut démarrer sans secret de signature.',
+      `${variable} est requis : aucun service ne peut démarrer sans secret de signature.`,
     );
   }
 
   if (VALEURS_COMPROMISES.has(secret)) {
     throw new Error(
-      'JWT_SECRET reprend une valeur compromise, présente dans le code source : en générer une nouvelle.',
+      `${variable} reprend une valeur compromise, présente dans le code source : en générer une nouvelle.`,
     );
   }
 
   if (secret.length < LONGUEUR_MINIMALE) {
     throw new Error(
-      `JWT_SECRET est trop court (${secret.length} caractères, minimum ${LONGUEUR_MINIMALE}).`,
+      `${variable} est trop court (${secret.length} caractères, minimum ${LONGUEUR_MINIMALE}).`,
     );
   }
 
   return secret;
+}
+
+/** Secret HMAC des jetons d'accès. Aucun repli. */
+export function jwtSecretRequis(config: ConfigService): string {
+  return secretDeSignatureRequis(config, 'JWT_SECRET');
+}
+
+/**
+ * Secret HMAC des refresh tokens, distinct de `JWT_SECRET`.
+ * Aucun repli : l'ancienne valeur `'secret'` est refusée.
+ */
+export function jwtRefreshSecretRequis(config: ConfigService): string {
+  return secretDeSignatureRequis(config, 'JWT_REFRESH_SECRET');
+}
+
+/**
+ * Contrôle de démarrage du module qui émet les sessions (super-app).
+ * Les deux secrets sont obligatoires et distincts : le même secret signerait
+ * à la fois les jetons d'accès et les refresh tokens. La valeur renvoyée est
+ * celle des jetons d'accès, attendue par `JwtModule`.
+ */
+export function secretsJwtAuDemarrage(config: ConfigService): string {
+  const refresh = jwtRefreshSecretRequis(config);
+  const acces = jwtSecretRequis(config);
+
+  if (refresh === acces) {
+    throw new Error(
+      'JWT_REFRESH_SECRET doit être distinct de JWT_SECRET : le même secret signerait les jetons d\'accès et de rafraîchissement.',
+    );
+  }
+
+  return acces;
 }

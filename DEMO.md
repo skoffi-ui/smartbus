@@ -12,12 +12,13 @@ du dépôt :
 docker compose up -d
 ```
 
-Le fichier `.env` doit exister à la racine. Deux variables refusent désormais
-toute valeur par défaut, et un service sans elles ne démarre pas :
+Le fichier `.env` doit exister à la racine. Ces variables refusent toute
+valeur par défaut, et un service sans elles ne démarre pas :
 
 | Variable | Rôle |
 |---|---|
-| `JWT_SECRET` | Signature des jetons. 32 caractères minimum. |
+| `JWT_SECRET` | Signature des jetons d'accès. 32 caractères minimum. |
+| `JWT_REFRESH_SECRET` | Signature des refresh tokens (super-app). Distinct de `JWT_SECRET`, 32 caractères minimum. |
 | `INTERNAL_API_KEY` | Secret des appels entre la super-app et l'app école. |
 
 ## 1. Démarrer les services
@@ -152,9 +153,11 @@ Lancez/relancez-le, puis redémarrez la super-app.
 **Erreurs 401 partout** — jeton expiré ou secret changé. Déconnectez-vous et
 reconnectez-vous.
 
-**Un service refuse de démarrer en parlant de `JWT_SECRET`** — la variable est
-absente ou trop courte. C'est un garde-fou volontaire : il n'existe pas de
-valeur de repli sûre pour un secret de signature.
+**Un service refuse de démarrer en parlant de `JWT_SECRET` ou `JWT_REFRESH_SECRET`** —
+la variable est absente, trop courte, ou reprend une valeur déjà publiée.
+C'est un garde-fou volontaire : il n'existe pas de valeur de repli sûre pour
+un secret de signature. Au déploiement de ce correctif, toutes les sessions
+sont invalidées : il faut se reconnecter.
 
 ## Ce qui n'est pas dans cette démonstration
 

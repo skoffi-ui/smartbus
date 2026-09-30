@@ -68,6 +68,11 @@ export class User extends BaseEntityModel {
   @Column({ name: 'avatar_url', nullable: true })
   avatarUrl: string;
 
+  /**
+   * Empreinte SHA-256 (hexadécimal) du refresh token courant.
+   * Jamais le jeton en clair, jamais bcrypt (tronqué à 72 octets).
+   * `null` : aucune session, ou session révoquée.
+   */
   @Column({ name: 'refresh_token', nullable: true, select: false })
   refreshToken: string;
 
