@@ -41,6 +41,9 @@ export * from './config/jwt-secret';
 // Utilitaires
 export * from './utils/activation-token.util';
 
+// PIN parent (bcrypt, même coût que les mots de passe utilisateurs)
+export * from './security/parent-pin';
+
 // Invitation directeur (sans base de données, voir director-invitation.service.ts)
 export * from './invitations/director-invitation.service';
 export * from './invitations/director-invitation.module';

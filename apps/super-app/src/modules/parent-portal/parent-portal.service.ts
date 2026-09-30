@@ -1,13 +1,45 @@
-import { Injectable, UnauthorizedException, NotFoundException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  NotFoundException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { Organisation, TenantConnectionService } from '@app/database';
+import {
+  hasherPinParent,
+  jwtSecretRequis,
+  verifierPinParent,
+} from '@app/common';
 import { ParentLoginDto } from './dto/parent-login.dto';
 import { FcmService } from './fcm.service';
-import { jwtSecretRequis } from '@app/common';
+import { dureeJetonParent } from './parent-auth.config';
+import { ParentPinLockoutService } from './parent-pin-lockout.service';
+
+interface ParentConnexion {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string | null;
+  phone: string;
+  pinCode: string | null;
+  notifPunchEnabled: boolean;
+  notifProximityEnabled: boolean;
+}
+
+const REQUETE_PARENT_ACTIF = `
+  SELECT id, first_name as "firstName", last_name as "lastName", email, phone, pin_code as "pinCode",
+         notif_punch_enabled as "notifPunchEnabled", notif_proximity_enabled as "notifProximityEnabled"
+  FROM parents
+  WHERE (email = $1 OR phone = $1)
+    AND active = true
+    AND deleted_at IS NULL
+  LIMIT 1
+`;
 
 @Injectable()
 export class ParentPortalService {
@@ -20,93 +52,97 @@ export class ParentPortalService {
     private readonly configService: ConfigService,
     private readonly tenantConnectionService: TenantConnectionService,
     private readonly fcmService: FcmService,
+    private readonly lockout: ParentPinLockoutService,
   ) {}
 
   /**
-   * Connexion d'un parent avec recherche globale (SaaS) ou par code d'école
+   * Connexion d'un parent sur UNE école. Le code établissement est
+   * obligatoire : l'ancien parcours sans `schoolCode` ouvrait chaque base
+   * provisionnée. Un index central des parents relève de TD-022, pas d'ici.
    */
   async login(dto: ParentLoginDto) {
-    const { emailOrPhone, pinCode, schoolCode } = dto;
+    const emailOrPhone = dto.emailOrPhone.trim();
+    const schoolCode = dto.schoolCode.trim();
+    const { pinCode } = dto;
 
-    // 1. Charger les écoles candidates
-    let organisations: Organisation[] = [];
-    if (schoolCode) {
-      const org = await this.organisationRepository.findOne({
-        where: { code: schoolCode, dbProvisioned: true },
-      });
-      if (org) organisations.push(org);
-    } else {
-      organisations = await this.organisationRepository.find({
-        where: { dbProvisioned: true },
-      });
+    this.lockout.assertPasVerrouille(schoolCode, emailOrPhone);
+
+    const org = await this.organisationRepository.findOne({
+      where: { code: schoolCode, dbProvisioned: true },
+    });
+
+    if (!org) {
+      await verifierPinParent(pinCode, null);
+      this.echecAuth(schoolCode, emailOrPhone);
     }
 
-    if (organisations.length === 0) {
-      throw new UnauthorizedException("Aucune école correspondante ou base non initialisée.");
+    let parent: ParentConnexion | undefined;
+    try {
+      const tenantDS = await this.tenantConnectionService.getTenantConnection(
+        org.id,
+      );
+      const result = await tenantDS.query(
+        REQUETE_PARENT_ACTIF,
+        [emailOrPhone],
+      );
+      parent = result?.[0];
+    } catch (err: any) {
+      this.logger.warn(
+        `Erreur lors de la recherche parent sur l'école ${org.name} : ${err.message}`,
+      );
+      throw new UnauthorizedException('Identifiants ou code PIN incorrects.');
     }
 
-    // 2. Parcourir les écoles pour trouver le parent correspondant aux identifiants
-    for (const org of organisations) {
-      try {
-        const tenantDS = await this.tenantConnectionService.getTenantConnection(org.id);
-        
-        // Requête dans le schéma de l'école
-        const parentQuery = `
-          SELECT id, first_name as "firstName", last_name as "lastName", email, phone, pin_code as "pinCode",
-                 notif_punch_enabled as "notifPunchEnabled", notif_proximity_enabled as "notifProximityEnabled"
-          FROM parents
-          WHERE (email = $1 OR phone = $1)
-            AND active = true
-            AND deleted_at IS NULL
-          LIMIT 1
-        `;
-        const result = await tenantDS.query(parentQuery, [emailOrPhone]);
-
-        if (result && result.length > 0) {
-          const parent = result[0];
-          
-          // Vérification du code PIN
-          if (parent.pinCode === pinCode) {
-            // Génération du Token JWT
-            const payload = {
-              sub: parent.id,
-              email: parent.email || parent.phone,
-              role: 'PARENT',
-              organisationId: org.id,
-            };
-
-            const token = await this.jwtService.signAsync(payload, {
-              secret: jwtSecretRequis(this.configService),
-              expiresIn: this.configService.get<string>('JWT_EXPIRES_IN', '7d') as any,
-            });
-
-            this.logger.log(`[Parent Auth] Connexion réussie pour le parent ${parent.firstName} ${parent.lastName} sur le tenant ${org.name}`);
-
-            return {
-              success: true,
-              parent: {
-                id: parent.id,
-                firstName: parent.firstName,
-                lastName: parent.lastName,
-                email: parent.email,
-                phone: parent.phone,
-                notifPunchEnabled: parent.notifPunchEnabled,
-                notifProximityEnabled: parent.notifProximityEnabled,
-              },
-              tenantId: org.id,
-              schoolName: org.name,
-              schoolCode: org.code,
-              token,
-            };
-          }
-        }
-      } catch (err) {
-        this.logger.warn(`Erreur lors de la tentative de recherche parent sur l'école ${org.name} : ${err.message}`);
-      }
+    const pinValide = await verifierPinParent(pinCode, parent?.pinCode);
+    if (!parent || !pinValide) {
+      this.echecAuth(schoolCode, emailOrPhone);
     }
 
-    // Si aucun parent n'a été trouvé avec ces identifiants
-    throw new UnauthorizedException("Identifiants ou code PIN incorrects.");
+    this.lockout.reinitialiser(schoolCode, emailOrPhone);
+
+    // Claims inchangés (rôle PARENT, organisationId) : le cloisonnement
+    // du rôle est TD-003. Seule la durée est raccourcie.
+    const payload = {
+      sub: parent.id,
+      email: parent.email || parent.phone,
+      role: 'PARENT',
+      organisationId: org.id,
+    };
+
+    const token = await this.jwtService.signAsync(payload, {
+      secret: jwtSecretRequis(this.configService),
+      expiresIn: dureeJetonParent(
+        this.configService,
+      ) as JwtSignOptions['expiresIn'],
+    });
+
+    this.logger.log(
+      `[Parent Auth] Connexion réussie pour le parent ${parent.firstName} ${parent.lastName} sur le tenant ${org.name}`,
+    );
+
+    return {
+      success: true,
+      parent: {
+        id: parent.id,
+        firstName: parent.firstName,
+        lastName: parent.lastName,
+        email: parent.email,
+        phone: parent.phone,
+        notifPunchEnabled: parent.notifPunchEnabled,
+        notifProximityEnabled: parent.notifProximityEnabled,
+      },
+      tenantId: org.id,
+      schoolName: org.name,
+      schoolCode: org.code,
+      token,
+    };
+  }
+
+  /** Échec d'authentification : compte l'essai, verrouille au seuil, sinon 401. */
+  private echecAuth(schoolCode: string, emailOrPhone: string): never {
+    this.lockout.enregistrerEchec(schoolCode, emailOrPhone);
+    this.lockout.assertPasVerrouille(schoolCode, emailOrPhone);
+    throw new UnauthorizedException('Identifiants ou code PIN incorrects.');
   }
 
   /**
@@ -234,13 +270,15 @@ export class ParentPortalService {
       [parentId],
     );
     if (!result || result.length === 0) throw new NotFoundException('Parent introuvable.');
-    if (result[0].pinCode !== ancienPin) {
+    const pinActuelValide = await verifierPinParent(ancienPin, result[0].pinCode);
+    if (!pinActuelValide) {
       throw new UnauthorizedException('Code PIN actuel incorrect.');
     }
 
+    const hash = await hasherPinParent(nouveauPin);
     await tenantDS.query(
       `UPDATE parents SET pin_code = $1, updated_at = now() WHERE id = $2`,
-      [nouveauPin, parentId],
+      [hash, parentId],
     );
     return { success: true, message: 'Code PIN modifié avec succès.' };
   }

@@ -1,5 +1,6 @@
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 import { GatewayService } from './gateway.service';
 import { TenantGateService, TenantVerdict } from './tenant-gate.service';
 
@@ -161,6 +162,10 @@ describe('GatewayService', () => {
     await call('GET', '/api/v1/children', { authorization: `Bearer ${t}` });
 
     expect(proxyMocks[SCHOOL]).toHaveBeenCalledTimes(2);
+  });
+
+  it('transmet l’adresse du client (xfwd) pour le plafond de débit du login parent', () => {
+    expect(createProxyMiddleware).toHaveBeenCalledWith(expect.objectContaining({ xfwd: true }));
   });
 
   it('répond 404 pour une route inconnue ou interne', async () => {

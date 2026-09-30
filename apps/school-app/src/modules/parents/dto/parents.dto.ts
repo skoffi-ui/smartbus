@@ -22,8 +22,8 @@ export class CreateParentDto {
    * `ParentsService.create` en génère un aléatoirement — sans ce champ nulle
    * part (ni ici, ni dans le formulaire de Parents.tsx), tout parent créé
    * depuis l'interface école avait `pin_code` NULL en base et ne pouvait
-   * jamais se connecter à l'app (`ParentPortalService.login` compare
-   * `parent.pinCode === pinCode`, toujours faux contre `NULL`).
+   * jamais se connecter à l'app. Le service hashe la valeur avant de
+   * l'enregistrer (`parents.pin_code` contient un hash bcrypt).
    */
   @IsString()
   @IsOptional()
