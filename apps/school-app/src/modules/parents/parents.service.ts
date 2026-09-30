@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Parent } from '@app/database/tenant-entities/parent.entity';
+import { hasherPinParent } from '@app/common/security/parent-pin';
 import { CreateParentDto, UpdateParentDto } from './dto/parents.dto';
 import { TenantService } from '../tenant/tenant.service';
 
@@ -15,16 +20,31 @@ export class ParentsService {
 
   async findAll(): Promise<Parent[]> {
     const repo = await this.getRepo();
-    return repo.find({ order: { createdAt: 'DESC' } });
+    const parents = await repo.find({ order: { createdAt: 'DESC' } });
+    return parents.map((parent) => this.sansPin(parent));
   }
 
   async findOne(id: string): Promise<Parent> {
+    return this.sansPin(await this.charger(id));
+  }
+
+  private async charger(id: string): Promise<Parent> {
     const repo = await this.getRepo();
-    const parent = await repo.findOne({ where: { id }, relations: { children: true } });
+    const parent = await repo.findOne({
+      where: { id },
+      relations: { children: true },
+    });
     if (!parent) {
       throw new NotFoundException(`Parent ${id} introuvable.`);
     }
     return parent;
+  }
+
+  /** La réponse HTTP ne doit jamais exposer le hash (espace de 4 chiffres, attaquable hors ligne). */
+  private sansPin(parent: Parent): Parent {
+    const copie = { ...parent } as Parent;
+    delete (copie as { pinCode?: string }).pinCode;
+    return copie;
   }
 
   /** 4 chiffres, jamais '0000' (évident/faible) — voir CreateParentDto.pinCode. */
@@ -38,48 +58,64 @@ export class ParentsService {
 
   async create(createParentDto: CreateParentDto): Promise<Parent> {
     const repo = await this.getRepo();
-    const existing = await repo.findOne({ where: { phone: createParentDto.phone } });
+    const existing = await repo.findOne({
+      where: { phone: createParentDto.phone },
+    });
     if (existing) {
-      throw new ConflictException(`Un parent avec ce numéro de téléphone existe déjà.`);
+      throw new ConflictException(
+        `Un parent avec ce numéro de téléphone existe déjà.`,
+      );
     }
+    const pinClair = createParentDto.pinCode || this.genererPinAleatoire();
     const parent = repo.create({
       ...createParentDto,
-      pinCode: createParentDto.pinCode || this.genererPinAleatoire(),
+      pinCode: await hasherPinParent(pinClair),
     });
-    return repo.save(parent);
+    const enregistre = await repo.save(parent);
+    // Une seule fois dans la réponse, pour que l'école le communique.
+    // La ligne enregistrée ne contient que le hash.
+    return { ...enregistre, pinCode: pinClair } as Parent;
   }
 
   /**
    * Régénère le code PIN d'un parent (oublié, ou à révoquer après l'avoir
-   * communiqué par un canal jugé compromis). Retourne le parent avec le
-   * nouveau PIN en clair — jamais stocké ailleurs que dans `parents.pin_code`,
-   * jamais journalisé.
+   * communiqué par un canal jugé compromis). La base reçoit le hash bcrypt ;
+   * le PIN en clair n'existe que dans cette réponse, jamais journalisé.
    */
   async regeneratePin(id: string): Promise<Parent> {
     const repo = await this.getRepo();
-    const parent = await this.findOne(id);
-    parent.pinCode = this.genererPinAleatoire();
-    return repo.save(parent);
+    const parent = await this.charger(id);
+    const pinClair = this.genererPinAleatoire();
+    parent.pinCode = await hasherPinParent(pinClair);
+    const enregistre = await repo.save(parent);
+    return { ...enregistre, pinCode: pinClair } as Parent;
   }
 
   async update(id: string, updateParentDto: UpdateParentDto): Promise<Parent> {
     const repo = await this.getRepo();
-    const parent = await this.findOne(id);
-    
+    const parent = await this.charger(id);
+
     if (updateParentDto.phone && updateParentDto.phone !== parent.phone) {
-      const existing = await repo.findOne({ where: { phone: updateParentDto.phone } });
+      const existing = await repo.findOne({
+        where: { phone: updateParentDto.phone },
+      });
       if (existing) {
         throw new ConflictException(`Ce numéro de téléphone est déjà utilisé.`);
       }
     }
 
-    Object.assign(parent, updateParentDto);
-    return repo.save(parent);
+    const { pinCode, ...reste } = updateParentDto;
+    Object.assign(parent, reste);
+    if (pinCode) {
+      parent.pinCode = await hasherPinParent(pinCode);
+    }
+    const enregistre = await repo.save(parent);
+    return this.sansPin(enregistre);
   }
 
   async remove(id: string): Promise<void> {
     const repo = await this.getRepo();
-    const parent = await this.findOne(id);
+    const parent = await this.charger(id);
     await repo.remove(parent);
   }
 }

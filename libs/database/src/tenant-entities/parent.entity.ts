@@ -16,7 +16,13 @@ export class Parent extends SoftDeleteEntityModel {
   @Column({ nullable: true })
   email: string;
 
-  @Column({ name: 'pin_code', length: 4, nullable: true })
+  /**
+   * Hash bcrypt du PIN (coût 12), jamais le code en clair.
+   * varchar(255) : un hash fait 60 caractères. La migration tenant
+   * `HashParentPinCodes1728200000000` élargit la colonne et re-hashe
+   * les valeurs déjà présentes.
+   */
+  @Column({ name: 'pin_code', type: 'varchar', length: 255, nullable: true })
   pinCode: string;
 
   @Column({ name: 'fcm_token', length: 500, nullable: true })

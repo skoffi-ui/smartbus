@@ -47,6 +47,9 @@ export class GatewayService {
     return createProxyMiddleware({
       target: this.targets[target],
       changeOrigin: true,
+      // Ajoute l'adresse du client en fin de X-Forwarded-For. Le login parent
+      // limite le débit par IP : sans ça, super-app ne verrait que la gateway.
+      xfwd: true,
       on: {
         error: (err, _req, res) => {
           this.logger.error(`Service "${target}" injoignable : ${(err as Error).message}`);
